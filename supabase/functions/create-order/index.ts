@@ -334,17 +334,32 @@ Deno.serve(async (req) => {
       }
       return base;
     });
-    const { data: insertedItems, error: itemsError } = await adminClient
-      .from("order_items")
-      .insert(itemsToInsert)
-      .select("id, vendor_id, quantity");
-
-    if (itemsError || !insertedItems) {
-      console.error("order item insertion failed", { orderId: order.id, errorCode: itemsError?.code, errorMessage: itemsError?.message, errorDetails: itemsError?.details });
-      return new Response(JSON.stringify({ error: "Failed to create order items" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // Insert sequentially: the fee trigger reads existing order_items to allocate
+    // processing fees. Multi-row inserts make that calculation order-dependent.
+    // Roll back the unpaid parent order on failure so it cannot be checked out
+    // with an empty or incomplete item set.
+    const insertedItems: Array<{ id: string; vendor_id: string; quantity: number }> = [];
+    for (const [index, item] of itemsToInsert.entries()) {
+      const { data: inserted, error: itemsError } = await adminClient
+        .from("order_items")
+        .insert(item)
+        .select("id, vendor_id, quantity")
+        .single();
+      if (itemsError || !inserted) {
+        console.error("order item insertion failed", {
+          orderId: order.id, itemIndex: index, productId: item.product_id,
+          errorCode: itemsError?.code, errorMessage: itemsError?.message,
+          errorDetails: itemsError?.details,
+        });
+        const { error: cleanupError } = await adminClient
+          .from("orders").delete().eq("id", order.id).eq("payment_status", "pending");
+        if (cleanupError) console.error("failed order cleanup", { orderId: order.id, error: cleanupError.message });
+        return new Response(JSON.stringify({ error: "Unable to save all cart items. Please retry checkout." }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      insertedItems.push(inserted);
     }
 
     // Immutable audit snapshot of the exact tax calculation (CRA evidence).
