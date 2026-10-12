@@ -322,6 +322,7 @@ Deno.serve(async (req) => {
       const base: any = {
         ...oi,
         order_id: order.id,
+        shipping_amount: 0,
         tax_category: lineTax?.category ?? null,
         tax_amount: lineTax ? round2(lineTax.taxCents / 100) : null,
         tax_breakdown: lineTax ? { components: lineTax.components } : null,
@@ -346,11 +347,12 @@ Deno.serve(async (req) => {
         .select("id, vendor_id, quantity")
         .single();
       if (itemsError || !inserted) {
-        console.error("order item insertion failed", {
-          orderId: order.id, itemIndex: index, productId: item.product_id,
+        console.error("order item insertion failed " + JSON.stringify({
+          orderId: order.id, itemIndex: index, itemCount: itemsToInsert.length,
+          productId: item.product_id, variantId: item.variant_id,
           errorCode: itemsError?.code, errorMessage: itemsError?.message,
-          errorDetails: itemsError?.details,
-        });
+          errorDetails: itemsError?.details, errorHint: itemsError?.hint,
+        }));
         const { error: cleanupError } = await adminClient
           .from("orders").delete().eq("id", order.id).eq("payment_status", "pending");
         if (cleanupError) console.error("failed order cleanup", { orderId: order.id, error: cleanupError.message });
