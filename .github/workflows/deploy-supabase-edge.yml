@@ -1,0 +1,55 @@
+name: Deploy Supabase Edge Function (manual)
+on:
+  workflow_dispatch:
+    inputs:
+      function_name:
+        description: "Allowlisted Edge Function"
+        required: true
+        type: choice
+        options:
+          - stripe-initialize
+          - create-order
+          - stripe-verify
+          - get-shipping-rates
+          - shippo-purchase-label
+          - seller-stripe-connect
+      confirm_project_ref:
+        description: "Enter the production Supabase project ref to confirm target"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-production-edge-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 15
+    steps:
+      - name: Check target and required configuration
+        env:
+          EXPECTED_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+          CONFIRM_REF: ${{ inputs.confirm_project_ref }}
+          ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$EXPECTED_REF" || { echo "Missing production environment variable SUPABASE_PROJECT_REF"; exit 1; }
+          test -n "$ACCESS_TOKEN" || { echo "Missing production environment secret SUPABASE_ACCESS_TOKEN"; exit 1; }
+          test "$CONFIRM_REF" = "$EXPECTED_REF" || { echo "Project reference mismatch"; exit 1; }
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Deploy selected function only
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+          FUNCTION_NAME: ${{ inputs.function_name }}
+        run: |
+          set -euo pipefail
+          supabase functions deploy "$FUNCTION_NAME" --project-ref "$PROJECT_REF"
