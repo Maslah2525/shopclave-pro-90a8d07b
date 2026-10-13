@@ -30,7 +30,7 @@ const paymentMethods = [
 ];
 
 const assuranceItems = [
-  { icon: LockKeyhole, title: "Secure checkout", detail: "Encrypted payment processing", href: "/payment-policy" },
+  { icon: LockKeyhole, title: "Secure checkout", detail: "Encrypted payment processing", href: "/help" },
   { icon: RotateCcw, title: "7-day returns", detail: "On eligible purchases", href: "/return-policy" },
   { icon: Truck, title: "Tracked delivery", detail: "Updates on supported shipments", href: "/delivery" },
   { icon: Headphones, title: "Customer support", detail: "Help when you need it", href: "/contact" },
