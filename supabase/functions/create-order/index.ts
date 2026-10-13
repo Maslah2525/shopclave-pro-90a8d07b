@@ -114,11 +114,11 @@ Deno.serve(async (req) => {
 
     // Fetch variant prices if needed
     const variantIds = items.filter((i) => i.variant_id).map((i) => i.variant_id!);
-    let variantMap = new Map<string, { price: number | null; stock: number }>();
+    let variantMap = new Map<string, { product_id: string; price: number | null; stock: number }>();
     if (variantIds.length > 0) {
       const { data: variants } = await adminClient
         .from("product_variants")
-        .select("id, price, stock")
+        .select("id, product_id, price, stock")
         .in("id", variantIds);
       if (variants) {
         variantMap = new Map(variants.map((v) => [v.id, v]));
@@ -133,7 +133,9 @@ Deno.serve(async (req) => {
       .in("id", vendorIds);
     const vendorMap = new Map((vendors || []).map((v) => [v.id, v]));
 
-    // Validate and calculate
+    // Validate and calculate. Stock must cover the combined quantity when
+    // a product/variant appears on multiple cart lines.
+    const requestedStock = new Map<string, number>();
     let total = 0;
     const orderItems: Array<{
       product_id: string;
@@ -171,11 +173,19 @@ Deno.serve(async (req) => {
             { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
+        if (variant.product_id !== item.product_id) {
+          return new Response(JSON.stringify({ error: "Selected variant does not belong to this product." }), {
+            status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
         if (variant.price !== null) unitPrice = variant.price;
         availableStock = variant.stock;
       }
 
-      if (item.quantity > availableStock) {
+      const stockKey = item.variant_id ? `variant:${item.variant_id}` : `product:${item.product_id}`;
+      const combinedQuantity = (requestedStock.get(stockKey) ?? 0) + item.quantity;
+      requestedStock.set(stockKey, combinedQuantity);
+      if (combinedQuantity > availableStock) {
         return new Response(
           JSON.stringify({ error: `Insufficient stock for ${product.name}` }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
