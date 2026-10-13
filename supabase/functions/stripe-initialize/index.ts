@@ -149,13 +149,26 @@ Deno.serve(async (req) => {
       return json({ error: "Could not start Stripe checkout" }, 502);
     }
 
-    await admin.from("orders").update({
+    // Never redirect the customer to Stripe unless the session is durably
+    // associated with the pending order. Otherwise webhook reconciliation and
+    // retries may not have a reliable local session reference.
+    const { data: savedOrder, error: saveError } = await admin.from("orders").update({
       payment_provider: "stripe",
       stripe_checkout_session_id: session.id,
       charged_currency: "CAD",
       charged_amount: totalCad,
       updated_at: new Date().toISOString(),
-    }).eq("id", order.id);
+    }).eq("id", order.id).eq("payment_status", "pending")
+      .select("id,stripe_checkout_session_id").maybeSingle();
+
+    if (saveError || savedOrder?.stripe_checkout_session_id !== session.id) {
+      console.error("Stripe session persistence failed", {
+        order_id: order.id,
+        session_id: session.id,
+        error: saveError?.message ?? "Order no longer pending or missing",
+      });
+      return json({ error: "Could not finalize checkout session. You have not been redirected to payment." }, 503);
+    }
 
     return json({ url: session.url, session_id: session.id, currency: "CAD", amount: totalCad });
   } catch (error) {
