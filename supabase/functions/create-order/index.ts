@@ -133,7 +133,10 @@ Deno.serve(async (req) => {
       .in("id", vendorIds);
     const vendorMap = new Map((vendors || []).map((v) => [v.id, v]));
 
-    // Validate and calculate. Stock must cover the combined quantity when\n    // a product/variant appears on multiple cart lines.\n    const requestedStock = new Map<string, number>();\n    let total = 0;
+    // Validate and calculate. Stock must cover the combined quantity when
+    // a product/variant appears on multiple cart lines.
+    const requestedStock = new Map<string, number>();
+    let total = 0;
     const orderItems: Array<{
       product_id: string;
       vendor_id: string;
@@ -170,11 +173,19 @@ Deno.serve(async (req) => {
             { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
-        if (variant.product_id !== item.product_id) {\n          return new Response(JSON.stringify({ error: "Selected variant does not belong to this product." }), {\n            status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },\n          });\n        }\n        if (variant.price !== null) unitPrice = variant.price;
+        if (variant.product_id !== item.product_id) {
+          return new Response(JSON.stringify({ error: "Selected variant does not belong to this product." }), {
+            status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if (variant.price !== null) unitPrice = variant.price;
         availableStock = variant.stock;
       }
 
-      const stockKey = item.variant_id ? `variant:${item.variant_id}` : `product:${item.product_id}`;\n      const combinedQuantity = (requestedStock.get(stockKey) ?? 0) + item.quantity;\n      requestedStock.set(stockKey, combinedQuantity);\n      if (combinedQuantity > availableStock) {
+      const stockKey = item.variant_id ? `variant:${item.variant_id}` : `product:${item.product_id}`;
+      const combinedQuantity = (requestedStock.get(stockKey) ?? 0) + item.quantity;
+      requestedStock.set(stockKey, combinedQuantity);
+      if (combinedQuantity > availableStock) {
         return new Response(
           JSON.stringify({ error: `Insufficient stock for ${product.name}` }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
