@@ -65,6 +65,7 @@ const AdminVendors = () => {
 
   const updateVendorStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      if (status === "approved") throw new Error("Seller approval must use the verified application workflow. Review the application under Seller Applications.");
       const { error } = await supabase.from("vendors").update({ status }).eq("id", id);
       if (error) throw error;
     },
@@ -87,7 +88,7 @@ const AdminVendors = () => {
 
   return (
     <div>
-      <AdminPageHeader title="Vendor Management" subtitle="Approve, suspend, or review marketplace vendors." count={vendors?.length || 0} countLabel="vendors">
+      <AdminPageHeader title="Vendor Management" subtitle="Review marketplace vendors. New seller approvals require verified applications." count={vendors?.length || 0} countLabel="vendors">
         <div className="relative w-full sm:w-64">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Search vendors..." className="pl-9 h-9 bg-card" value={search} onChange={(e) => setSearch(e.target.value)} />
@@ -149,7 +150,7 @@ const AdminVendors = () => {
                     <td><span className={`status-pill ${statusPill(v.status)}`}>{v.status}</span></td>
                     <td>
                       <div className="flex gap-1 justify-end">
-                        {v.status !== "approved" && (
+                        {false && v.status !== "approved" && (
                           <Button size="sm" variant="ghost" className="h-8 px-2 text-success hover:text-success hover:bg-success/10" onClick={() => updateVendorStatus.mutate({ id: v.id, status: "approved" })}>
                             <CheckCircle className="h-4 w-4" />
                           </Button>
