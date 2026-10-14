@@ -78,6 +78,19 @@ const AccountPage = () => {
     },
   });
 
+  const { data: returnRequests, isError: returnsError } = useQuery({
+    queryKey: ["my-return-requests", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("return_requests")
+        .select("id, order_id, order_item_id, status, reason, created_at, refund_amount_cad")
+        .eq("user_id", user!.id)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   const { data: profile } = useQuery({
     queryKey: ["profile", user?.id],
     enabled: !!user,
@@ -159,6 +172,7 @@ const AccountPage = () => {
               const deliveryFee = Number(order.shipping_amount_cad ?? Math.max(0, Number(order.total) - subtotal));
               const addr = order.shipping_address || {};
               const currentStep = stepIndex(order.status);
+              const orderReturns = (returnRequests || []).filter((request) => request.order_id === order.id);
               const showTimeline = !["cancelled", "refunded", "returned"].includes(order.status) && order.payment_status === "paid";
 
               return (
@@ -262,6 +276,8 @@ const AccountPage = () => {
                         <Link to={`/orders/${order.id}/chat`}><Button size="sm" variant="outline">Discuss return or refund</Button></Link>
                         <Link to={`/orders/${order.id}/chat`}><Button size="sm" variant="outline" className="gap-1.5"><ShieldCheck className="h-3.5 w-3.5" /> Buyer protection / dispute</Button></Link>
                       </div>
+                      {orderReturns.length > 0 && <div className="bg-card border border-border rounded-md p-3 space-y-2"><h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Return and refund requests</h3>{orderReturns.map((request) => <div key={request.id} className="text-sm flex flex-wrap justify-between gap-2"><span>{request.reason}</span><span className="font-medium">{request.status.replace(/_/g, " ")}</span></div>)}<p className="text-xs text-muted-foreground">A request status does not confirm a refund has reached your payment method.</p></div>}
+                      {returnsError && <p role="alert" className="text-xs text-muted-foreground">Return request statuses are temporarily unavailable.</p>}
                       {/* Items */}
                       <div>
                         <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
