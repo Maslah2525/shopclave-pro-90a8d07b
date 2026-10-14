@@ -5,7 +5,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Link, useNavigate } from "react-router-dom";
-import { useLocale } from "@/hooks/useLocale";
 import { Button } from "@/components/ui/button";
 import {
   Package,
@@ -56,7 +55,7 @@ const stepIndex = (status: string) => {
 const AccountPage = () => {
   const { user, userRoles, signOut } = useAuth();
   const navigate = useNavigate();
-  const { formatPrice } = useLocale();
+  const formatPrice = (amount: number | string | null | undefined) => new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" }).format(Number(amount ?? 0));
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
