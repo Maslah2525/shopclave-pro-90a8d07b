@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useOutletContext } from "react-router-dom";
+import { useOutletContext, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { DollarSign, TrendingUp, Wallet, Clock, ArrowDownToLine } from "lucide-react";
+import { DollarSign, TrendingUp, Wallet, Clock, ArrowDownToLine, AlertCircle } from "lucide-react";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
 
@@ -37,23 +37,25 @@ const VendorEarnings = () => {
     setPaymentDetails({});
   };
 
-  const { data: orderItems } = useQuery({
+  const { data: orderItems, isError: ordersError, isLoading: ordersLoading } = useQuery({
     queryKey: ["vendor-orders", vendor?.id],
     queryFn: async () => {
-      const { data } = await supabase.from("order_items").select("*, products(name)").eq("vendor_id", vendor.id);
+      const { data, error } = await supabase.from("order_items").select("*, products(name), orders!inner(payment_status)").eq("vendor_id", vendor.id).eq("orders.payment_status", "paid");
+      if (error) throw error;
       return data || [];
     },
     enabled: !!vendor,
   });
 
-  const { data: withdrawals } = useQuery({
+  const { data: withdrawals, isError: withdrawalsError, isLoading: withdrawalsLoading } = useQuery({
     queryKey: ["vendor-withdrawals", vendor?.id],
     queryFn: async () => {
-      const { data } = await (supabase as any)
+      const { data, error } = await (supabase as any)
         .from("withdrawal_requests")
         .select("*")
         .eq("vendor_id", vendor.id)
         .order("requested_at", { ascending: false });
+      if (error) throw error;
       return data || [];
     },
     enabled: !!vendor,
@@ -66,6 +68,7 @@ const VendorEarnings = () => {
     ?.filter((w: any) => w.status === "completed" || w.status === "pending" || w.status === "approved")
     .reduce((s: number, w: any) => s + Number(w.amount), 0) || 0;
   const availableBalance = netEarnings - withdrawnOrPending;
+  const balancesReady = !ordersLoading && !withdrawalsLoading && !ordersError && !withdrawalsError;
 
   const topProducts = (() => {
     const map: Record<string, { name: string; units: number; revenue: number }> = {};
@@ -93,6 +96,7 @@ const VendorEarnings = () => {
   const requestWithdrawal = useMutation({
     mutationFn: async () => {
       const amt = parseFloat(amount);
+      if (!balancesReady) throw new Error("Balance information is unavailable. Please retry.");
       if (!amt || amt <= 0 || amt > availableBalance) throw new Error("Invalid amount");
       const detailError = validateDetails();
       if (detailError) throw new Error(detailError);
@@ -131,9 +135,11 @@ const VendorEarnings = () => {
     <div className="space-y-5">
       <AdminPageHeader
         title="Earnings & Withdrawals"
-        subtitle="Track revenue, fees, and request payouts to your preferred method."
+        subtitle="Review earnings from confirmed paid orders and withdrawal history."
       />
 
+      {(ordersError || withdrawalsError) && <div className="admin-card p-3 text-sm text-destructive flex items-center gap-2"><AlertCircle className="h-4 w-4" /> Earnings data could not be loaded. Balances are unavailable until the connection is restored.</div>}
+      {(ordersLoading || withdrawalsLoading) && <p className="text-sm text-muted-foreground">Loading confirmed earnings…</p>}
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {stats.map((s) => (
@@ -149,6 +155,7 @@ const VendorEarnings = () => {
         ))}
       </div>
 
+      <p className="text-xs text-muted-foreground">Figures include confirmed paid orders only. Available balance is an estimate based on recorded commissions and withdrawal requests; final settlement and eligibility are subject to reconciliation.</p>
       {/* Withdrawal Form */}
       <div className="admin-card p-6">
         <div className="flex items-center gap-2 mb-4">
@@ -156,9 +163,10 @@ const VendorEarnings = () => {
           <h3 className="font-semibold">Request Withdrawal</h3>
         </div>
         <div className="space-y-4">
+          <p className="text-xs text-muted-foreground">For Stripe Connect payouts, use <Link to="/vendor/payments" className="text-primary underline">Payment settings</Link>. Manual withdrawal requests require administrator review and do not initiate an automatic transfer.</p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <Label>Amount (USD)</Label>
+              <Label>Amount (CAD)</Label>
               <Input type="number" placeholder="0" value={amount} onChange={(e) => setAmount(e.target.value)} max={availableBalance} />
             </div>
             <div>
@@ -207,7 +215,7 @@ const VendorEarnings = () => {
             </div>
           )}
 
-          <Button onClick={() => requestWithdrawal.mutate()} disabled={requestWithdrawal.isPending || availableBalance <= 0}>
+          <Button onClick={() => requestWithdrawal.mutate()} disabled={requestWithdrawal.isPending || !balancesReady || availableBalance <= 0}>
             {requestWithdrawal.isPending ? "Submitting..." : "Request Withdrawal"}
           </Button>
         </div>
