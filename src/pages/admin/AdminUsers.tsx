@@ -40,7 +40,7 @@ const AdminUsers = () => {
 
   const addRole = useMutation({
     mutationFn: async ({ user_id, role }: { user_id: string; role: string }) => {
-      const { error } = await supabase.from("user_roles").insert({ user_id, role } as any);
+      throw new Error("Direct role grants are disabled. Use the verified seller onboarding process or a separately audited privileged administrator workflow.");
       if (error) throw error;
     },
     onSuccess: () => {
@@ -59,7 +59,7 @@ const AdminUsers = () => {
 
   return (
     <div>
-      <AdminPageHeader title="User Management" subtitle="Assign roles and manage marketplace participants." count={profiles?.length || 0} countLabel="users">
+      <AdminPageHeader title="User Management" subtitle="Review marketplace participants. Privileged role assignments require verified onboarding and authorization." count={profiles?.length || 0} countLabel="users">
         <div className="relative w-full sm:w-64">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Search by name..." className="pl-9 h-9 bg-card" value={search} onChange={(e) => setSearch(e.target.value)} />
@@ -108,12 +108,12 @@ const AdminUsers = () => {
                       <td className="text-muted-foreground text-xs">{new Date(p.created_at).toLocaleDateString()}</td>
                       <td>
                         <div className="flex gap-1 justify-end">
-                          {!userRoles.includes("vendor") && (
+                          {false && !userRoles.includes("vendor") && (
                             <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => addRole.mutate({ user_id: p.user_id, role: "vendor" })}>
                               + Vendor
                             </Button>
                           )}
-                          {!userRoles.includes("admin") && (
+                          {false && !userRoles.includes("admin") && (
                             <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => addRole.mutate({ user_id: p.user_id, role: "admin" })}>
                               + Admin
                             </Button>
