@@ -12,12 +12,12 @@ const OrderTrackingPage = () => {
   const { orderId } = useParams();
   const { formatPrice } = useLocale();
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["order-tracking", orderId],
     enabled: !!orderId,
     refetchInterval: 60000,
     queryFn: async () => {
-      const [{ data: order }, { data: shipments }, { data: items }] = await Promise.all([
+      const [orderResult, shipmentResult, itemResult] = await Promise.all([
         supabase.from("orders").select("*").eq("id", orderId!).maybeSingle(),
         supabase
           .from("shipments")
@@ -30,13 +30,20 @@ const OrderTrackingPage = () => {
           .eq("order_id", orderId!),
       ]);
 
+      if (orderResult.error) throw orderResult.error;
+      if (shipmentResult.error) throw shipmentResult.error;
+      if (itemResult.error) throw itemResult.error;
+      const order = orderResult.data;
+      const shipments = shipmentResult.data;
+      const items = itemResult.data;
       const shipmentIds = (shipments || []).map((s: any) => s.id);
-      const { data: events } = shipmentIds.length
+      const { data: events, error: eventsError } = shipmentIds.length
         ? await supabase
             .from("tracking_events")
             .select("*")
             .in("shipment_id", shipmentIds)
-        : { data: [] as any[] };
+        : { data: [] as any[], error: null };
+      if (eventsError) throw eventsError;
 
       return { order, shipments: shipments || [], items: items || [], events: events || [] };
     },
@@ -50,6 +57,10 @@ const OrderTrackingPage = () => {
         </div>
       </MarketplaceLayout>
     );
+  }
+
+  if (isError) {
+    return <MarketplaceLayout><div className="container py-20 text-center space-y-4" role="alert"><p>Tracking information is temporarily unavailable. Please try again.</p><Button variant="outline" onClick={() => void refetch()}>Retry tracking</Button></div></MarketplaceLayout>;
   }
 
   if (!data?.order) {
@@ -77,6 +88,10 @@ const OrderTrackingPage = () => {
             {new Date(order.created_at).toLocaleDateString()} • {formatPrice(Number(order.total))}
           </p>
         </div>
+
+        {order.payment_status !== "paid" && (
+          <div className="rounded-lg border border-border p-4 text-sm text-muted-foreground">Payment is not yet confirmed for this order. Shipping progress is not guaranteed until payment is confirmed.</div>
+        )}
 
         {shipments.length === 0 && (
           <div className="rounded-lg border border-border p-6 text-sm text-muted-foreground">
@@ -137,6 +152,7 @@ const OrderTrackingPage = () => {
                 {s.estimated_delivery && (
                   <p>Estimated delivery: {new Date(s.estimated_delivery).toLocaleDateString()}</p>
                 )}
+                {!hasShipped(s.status) && <p>Tracking details are not yet confirmed by a carrier.</p>}
                 <p className="inline-flex items-center gap-1">
                   <Truck className="h-3.5 w-3.5" /> Shipping {formatPrice(Number(s.shipping_amount_cad))}
                 </p>
