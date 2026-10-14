@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useOutletContext } from "react-router-dom";
+import { Link, useOutletContext } from "react-router-dom";
 import VendorProfileChecklist from "@/components/vendor/VendorProfileChecklist";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -163,10 +163,8 @@ const VendorSettings = () => {
     phone2: vendor.phone2 || "",
     whatsapp: vendor.whatsapp || "",
     website: vendor.website || "",
-    payment_details: vendor.payment_details || {},
     warehouse_address: vendor.warehouse_address || {},
   });
-  const paymentDetails = asJsonRecord(form.payment_details);
   const warehouse = asJsonRecord(form.warehouse_address);
   const [saving, setSaving] = useState(false);
 
@@ -181,7 +179,6 @@ const VendorSettings = () => {
       phone2: vendor.phone2 || "",
       whatsapp: vendor.whatsapp || "",
       website: vendor.website || "",
-      payment_details: asJsonRecord(vendor.payment_details),
       warehouse_address: asJsonRecord(vendor.warehouse_address),
     });
   }, [vendor]);
@@ -293,7 +290,7 @@ const VendorSettings = () => {
 
         <div>
           <Label>Phone Number *</Label>
-          <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+254 7XX XXX XXX" />
+          <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+1 416 555 0123" />
         </div>
         <div>
           <Label>Phone Number 2 (Optional)</Label>
@@ -371,34 +368,11 @@ const VendorSettings = () => {
           </div>
         </div>
 
-        <h3 className="font-semibold pt-2 border-t border-border">Payment Details</h3>
-        <p className="text-xs text-muted-foreground">Customers will see these payment instructions at checkout.</p>
-
-        <div>
-          <Label>Bank Name</Label>
-          <Input
-            value={String(paymentDetails.bank_name || "")}
-            onChange={(e) => setForm({ ...form, payment_details: { ...paymentDetails, bank_name: e.target.value } })}
-            placeholder="e.g., KCB, Equity"
-          />
-        </div>
-        <div>
-          <Label>Bank Account Number</Label>
-          <Input
-            value={String(paymentDetails.bank_account || "")}
-            onChange={(e) => setForm({ ...form, payment_details: { ...paymentDetails, bank_account: e.target.value } })}
-            placeholder="Account number"
-          />
-        </div>
-        <div>
-          <Label>Custom Payment Instructions</Label>
-          <Textarea
-            value={String(paymentDetails.custom_instructions || "")}
-            onChange={(e) => setForm({ ...form, payment_details: { ...paymentDetails, custom_instructions: e.target.value } })}
-            placeholder="Any additional payment instructions for customers..."
-            rows={2}
-          />
-        </div>
+        <h3 className="font-semibold pt-2 border-t border-border">Secure Payout Settings</h3>
+        <p className="text-xs text-muted-foreground">
+          Bank details for seller payouts are collected securely through Stripe Connect, not published as customer-facing checkout instructions.
+          <Link to="/vendor/payments" className="ml-1 text-primary underline">Manage Stripe payout account</Link>.
+        </p>
 
         <Button onClick={handleSave} disabled={saving} className="w-full">
           {saving ? "Saving..." : "Save Settings"}
