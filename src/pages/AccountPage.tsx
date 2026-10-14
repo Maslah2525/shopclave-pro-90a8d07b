@@ -259,8 +259,8 @@ const AccountPage = () => {
 
                       <div className="flex flex-wrap gap-2">
                         <Link to={`/orders/${order.id}/tracking`}><Button size="sm" variant="outline" className="gap-1.5"><Truck className="h-3.5 w-3.5" /> Track parcels</Button></Link>
-                        <Link to="/contact"><Button size="sm" variant="outline">Request return or refund</Button></Link>
-                        <Link to="/contact"><Button size="sm" variant="outline" className="gap-1.5"><ShieldCheck className="h-3.5 w-3.5" /> Buyer protection help</Button></Link>
+                        <Link to={`/orders/${order.id}/chat`}><Button size="sm" variant="outline">Discuss return or refund</Button></Link>
+                        <Link to={`/orders/${order.id}/chat`}><Button size="sm" variant="outline" className="gap-1.5"><ShieldCheck className="h-3.5 w-3.5" /> Buyer protection / dispute</Button></Link>
                       </div>
                       {/* Items */}
                       <div>
