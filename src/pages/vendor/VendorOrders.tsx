@@ -24,11 +24,12 @@ const VendorOrders = () => {
   const { data: orderItems } = useQuery({
     queryKey: ["vendor-orders", vendor?.id],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("order_items")
         .select("*, orders(status, created_at, shipping_address, total, payment_method, payment_status), products(name)")
         .eq("vendor_id", vendor.id)
         .order("created_at", { ascending: false });
+      if (error) throw error;
       return data || [];
     },
     enabled: !!vendor,
@@ -36,8 +37,16 @@ const VendorOrders = () => {
 
   const updateStatus = useMutation({
     mutationFn: async ({ id, status, productName, orderId }: { id: string; status: string; productName?: string; orderId?: string }) => {
+      // Recheck payment and ownership immediately before advancing fulfillment.
+      const { data: current, error: lookupError } = await supabase.from("order_items")
+        .select("id,status,vendor_id,orders(payment_status)")
+        .eq("id", id).eq("vendor_id", vendor.id).single();
+      if (lookupError || !current) throw new Error("Order item not found");
+      if ((current.orders as any)?.payment_status !== "paid") throw new Error("Payment must be confirmed before fulfillment");
+      const next = orderStatusFlow[orderStatusFlow.indexOf(current.status) + 1];
+      if (!next || next !== status) throw new Error("Invalid fulfillment status transition");
       // Customer notification is created by the database when the status changes.
-      const { error } = await supabase.from("order_items").update({ status }).eq("id", id);
+      const { error } = await supabase.from("order_items").update({ status }).eq("id", id).eq("vendor_id", vendor.id).eq("status", current.status);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -103,8 +112,8 @@ const VendorOrders = () => {
                 <tbody>
                   {orderItems.map((item: any) => {
                     const idx = orderStatusFlow.indexOf(item.status);
-                    const next = idx < orderStatusFlow.length - 1 ? orderStatusFlow[idx + 1] : null;
                     const order = item.orders as any;
+                    const next = order?.payment_status === "paid" && idx >= 0 && idx < orderStatusFlow.length - 1 ? orderStatusFlow[idx + 1] : null;
                     const addr = order?.shipping_address as any;
                     const cityCountry = [addr?.city, addr?.country].filter(Boolean).join(", ");
                     return (
