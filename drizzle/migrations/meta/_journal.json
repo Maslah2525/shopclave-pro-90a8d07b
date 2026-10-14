@@ -155,6 +155,13 @@
       "when": 1792021397791,
       "tag": "0021_secure_customer_return_submission",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1792021430970,
+      "tag": "0022_restrict_customer_return_to_signed_in",
+      "breakpoints": true
     }
   ]
 }
