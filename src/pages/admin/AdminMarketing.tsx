@@ -900,6 +900,41 @@ const BannersTab = () => {
   );
 };
 
+const CatalogSponsorPicker = ({ onPick }: { onPick: (p: { name: string; slug: string; price: number; image: string }) => void }) => {
+  const [search, setSearch] = useState("");
+  const debounced = useDebounced(search);
+  const { data: products = [], isFetching, isError } = useQuery({
+    queryKey: ["sponsor-catalog", debounced],
+    queryFn: async () => {
+      let q = supabase.from("products").select("id,name,slug,price,product_images(url,position)").eq("status", "active").limit(30);
+      if (debounced.trim()) q = q.ilike("name", `%${debounced.trim()}%`);
+      const { data, error } = await q;
+      if (error) throw error;
+      return data || [];
+    },
+  });
+  return <div className="space-y-2">
+    <Label>Choose an existing product *</Label>
+    <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search products…" />
+    <div className="max-h-60 overflow-y-auto rounded border divide-y">
+      {isFetching && <p className="p-3 text-xs">Searching…</p>}
+      {isError && <p className="p-3 text-xs text-destructive">Could not load products.</p>}
+      {!isFetching && !isError && products.length === 0 && <p className="p-3 text-xs">No active products found.</p>}
+      {!isFetching && !isError && products.map((p) => {
+        const image = [...(p.product_images || [])].sort((a, b) => a.position - b.position)[0]?.url || "";
+        return <button key={p.id} type="button" className="flex w-full items-center gap-3 p-2 text-left hover:bg-muted/50" onClick={() => {
+          if (!image) { toast.error("Product has no image"); return; }
+          onPick({ name: p.name, slug: p.slug, price: p.price, image });
+        }}>
+          {image && <img src={image} alt="" className="h-12 w-12 rounded object-cover" />}
+          <span className="flex-1 truncate text-sm">{p.name}<span className="block text-xs text-muted-foreground">CAD ${Number(p.price).toFixed(2)}</span></span>
+          <span className="text-xs text-primary">Select</span>
+        </button>;
+      })}
+    </div>
+  </div>;
+};
+
 // ----- Promotions tab -----
 const emptyPromo = {
   kind: "brand" as "brand" | "product",
@@ -917,6 +952,7 @@ const PromotionsTab = () => {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [form, setForm] = useState<any>(emptyPromo);
+  const [selectedProduct, setSelectedProduct] = useState("");
 
   const { data: promos } = useQuery({
     queryKey: ["admin-promotions"],
@@ -931,6 +967,7 @@ const PromotionsTab = () => {
     mutationFn: async () => {
       if (!form.image_url) throw new Error("Image is required");
       if (!form.title.trim()) throw new Error("Title is required");
+      if (form.placement === "sponsored_products" && parseDestination(form.link_url).mode !== "product") throw new Error("Choose a catalog product");
       if (editing) {
         const { error } = await supabase.from("promotions").update(form).eq("id", editing.id);
         if (error) throw error;
@@ -975,6 +1012,7 @@ const PromotionsTab = () => {
 
   const startCreate = (placement?: keyof typeof PLACEMENTS) => {
     setEditing(null);
+    setSelectedProduct("");
     const p = placement || "featured_brands";
     setForm({ ...emptyPromo, placement: p, kind: PLACEMENTS[p].kind });
     setOpen(true);
@@ -982,6 +1020,7 @@ const PromotionsTab = () => {
 
   const startEdit = (p: any) => {
     setEditing(p);
+    setSelectedProduct(p.placement === "sponsored_products" ? parseDestination(p.link_url || "").slug : "");
     setForm({
       kind: p.kind, placement: p.placement, title: p.title || "", subtitle: p.subtitle || "",
       image_url: p.image_url || "", link_url: p.link_url || "/", display_order: p.display_order || 0,
@@ -994,7 +1033,8 @@ const PromotionsTab = () => {
   const handlePlacementChange = (v: string) => {
     const meta = PLACEMENTS[v];
     if (!meta) return;
-    setForm((prev: any) => ({ ...prev, placement: v, kind: meta.kind, image_url: "" }));
+    setSelectedProduct("");
+    setForm((prev: any) => ({ ...prev, placement: v, kind: meta.kind, image_url: "", title: "", subtitle: "", link_url: "/" }));
   };
 
   const currentSpec = PLACEMENTS[form.placement]?.spec || SPECS.brand;
@@ -1101,25 +1141,28 @@ const PromotionsTab = () => {
               </p>
             </div>
 
-            <ImageField
-              label="Image *"
-              value={form.image_url}
-              spec={currentSpec}
-              prefix={`promotions/${form.kind}`}
-              onChange={(url) => setForm({ ...form, image_url: url })}
-            />
-            <div>
+            {form.placement === "sponsored_products" ? <>
+              <CatalogSponsorPicker onPick={(p) => {
+                setSelectedProduct(p.slug);
+                setForm((prev: any) => ({ ...prev, title: p.name, subtitle: `CAD ${Number(p.price).toFixed(2)}`, image_url: p.image, link_url: `/product/${p.slug}` }));
+              }} />
+              {selectedProduct && <div className="flex items-center gap-3 rounded border p-3">
+                <img src={form.image_url} alt={form.title} className="h-20 w-20 rounded object-cover" />
+                <div><p className="font-medium">{form.title}</p><p className="text-sm">{form.subtitle}</p></div>
+              </div>}
+            </> : <ImageField label="Image *" value={form.image_url} spec={currentSpec} prefix={`promotions/${form.kind}`} onChange={(url) => setForm({ ...form, image_url: url })} />}
+            {form.placement !== "sponsored_products" && <div>
               <Label>Title *</Label>
               <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
-            </div>
-            <div>
+            </div>}
+            {form.placement !== "sponsored_products" && <div>
               <Label>Subtitle (optional)</Label>
               <Input value={form.subtitle} onChange={(e) => setForm({ ...form, subtitle: e.target.value })} placeholder="Up to 50% off" />
-            </div>
-            <DestinationPicker
+            </div>}
+            {form.placement !== "sponsored_products" && <DestinationPicker
               value={form.link_url}
               onChange={(url) => setForm((prev: any) => ({ ...prev, link_url: url }))}
-            />
+            />}
             <div className="flex items-center gap-2">
               <Switch checked={form.is_active} onCheckedChange={(c) => setForm({ ...form, is_active: c })} />
               <Label>Active</Label>
