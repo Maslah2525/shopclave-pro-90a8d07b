@@ -116,13 +116,17 @@ Deno.serve(async (req) => {
     const variantIds = items.filter((i) => i.variant_id).map((i) => i.variant_id!);
     let variantMap = new Map<string, { product_id: string; price: number | null; stock: number }>();
     if (variantIds.length > 0) {
-      const { data: variants } = await adminClient
+      const { data: variants, error: variantError } = await adminClient
         .from("product_variants")
         .select("id, product_id, price, stock")
         .in("id", variantIds);
-      if (variants) {
-        variantMap = new Map(variants.map((v) => [v.id, v]));
+      if (variantError || !variants) {
+        console.error("create-order variant lookup failed", { code: variantError?.code, message: variantError?.message });
+        return new Response(JSON.stringify({ error: "Could not validate selected product options. Please retry checkout." }), {
+          status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
+      variantMap = new Map(variants.map((v) => [v.id, v]));
     }
 
     // Fetch vendor commission rates
