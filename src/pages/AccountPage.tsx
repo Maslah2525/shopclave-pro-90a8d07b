@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import MarketplaceLayout from "@/components/layout/MarketplaceLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Link, useNavigate } from "react-router-dom";
+import { useLocale } from "@/hooks/useLocale";
 import { Button } from "@/components/ui/button";
 import {
   Package,
@@ -19,6 +20,7 @@ import {
   Truck,
   PackageCheck,
   Heart,
+  ShieldCheck,
 } from "lucide-react";
 
 const PAYMENT_LABEL: Record<string, string> = {
@@ -49,29 +51,29 @@ const stepIndex = (status: string) => {
   return idx >= 0 ? idx : 0;
 };
 
-// fmtKsh replaced by useLocale().formatPrice — kept stub for compatibility
-const fmtKsh = (n: number) => String(Math.round(Number(n || 0)));
 
 const AccountPage = () => {
   const { user, userRoles, signOut } = useAuth();
   const navigate = useNavigate();
+  const { formatPrice } = useLocale();
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (!user) navigate("/auth");
   }, [user, navigate]);
 
-  const { data: orders } = useQuery({
+  const { data: orders, isLoading: ordersLoading, isError: ordersError, refetch: retryOrders } = useQuery({
     queryKey: ["my-orders-detailed", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("orders")
         .select(
           `*, order_items(*, products(name, vendor_id, vendors(store_name), product_images(url, position)))`
         )
         .eq("user_id", user!.id)
         .order("created_at", { ascending: false });
+      if (error) throw error;
       return data || [];
     },
   });
@@ -137,7 +139,11 @@ const AccountPage = () => {
           <Package className="h-5 w-5" /> My Orders
         </h2>
 
-        {orders?.length ? (
+        {ordersLoading ? (
+          <div className="text-center py-12 text-muted-foreground">Loading your orders…</div>
+        ) : ordersError ? (
+          <div role="alert" className="text-center py-12 bg-card rounded-lg border border-border space-y-3"><p>We could not load your orders. Please try again.</p><Button variant="outline" onClick={() => void retryOrders()}>Retry</Button></div>
+        ) : orders?.length ? (
           <div className="space-y-3">
             {orders.map((order: any) => {
               const isOpen = !!expanded[order.id];
@@ -150,9 +156,10 @@ const AccountPage = () => {
                 (acc: number, it: any) => acc + Number(it.price) * it.quantity,
                 0
               );
-              const deliveryFee = Math.max(0, Number(order.total) - subtotal);
+              const deliveryFee = Number(order.shipping_amount_cad ?? Math.max(0, Number(order.total) - subtotal));
               const addr = order.shipping_address || {};
               const currentStep = stepIndex(order.status);
+              const showTimeline = !["cancelled", "refunded", "returned"].includes(order.status) && order.payment_status === "paid";
 
               return (
                 <div
@@ -172,7 +179,7 @@ const AccountPage = () => {
                     </div>
                     <div className="flex items-center gap-3 flex-wrap">
                       <div className="text-right">
-                        <p className="font-bold">{fmtKsh(order.total)}</p>
+                        <p className="font-bold">{formatPrice(order.total)}</p>
                         <span
                           className={`text-xs font-medium px-2 py-0.5 rounded-full ${
                             STATUS_STYLES[order.status] || STATUS_STYLES.pending
@@ -209,7 +216,7 @@ const AccountPage = () => {
                   {isOpen && (
                     <div className="border-t border-border p-4 space-y-5 bg-muted/30">
                       {/* Timeline */}
-                      <div>
+                      {showTimeline && <div>
                         <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
                           Status
                         </h3>
@@ -248,8 +255,13 @@ const AccountPage = () => {
                             );
                           })}
                         </div>
-                      </div>
+                      </div>}
 
+                      <div className="flex flex-wrap gap-2">
+                        <Link to={`/orders/${order.id}/tracking`}><Button size="sm" variant="outline" className="gap-1.5"><Truck className="h-3.5 w-3.5" /> Track parcels</Button></Link>
+                        <Link to="/contact"><Button size="sm" variant="outline">Request return or refund</Button></Link>
+                        <Link to="/contact"><Button size="sm" variant="outline" className="gap-1.5"><ShieldCheck className="h-3.5 w-3.5" /> Buyer protection help</Button></Link>
+                      </div>
                       {/* Items */}
                       <div>
                         <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
