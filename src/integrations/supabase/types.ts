@@ -3507,6 +3507,7 @@ export type Database = {
         }
         Returns: number
       }
+      submit_customer_return: { Args: { p_order_item_id: string; p_quantity: number; p_reason: string }; Returns: string }
       open_dispute: {
         Args: { _order_id: string; _reason: string }
         Returns: string
