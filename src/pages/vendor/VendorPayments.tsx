@@ -81,8 +81,8 @@ const VendorPayments = () => {
         {!loading && !applicationError && !payoutError && !application && <Alert><AlertCircle className="h-4 w-4" /><AlertDescription>A seller application is required before connecting payouts.</AlertDescription></Alert>}
         {!loading && !applicationError && !payoutError && application && <>
           <div className="grid gap-3 sm:grid-cols-2 text-sm">
-            <div className="rounded border p-3"><p className="text-xs text-muted-foreground">Application</p><p className="font-medium capitalize">{application.status.replaceAll("_", " ")}</p></div>
-            <div className="rounded border p-3"><p className="text-xs text-muted-foreground">Payout verification</p><p className="font-medium capitalize">{(payout?.verification_status || "Not started").replaceAll("_", " ")}</p></div>
+            <div className="rounded border p-3"><p className="text-xs text-muted-foreground">Application</p><p className="font-medium capitalize">{application.status.replace(/_/g, " ")}</p></div>
+            <div className="rounded border p-3"><p className="text-xs text-muted-foreground">Payout verification</p><p className="font-medium capitalize">{(payout?.verification_status || "Not started").replace(/_/g, " ")}</p></div>
           </div>
           {verified ? <p className="flex items-center gap-2 text-sm"><ShieldCheck className="h-4 w-4 text-success" /> Your Stripe payout account is verified and enabled.</p> :
             eligible ? <Button onClick={startOnboarding} disabled={busy}>{busy ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <ExternalLink className="h-4 w-4 mr-2" />} {payout ? "Continue Stripe verification" : "Connect Stripe payouts"}</Button> :
