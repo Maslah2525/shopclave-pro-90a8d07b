@@ -255,7 +255,7 @@ const AccountPage = () => {
                             );
                           })}
                         </div>
-                      </div>
+                      </div>}
 
                       <div className="flex flex-wrap gap-2">
                         <Link to={`/orders/${order.id}/tracking`}><Button size="sm" variant="outline" className="gap-1.5"><Truck className="h-3.5 w-3.5" /> Track parcels</Button></Link>
