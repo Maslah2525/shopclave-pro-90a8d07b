@@ -331,10 +331,10 @@ const AccountPage = () => {
                                 </div>
                                 <div className="text-right flex-shrink-0">
                                   <p className="text-sm font-semibold">
-                                    {fmtKsh(Number(it.price) * it.quantity)}
+                                    {formatPrice(Number(it.price) * it.quantity)}
                                   </p>
                                   <p className="text-[11px] text-muted-foreground">
-                                    {fmtKsh(Number(it.price))} each
+                                    {formatPrice(Number(it.price))} each
                                   </p>
                                 </div>
                               </div>
@@ -363,15 +363,15 @@ const AccountPage = () => {
                           <div className="border-t border-border pt-2 mt-2 space-y-1 text-xs">
                             <div className="flex justify-between">
                               <span className="text-muted-foreground">Subtotal</span>
-                              <span>{fmtKsh(subtotal)}</span>
+                              <span>{formatPrice(subtotal)}</span>
                             </div>
                             <div className="flex justify-between">
                               <span className="text-muted-foreground">Delivery</span>
-                              <span>{fmtKsh(deliveryFee)}</span>
+                              <span>{formatPrice(deliveryFee)}</span>
                             </div>
                             <div className="flex justify-between font-semibold text-sm pt-1">
                               <span>Total</span>
-                              <span>{fmtKsh(order.total)}</span>
+                              <span>{formatPrice(order.total)}</span>
                             </div>
                           </div>
                         </div>
