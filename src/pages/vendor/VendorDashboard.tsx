@@ -173,7 +173,7 @@ const VendorDashboard = () => {
           <div>
             <p className="font-medium">Payment pending verification</p>
             <p className="text-muted-foreground text-xs mt-0.5">
-              Your <span className="capitalize font-medium text-foreground">{pendingPayment.plan_name}</span> plan is active. Payment reference <span className="font-mono">{pendingPayment.transaction_code}</span> awaiting admin review.
+              Your <span className="capitalize font-medium text-foreground">{pendingPayment.plan_name}</span> plan request is awaiting verification. Payment reference <span className="font-mono">{pendingPayment.transaction_code}</span> awaiting admin review.
             </p>
           </div>
         </div>
