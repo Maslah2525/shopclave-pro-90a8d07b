@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import MarketplaceLayout from "@/components/layout/MarketplaceLayout";
+import CustomerReturnRequest from "@/components/account/CustomerReturnRequest";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -278,6 +279,7 @@ const AccountPage = () => {
                       </div>
                       {orderReturns.length > 0 && <div className="bg-card border border-border rounded-md p-3 space-y-2"><h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Return and refund requests</h3>{orderReturns.map((request) => <div key={request.id} className="text-sm flex flex-wrap justify-between gap-2"><span>{request.reason}</span><span className="font-medium">{request.status.replace(/_/g, " ")}</span></div>)}<p className="text-xs text-muted-foreground">A request status does not confirm a refund has reached your payment method.</p></div>}
                       {returnsError && <p role="alert" className="text-xs text-muted-foreground">Return request statuses are temporarily unavailable.</p>}
+                      {order.payment_status === "paid" && order.status === "delivered" && items.filter((it: any) => !orderReturns.some((r) => r.order_item_id === it.id && !["rejected", "cancelled"].includes(r.status))).map((it: any) => <div key={it.id} className="mb-2"><p className="text-sm mb-1">Return: {it.products?.name || "Item"}</p><CustomerReturnRequest orderItemId={it.id} maxQuantity={it.quantity} userId={user.id} /></div>)}
                       {/* Items */}
                       <div>
                         <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
