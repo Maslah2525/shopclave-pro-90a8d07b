@@ -258,7 +258,8 @@ const VendorSettings = () => {
       return;
     }
     if (form.store_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.store_email)) { toast.error("Enter a valid store email."); return; }
-    if (!form.primary_category_id) { toast.error("Select a main store category."); setSection("profile"); return; }
+    if (section === "profile" && !form.primary_category_id) { toast.error("Select a main store category."); setSection("profile"); return; }
+    if (section === "profile" && ["country","state","city","zip"].some(key => !addressValue(form.public_store_address,key).trim())) { toast.error("Complete the public store address."); return; }
     if (form.store_description.length > 500) { toast.error("Store description must be 500 characters or fewer."); setSection("profile"); return; }
     if (slugAvailability !== "available") { toast.error("Confirm that the store URL is available before saving."); setSection("profile"); return; }
     if (form.website.trim()) {
