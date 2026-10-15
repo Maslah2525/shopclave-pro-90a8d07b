@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Loader2, Upload, Trash2, ImageIcon } from "lucide-react";
+import { Loader2, Upload, Trash2, ImageIcon, Store, Building2, Truck, CreditCard, Receipt, PackageCheck, FileText, Palette, Bell, Users, Shield, ShieldCheck, ChevronRight, ExternalLink, RotateCcw } from "lucide-react";
 import { convertImageToWebp } from "@/lib/imageToWebp";
 
 type ImageKind = "logo" | "banner";
@@ -167,10 +167,11 @@ const VendorSettings = () => {
   });
   const warehouse = asJsonRecord(form.warehouse_address);
   const [saving, setSaving] = useState(false);
+  const [initialForm, setInitialForm] = useState(JSON.stringify(form));
   const [section, setSection] = useState<"profile" | "branding" | "shipping" | "payouts" | "business" | "security" | "compliance" | "tax" | "returns" | "policies" | "notifications" | "team">("profile");
 
   useEffect(() => {
-    setForm({
+    const nextForm = {
       store_name: vendor.store_name || "",
       store_description: vendor.store_description || "",
       logo_url: vendor.logo_url || "",
@@ -181,7 +182,9 @@ const VendorSettings = () => {
       whatsapp: vendor.whatsapp || "",
       website: vendor.website || "",
       warehouse_address: asJsonRecord(vendor.warehouse_address),
-    });
+    };
+    setForm(nextForm);
+    setInitialForm(JSON.stringify(nextForm));
   }, [vendor]);
 
   // Mirrors the server-side check used at checkout (validateWarehouse).
@@ -258,17 +261,27 @@ const VendorSettings = () => {
     }
   };
 
+  const sections = [
+    ["profile","Store Profile","Basic store information",Store],["business","Business Information","Legal business details",Building2],["shipping","Shipping Settings","Shipping options & zones",Truck],["payouts","Payments & Payouts","Bank accounts & payouts",CreditCard],["tax","Tax Settings","Tax registration & documents",Receipt],["returns","Returns & Refunds","Return and refund policies",PackageCheck],["policies","Store Policies","Store rules and policies",FileText],["branding","Appearance & Branding","Logo, banner and theme",Palette],["notifications","Notifications","Email and alert settings",Bell],["team","Team & Staff","Manage team members",Users],["security","Security & Account","Password, 2FA and access",Shield],["compliance","Account Health & Compliance","Verification and compliance",ShieldCheck]
+  ] as const;
+  const isDirty = JSON.stringify(form) !== initialForm;
   return (
-    <div className="space-y-4">
-      <h2 className="text-xl font-bold">Store Settings</h2>
-      <div className="max-w-lg"><VendorProfileChecklist vendor={vendor} showLink={false} /></div>
-      <nav aria-label="Store settings sections" className="flex flex-wrap gap-2">
-        {([["profile","Store Profile"],["branding","Appearance & Branding"],["shipping","Shipping Origin"],["payouts","Payments & Payouts"],["business","Business Information"],["security","Security & Account"],["compliance","Account Health & Compliance"],["tax","Tax Settings"],["returns","Returns & Refunds"],["policies","Store Policies"],["notifications","Notifications"],["team","Team & Staff"]] as const).map(([key,label]) => (
-          <Button key={key} type="button" size="sm" variant={section === key ? "default" : "outline"} aria-pressed={section === key} onClick={() => setSection(key)}>{label}</Button>
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div><h2 className="text-2xl font-bold flex items-center gap-2"><Store className="h-6 w-6"/>Store Settings</h2><p className="text-sm text-muted-foreground">Manage your store and customize your selling experience.</p></div>
+        <div className="flex flex-wrap gap-2 items-center"><span className="rounded-md border border-green-200 bg-green-50 text-green-700 px-3 py-2 text-xs font-semibold">{vendor.status === "approved" ? "✓ Approved Seller Account" : `Seller Account: ${vendor.status || "Unknown"}`}</span><Link to={`/store/${vendor.slug}`} target="_blank" className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm"><ExternalLink className="h-4 w-4"/>View Store</Link></div>
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)] gap-4 items-start">
+      <nav aria-label="Store settings sections" className="rounded-lg border bg-card p-2 space-y-1">
+        {sections.map(([key,label,description,Icon],index) => (
+          <button key={key} type="button" aria-current={section === key ? "step" : undefined} onClick={() => setSection(key)} className={`w-full flex items-center gap-3 rounded-md border p-3 text-left transition-colors ${section === key ? "border-orange-500 bg-orange-50 text-orange-700" : "border-transparent hover:bg-muted"}`}>
+            <span className="h-7 w-7 shrink-0 rounded-full bg-slate-800 text-white flex items-center justify-center text-xs font-bold">{index+1}</span>
+            <Icon className="h-6 w-6 shrink-0"/><span className="min-w-0 flex-1"><span className="block text-sm font-semibold">{label}</span><span className="block text-xs text-muted-foreground">{description}</span></span><ChevronRight className="h-4 w-4 shrink-0"/>
+          </button>
         ))}
       </nav>
-      <div className="bg-card rounded-lg border border-border p-6 max-w-lg space-y-4">
-        {section === "profile" && (<div className="space-y-4">
+      <div className="bg-card rounded-lg border border-border p-4 md:p-6 min-w-0 space-y-5">
+        {section === "profile" && (<div className="space-y-4"><div><h3 className="text-xl font-bold">Store Profile</h3><p className="text-sm text-muted-foreground">Manage your public store information. This will be displayed on your store page.</p></div><h4 className="font-semibold border-b pb-2">Basic Information</h4>
         <div>
           <Label>Store Name</Label>
           <Input value={form.store_name} onChange={(e) => setForm({ ...form, store_name: e.target.value })} />
@@ -318,7 +331,7 @@ const VendorSettings = () => {
 
         </div>)}
         {section === "profile" && (<div className="space-y-4">
-        <h3 className="font-semibold pt-2 border-t border-border">Contact Information</h3>
+        <h3 className="font-semibold pt-2 border-t border-border">Store Contact Information</h3>
         <p className="text-xs text-muted-foreground">Customers will see these on your product pages to contact you directly.</p>
 
         <div>
@@ -466,9 +479,8 @@ const VendorSettings = () => {
             <p className="text-sm text-muted-foreground">Staff invitations, role assignments and access revocation are not enabled. Only authorized seller accounts should access store management. No staff permissions are granted from this page.</p>
           </div>
         )}
-        {(["profile","branding","shipping"] as const).includes(section as "profile" | "branding" | "shipping") && <Button onClick={handleSave} disabled={saving} className="w-full">
-          {saving ? "Saving..." : "Save Settings"}
-        </Button>}
+        {(["profile","branding","shipping"] as const).includes(section as "profile" | "branding" | "shipping") && <div className="flex flex-wrap justify-between gap-2 border-t pt-4"><Button type="button" variant="outline" onClick={() => setForm(JSON.parse(initialForm))} disabled={!isDirty || saving}><RotateCcw className="h-4 w-4 mr-2"/>Reset Changes</Button><div className="flex gap-2"><Button variant="outline" asChild><Link to={`/store/${vendor.slug}`} target="_blank"><ExternalLink className="h-4 w-4 mr-2"/>Preview Store</Link></Button><Button onClick={handleSave} disabled={saving || !isDirty}>{saving ? "Saving..." : "Save Settings"}</Button></div></div>}
+      </div>
       </div>
     </div>
   );
