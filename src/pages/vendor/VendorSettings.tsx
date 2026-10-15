@@ -309,6 +309,27 @@ const VendorSettings = () => {
     }
   };
 
+  // Business Information is a UI-only draft until seller verification integration is approved.
+  const businessInitial = {
+    type: "sole_proprietor", legalName: vendor.store_name || "", registration: "", tradingName: vendor.store_name || "",
+    email: user?.email || "", phone: vendor.phone || "", website: vendor.website || "",
+    country: "Canada", province: "", street: "", city: "", unit: "", postal: "",
+    taxId: "", taxCountry: "Canada", taxType: "GST / HST",
+  };
+  const [businessDraft, setBusinessDraft] = useState(businessInitial);
+  const [businessFiles, setBusinessFiles] = useState<Record<string, File | null>>({});
+  const updateBusiness = (key: keyof typeof businessDraft, value: string) => setBusinessDraft(previous => ({ ...previous, [key]: value }));
+  const businessInput = (key: keyof typeof businessDraft, label: string, required = false, hint = "", type = "text") => (
+    <div className="space-y-1"><Label htmlFor={`business-${key}`}>{label}{required && <span className="text-red-600"> *</span>}</Label>
+    <Input id={`business-${key}`} type={type} value={businessDraft[key]} onChange={event => updateBusiness(key, event.target.value)} />
+    {hint && <p className="text-xs text-muted-foreground">{hint}</p>}</div>
+  );
+  const businessSelect = (key: keyof typeof businessDraft, label: string, choices: string[], required = false) => (
+    <div className="space-y-1"><Label htmlFor={`business-${key}`}>{label}{required && <span className="text-red-600"> *</span>}</Label>
+    <select id={`business-${key}`} value={businessDraft[key]} onChange={event => updateBusiness(key,event.target.value)} className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
+      {choices.map(choice => <option key={choice} value={choice}>{choice}</option>)}
+    </select></div>
+  );
   const sections = [
     ["profile","Store Profile","Basic store information",Store],["business","Business Information","Legal business details",Building2],["shipping","Shipping Settings","Shipping options & zones",Truck],["payouts","Payments & Payouts","Bank accounts & payouts",CreditCard],["tax","Tax Settings","Tax registration & documents",Receipt],["returns","Returns & Refunds","Return and refund policies",PackageCheck],["policies","Store Policies","Store rules and policies",FileText],["branding","Appearance & Branding","Logo, banner and theme",Palette],["notifications","Notifications","Email and alert settings",Bell],["team","Team & Staff","Manage team members",Users],["security","Security & Account","Password, 2FA and access",Shield],["compliance","Account Health & Compliance","Verification and compliance",ShieldCheck]
   ] as const;
@@ -486,10 +507,41 @@ const VendorSettings = () => {
 
         </div>)}
         {section === "business" && (
-          <div className="space-y-3">
-            <h3 className="font-semibold">Verified Business Information</h3>
-            <p className="text-sm text-muted-foreground">Legal identity, business registration and verification documents are managed through the seller application review process. These fields cannot be changed through public store settings.</p>
-            <Link to="/vendor/register" className="text-sm text-primary underline">View seller registration and verification</Link>
+          <div className="space-y-5">
+            <div className="flex items-start gap-3"><Building2 className="h-9 w-9 text-violet-600 shrink-0"/><div><h3 className="text-xl md:text-2xl font-bold">2. Business Information</h3><p className="text-sm text-muted-foreground">Manage your legal business details. This information is used for verification, tax and payout purposes.</p></div></div>
+            <p className="text-xs rounded-md border border-amber-200 bg-amber-50 text-amber-800 p-3">Design preview only. These details and document selections are not submitted, uploaded or saved to your seller verification record.</p>
+            <section className="rounded-lg border p-3 md:p-4 space-y-3"><h4 className="font-semibold">Business Type</h4>
+              <div className="grid md:grid-cols-3 gap-3">{([
+                ["individual","Individual Seller","Selling as a person (no registered business)"],
+                ["sole_proprietor","Sole Proprietorship (Self Employed)","You own the business personally"],
+                ["company","Incorporated Company","Registered business (e.g. Ltd, Inc, Corp)"]
+              ] as const).map(([value,label,help]) => <label key={value} className="flex items-start gap-2 cursor-pointer"><input type="radio" className="mt-1 accent-orange-600" name="business-type" checked={businessDraft.type === value} onChange={() => updateBusiness("type",value)}/><span><span className="text-sm font-medium">{label}</span><span className="block text-xs text-muted-foreground">{help}</span></span></label>)}</div>
+            </section>
+            <section className="rounded-lg border p-3 md:p-4 space-y-3"><h4 className="font-semibold">Legal Business Information</h4><div className="grid md:grid-cols-2 gap-4">
+              {businessInput("legalName","Legal Business Name",true,"Your official business name as per legal documents.")}
+              {businessInput("registration","Business Registration Number (Optional)",false,"Company registration or business licence number.")}
+              {businessInput("tradingName","Doing Business As (Trading Name)",false,"Your store or trading name (if different).")}
+              {businessInput("email","Business Email",true,"Official business email address.","email")}
+              {businessInput("phone","Business Phone",true,"Primary business contact number.","tel")}
+              {businessInput("website","Business Website (Optional)",false,"Your official business website.","url")}
+            </div></section>
+            <section className="rounded-lg border p-3 md:p-4 space-y-3"><h4 className="font-semibold">Business Address</h4><div className="grid md:grid-cols-2 gap-4">
+              {businessSelect("country","Country",["Canada","United States","United Kingdom","Kenya","Other"],true)}
+              {businessInput("province","Province / State",true)}
+              {businessInput("street","Street Address",true)}
+              {businessInput("city","City",true)}
+              {businessInput("unit","Suite / Unit (Optional)")}
+              {businessInput("postal","Postal / ZIP Code",true)}
+            </div></section>
+            <section className="rounded-lg border p-3 md:p-4 space-y-3"><h4 className="font-semibold">Business Documents</h4><p className="text-xs text-muted-foreground">Choose clear and valid documents for a future verification step. JPG, PNG or PDF (maximum 10MB each).</p>
+              <div className="grid md:grid-cols-3 gap-3">{(["Business License / Registration","Government ID","Tax Document (Optional)"] as const).map(label => <div key={label} className="rounded-md border p-3 space-y-2"><p className="text-xs font-semibold">{label}</p><label className="flex min-h-20 flex-col items-center justify-center gap-1 rounded border border-dashed cursor-pointer text-center p-2"><Upload className="h-5 w-5 text-muted-foreground"/><span className="text-xs break-all">{businessFiles[label]?.name || "Choose Document"}</span><span className="text-xs text-muted-foreground">JPG, PNG or PDF</span><input className="sr-only" type="file" accept=".jpg,.jpeg,.png,.pdf" onChange={e => {const file=e.target.files?.[0];if(!file)return;if(file.size>10*1024*1024 || !["image/jpeg","image/png","application/pdf"].includes(file.type)){toast.error("Choose a JPG, PNG or PDF under 10MB.");e.target.value="";return;}setBusinessFiles(old=>({...old,[label]:file}));}}/></label>{businessFiles[label] && <button type="button" className="text-xs text-orange-700 underline" onClick={()=>setBusinessFiles(old=>({...old,[label]:null}))}>Remove selection</button>}</div>)}</div>
+            </section>
+            <section className="rounded-lg border p-3 md:p-4 space-y-3"><h4 className="font-semibold">Tax Information</h4><div className="grid md:grid-cols-3 gap-4">
+              {businessInput("taxId","Tax ID Number (Optional)",false,"GST/HST, EIN, VAT or other tax identification number.")}
+              {businessSelect("taxCountry","Tax Registration Country",["Canada","United States","United Kingdom","Kenya","Other"])}
+              {businessSelect("taxType","Tax Type",["GST / HST","PST / QST","VAT","Sales Tax","Not Registered"])}
+            </div></section>
+            <div className="flex justify-between gap-3 border-t pt-4"><Button variant="outline" type="button" onClick={()=>{setBusinessDraft(businessInitial);setBusinessFiles({});}}><RotateCcw className="h-4 w-4 mr-2"/>Reset Changes</Button><Button type="button" disabled title="Database integration pending" className="bg-orange-600 hover:bg-orange-700">Save Changes (Coming Soon)</Button></div>
           </div>
         )}
         {section === "security" && (
