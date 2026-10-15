@@ -1,9 +1,7 @@
 import { useAuth } from "@/contexts/AuthContext";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { toast } from "sonner";
 import { Search, Users } from "lucide-react";
 import { useState } from "react";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
@@ -17,7 +15,6 @@ const roleStyles: Record<string, string> = {
 
 const AdminUsers = () => {
   const { user } = useAuth();
-  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
 
   const { data: profiles } = useQuery({
@@ -36,17 +33,6 @@ const AdminUsers = () => {
       return data || [];
     },
     enabled: !!user,
-  });
-
-  const addRole = useMutation({
-    mutationFn: async ({ user_id, role }: { user_id: string; role: string }) => {
-      throw new Error("Direct role grants are disabled. Use the verified seller onboarding process or a separately audited privileged administrator workflow.");
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-all-roles"] });
-      toast.success("Role added");
-    },
-    onError: (err: any) => toast.error(err.message),
   });
 
   const getUserRoles = (userId: string) =>
@@ -80,7 +66,6 @@ const AdminUsers = () => {
                   <th>User</th>
                   <th>Roles</th>
                   <th>Joined</th>
-                  <th className="text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -105,20 +90,6 @@ const AdminUsers = () => {
                         </div>
                       </td>
                       <td className="text-muted-foreground text-xs">{new Date(p.created_at).toLocaleDateString()}</td>
-                      <td>
-                        <div className="flex gap-1 justify-end">
-                          {false && !userRoles.includes("vendor") && (
-                            <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => addRole.mutate({ user_id: p.user_id, role: "vendor" })}>
-                              + Vendor
-                            </Button>
-                          )}
-                          {false && !userRoles.includes("admin") && (
-                            <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => addRole.mutate({ user_id: p.user_id, role: "admin" })}>
-                              + Admin
-                            </Button>
-                          )}
-                        </div>
-                      </td>
                     </tr>
                   );
                 })}
