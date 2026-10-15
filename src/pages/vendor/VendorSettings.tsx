@@ -167,6 +167,7 @@ const VendorSettings = () => {
   });
   const warehouse = asJsonRecord(form.warehouse_address);
   const [saving, setSaving] = useState(false);
+  const [section, setSection] = useState<"profile" | "branding" | "shipping" | "payouts">("profile");
 
   useEffect(() => {
     setForm({
@@ -239,7 +240,13 @@ const VendorSettings = () => {
     <div className="space-y-4">
       <h2 className="text-xl font-bold">Store Settings</h2>
       <div className="max-w-lg"><VendorProfileChecklist vendor={vendor} showLink={false} /></div>
+      <nav aria-label="Store settings sections" className="flex flex-wrap gap-2">
+        {([["profile","Store Profile"],["branding","Appearance & Branding"],["shipping","Shipping Origin"],["payouts","Payments & Payouts"]] as const).map(([key,label]) => (
+          <Button key={key} type="button" size="sm" variant={section === key ? "default" : "outline"} aria-pressed={section === key} onClick={() => setSection(key)}>{label}</Button>
+        ))}
+      </nav>
       <div className="bg-card rounded-lg border border-border p-6 max-w-lg space-y-4">
+        {section === "profile" && (<div className="space-y-4">
         <div>
           <Label>Store Name</Label>
           <Input value={form.store_name} onChange={(e) => setForm({ ...form, store_name: e.target.value })} />
@@ -269,6 +276,8 @@ const VendorSettings = () => {
           </p>
         </div>
 
+        </div>)}
+        {section === "branding" && (<div className="space-y-4">
         <ImageUploadField
           kind="logo"
           label="Store Logo"
@@ -285,6 +294,8 @@ const VendorSettings = () => {
           onChange={(url) => setForm((f) => ({ ...f, banner_url: url }))}
         />
 
+        </div>)}
+        {section === "profile" && (<div className="space-y-4">
         <h3 className="font-semibold pt-2 border-t border-border">Contact Information</h3>
         <p className="text-xs text-muted-foreground">Customers will see these on your product pages to contact you directly.</p>
 
@@ -305,6 +316,8 @@ const VendorSettings = () => {
           <Input value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} placeholder="https://yourstore.com" />
         </div>
 
+        </div>)}
+        {section === "shipping" && (<div className="space-y-4">
         <h3 className="font-semibold pt-2 border-t border-border">Shipping Origin Address</h3>
         <p className="text-xs text-muted-foreground">Used to calculate live shipping rates for buyers at checkout. Required for your products to be shippable.</p>
 
@@ -368,15 +381,18 @@ const VendorSettings = () => {
           </div>
         </div>
 
+        </div>)}
+        {section === "payouts" && (<div className="space-y-4">
         <h3 className="font-semibold pt-2 border-t border-border">Secure Payout Settings</h3>
         <p className="text-xs text-muted-foreground">
           Bank details for seller payouts are collected securely through Stripe Connect, not published as customer-facing checkout instructions.
           <Link to="/vendor/payments" className="ml-1 text-primary underline">Manage Stripe payout account</Link>.
         </p>
 
-        <Button onClick={handleSave} disabled={saving} className="w-full">
+        </div>)}
+        {section !== "payouts" && <Button onClick={handleSave} disabled={saving} className="w-full">
           {saving ? "Saving..." : "Save Settings"}
-        </Button>
+        </Button>}
       </div>
     </div>
   );
