@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CreditCard, Loader2, ShieldCheck, AlertCircle, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
+import { sellerBankingGuidance } from "@/lib/sellerBankingGuidance";
 
 const VendorPayments = () => {
   const { vendor } = useOutletContext<{ vendor: any }>();
@@ -86,8 +87,8 @@ const VendorPayments = () => {
           </div>
           {verified ? <p className="flex items-center gap-2 text-sm"><ShieldCheck className="h-4 w-4 text-success" /> Your Stripe payout account is verified and enabled.</p> :
             eligible ? <Button onClick={startOnboarding} disabled={busy}>{busy ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <ExternalLink className="h-4 w-4 mr-2" />} {payout ? "Continue Stripe verification" : "Connect Stripe payouts"}</Button> :
-            <Alert><AlertCircle className="h-4 w-4" /><AlertDescription>Self-service Stripe Connect onboarding is currently available for eligible Canadian seller applications in draft or information-required status. Contact support for other cases.</AlertDescription></Alert>}
-          <p className="text-xs text-muted-foreground">Stripe securely collects bank and identity details. Barakaz does not request your full banking credentials on this page. Payouts depend on approval and provider verification.</p>
+            <Alert><AlertCircle className="h-4 w-4" /><AlertDescription>Payout onboarding is not enabled for this seller country or application status. Barakaz welcomes global seller applications, but each payout country and business type must be verified with the payment provider before activation.</AlertDescription></Alert>}
+          <p className="text-xs text-muted-foreground">{application?.country ? sellerBankingGuidance(application.country) + " " : ""}Stripe securely collects bank and identity details. Barakaz does not request your full banking credentials on this page. Payouts depend on verified provider country support, approval and account verification.</p>
         </>}
       </CardContent>
     </Card>
