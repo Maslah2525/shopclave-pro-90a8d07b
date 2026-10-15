@@ -378,6 +378,8 @@ const VendorSettings = () => {
   const sections = [
     ["profile","Store Profile","Basic store information",Store],["business","Business Information","Legal business details",Building2],["shipping","Shipping Settings","Shipping options & zones",Truck],["payouts","Payments & Payouts","Bank accounts & payouts",CreditCard],["tax","Tax Settings","Tax registration & documents",Receipt],["returns","Returns & Refunds","Return and refund policies",PackageCheck],["policies","Store Policies","Store rules and policies",FileText],["branding","Appearance & Branding","Logo, banner and theme",Palette],["notifications","Notifications","Email and alert settings",Bell],["team","Team & Staff","Manage team members",Users],["security","Security & Account","Password, 2FA and access",Shield],["compliance","Account Health & Compliance","Verification and compliance",ShieldCheck]
   ] as const;
+  const [warehouseEditorOpen,setWarehouseEditorOpen] = useState(false);
+  const [shippingPreview,setShippingPreview] = useState({phone:true,po:false,eta:true,handling:true,processing:"1 – 2 business days",fee:"0.00"});
   const isDirty = JSON.stringify(form) !== initialForm;
   const uiOnlyDirty = (() => { const previous = JSON.parse(initialForm); return ["store_email","primary_category_id","additional_category_ids","public_store_address","store_language","contact_visibility"].some(key => JSON.stringify(form[key as keyof typeof form]) !== JSON.stringify(previous[key])); })();
   return (
@@ -478,71 +480,44 @@ const VendorSettings = () => {
         <h3 className="font-semibold border-t pt-4">Store Language & Visibility</h3>
         <div className="grid md:grid-cols-2 gap-4"><div><Label>Store Language</Label><select className="w-full h-10 border rounded-md bg-background px-3" value={form.store_language} onChange={e=>setForm({...form,store_language:e.target.value})}><option value="en">English</option><option value="fr">French</option></select></div><fieldset><legend className="text-sm font-medium mb-2">Contact Information Visibility</legend>{([["all","Show all contact details"],["email","Show email only"],["phone","Show phone number only"],["hidden","Hide all contact details"]] as const).map(([value,label])=><label key={value} className="flex items-center gap-2 text-sm mb-2"><input type="radio" name="contact-visibility" checked={form.contact_visibility===value} onChange={()=>setForm({...form,contact_visibility:value})}/>{label}</label>)}<p className="text-xs text-muted-foreground">Visibility preferences require storefront rendering support before they affect public pages.</p></fieldset></div>
         </div>)}
-        {section === "shipping" && (<div className="space-y-4">
-        <h3 className="font-semibold pt-2 border-t border-border">Shipping Origin Address</h3>
-        <p className="text-xs text-muted-foreground">Used to calculate live shipping rates for buyers at checkout. Required for your products to be shippable.</p>
-
-        {missingOrigin.length > 0 && (
-          <div className="rounded-md border border-warning/40 bg-warning/10 text-warning p-3 text-xs">
-            Shipping origin is incomplete — buyers cannot check out your products until you add: {missingOrigin.join(", ")}.
+        {section === "shipping" && (
+          <div className="space-y-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-start gap-3"><Truck className="h-9 w-9 text-orange-600 shrink-0"/><div><h3 className="text-xl md:text-2xl font-bold">3. Shipping Settings</h3><p className="text-sm text-muted-foreground">Manage your shipping options, warehouse addresses, delivery rates and shipping zones.</p></div></div>
+              <Button variant="outline" size="sm" asChild><Link to="/vendor/help"><FileText className="h-4 w-4 mr-2"/>Shipping Guide</Link></Button>
+            </div>
+            <section className="rounded-lg border p-3 md:p-4 space-y-3">
+              <div className="flex flex-wrap justify-between items-center gap-2"><div><h4 className="font-semibold">Warehouse Addresses</h4><p className="text-xs text-muted-foreground">Your fulfillment address is used to calculate shipping rates and delivery times.</p></div><Button type="button" size="sm" className="bg-orange-600 hover:bg-orange-700" onClick={()=>toast.info("Additional warehouses need backend support. Edit your main warehouse below.")}>+ Add Warehouse</Button></div>
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/20 p-3">
+                <div className="flex gap-3 items-start"><span className="rounded-md bg-orange-100 text-orange-600 p-2"><Store className="h-5 w-5"/></span><div><p className="font-semibold text-sm">Main Warehouse <span className="text-xs text-green-700 bg-green-50 rounded px-2 py-0.5 ml-1">Default</span></p><p className="text-xs text-muted-foreground">{[addressValue(warehouse,"street1"),addressValue(warehouse,"city"),addressValue(warehouse,"state"),addressValue(warehouse,"zip")].filter(Boolean).join(", ") || "Address not configured"}</p><p className="text-xs text-muted-foreground">🌐 {addressValue(warehouse,"country") || "Country not set"}</p></div></div>
+                <Button type="button" variant="outline" size="sm" onClick={()=>setWarehouseEditorOpen(value=>!value)}>{warehouseEditorOpen ? "Close" : "✎ Edit"}</Button>
+              </div>
+              {(warehouseEditorOpen || missingOrigin.length>0) && <div className="rounded-lg border p-3 space-y-3">
+                {missingOrigin.length>0 && <p className="text-xs text-amber-700">Complete the shipping origin: {missingOrigin.join(", ")}.</p>}
+                <div className="grid md:grid-cols-2 gap-3">{([["phone","Pickup Phone *"],["street1","Street Address *"],["city","City *"],["state","Province / State"],["zip","Postal / ZIP Code"],["country","Country (ISO code or name) *"]] as const).map(([key,label])=><div key={key} className="space-y-1"><Label htmlFor={`shipping-${key}`}>{label}</Label><Input id={`shipping-${key}`} value={addressValue(warehouse,key)} onChange={e=>setForm(old=>({...old,warehouse_address:{...asJsonRecord(old.warehouse_address),[key]:e.target.value}}))}/></div>)}</div>
+                <p className="text-xs text-muted-foreground">Save the main warehouse with the Save Changes button below. Additional warehouses are not yet supported.</p>
+              </div>}
+            </section>
+            <section className="rounded-lg border p-3 md:p-4 space-y-3">
+              <div className="flex flex-wrap justify-between items-center gap-2"><div><h4 className="font-semibold">Shipping Zones &amp; Destinations</h4><p className="text-xs text-muted-foreground">View the regions you can ship to. Zone management requires shipping-rule integration.</p></div><Button size="sm" variant="outline" onClick={()=>toast.info("Adding shipping zones is not available until zone persistence is implemented.")}>+ Add Shipping Zone</Button></div>
+              <div className="overflow-x-auto"><table className="w-full text-sm border-collapse"><thead className="bg-muted/50 text-left"><tr>{["Zone / Region","Countries","Status","Actions"].map(h=><th key={h} className="p-3 border font-medium">{h}</th>)}</tr></thead><tbody>{([["🇨🇦","Domestic (Canada)","All Provinces & Territories"],["🇺🇸","United States","All States"],["🌐","International","Selected Countries (120+)"]] as const).map(([flag,name,desc])=><tr key={name}><td className="p-3 border"><span className="mr-2">{flag}</span>{name}</td><td className="p-3 border text-muted-foreground">{desc}</td><td className="p-3 border"><span className="text-xs text-muted-foreground">Preview</span></td><td className="p-3 border"><Button size="sm" variant="outline" onClick={()=>toast.info("Shipping zone editing is not yet connected.")}>Edit</Button></td></tr>)}</tbody></table></div>
+              <p className="text-xs text-amber-700">Zone rows reproduce the reference layout; they are not confirmed active shipping rules. Checkout shipping availability is controlled by the existing shipping backend.</p>
+            </section>
+            <section className="rounded-lg border p-3 md:p-4 space-y-3">
+              <div className="flex flex-wrap justify-between items-center gap-2"><div><h4 className="font-semibold">Shipping Methods</h4><p className="text-xs text-muted-foreground">Standard and Express shipping options currently configured for checkout.</p></div><Button variant="outline" size="sm" onClick={()=>toast.info("Custom shipping methods require backend integration.")}>+ Add Shipping Method</Button></div>
+              {([{name:"Standard Shipping",price:"12.50",time:"3 – 7 business days",description:"Reliable delivery at an affordable rate.",icon:"📦"},{name:"Express Shipping",price:"19.99",time:"1 – 3 business days",description:"Faster delivery for urgent orders.",icon:"🚚"}] as const).map(method=><div key={method.name} className="rounded-lg border p-3 space-y-3">
+                <div className="flex justify-between gap-2"><div className="flex gap-3"><span className="text-2xl">{method.icon}</span><div><p className="text-sm font-semibold">{method.name} <span className="ml-2 text-xs text-green-700 bg-green-50 rounded px-2 py-0.5">Configured</span></p><p className="text-xs text-muted-foreground">{method.description}</p></div></div><Button size="sm" variant="outline" onClick={()=>toast.info("Shipping method editing requires the checkout rate configuration to be connected.")}>✎ Edit</Button></div>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3"><div><Label>Price (CAD)</Label><Input value={method.price} readOnly aria-label={`${method.name} price`}/></div><div><Label>Delivery Time</Label><Input value={method.time} readOnly aria-label={`${method.name} delivery time`}/></div><div><Label>Tracking</Label><Input value="Carrier dependent" readOnly/></div><div><Label>Applies To</Label><Input value="Checkout rules" readOnly/></div></div>
+              </div>)}
+            </section>
+            <section className="rounded-lg border p-3 md:p-4 space-y-3">
+              <h4 className="font-semibold">Additional Shipping Settings</h4>
+              <div className="grid md:grid-cols-3 gap-4"><div className="space-y-2">{([["phone","Require phone number for shipping"],["po","Allow PO Box addresses"],["eta","Show estimated delivery date at checkout"],["handling","Include handling time"]] as const).map(([key,label])=><label key={key} className="flex items-center gap-2 text-sm"><input type="checkbox" className="accent-orange-600" checked={shippingPreview[key]} onChange={e=>setShippingPreview(old=>({...old,[key]:e.target.checked}))}/>{label}</label>)}</div><div className="space-y-1"><Label>Processing Time</Label><select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={shippingPreview.processing} onChange={e=>setShippingPreview(old=>({...old,processing:e.target.value}))}><option>1 – 2 business days</option><option>3 – 5 business days</option><option>5 – 7 business days</option></select><p className="text-xs text-muted-foreground">Time needed to prepare and ship orders.</p></div><div className="space-y-1"><Label>Handling Fee (Optional)</Label><div className="relative"><Input type="number" min="0" step="0.01" value={shippingPreview.fee} onChange={e=>setShippingPreview(old=>({...old,fee:e.target.value}))}/><span className="absolute right-3 top-3 text-xs text-muted-foreground">CAD</span></div><p className="text-xs text-muted-foreground">Additional fee per order (e.g. packaging).</p></div></div>
+              <p className="text-xs text-amber-700">Additional settings are a design preview and do not change checkout behavior until the shipping configuration backend supports them.</p>
+              <div className="flex justify-end"><Button className="bg-orange-600 hover:bg-orange-700" disabled={saving || !isDirty || uiOnlyDirty || slugAvailability!=="available"} onClick={handleSave}>{saving ? "Saving..." : "Save Changes"}</Button></div>
+            </section>
           </div>
         )}
-
-        <div>
-          <Label>Pickup Phone Number *</Label>
-          <Input
-            value={addressValue(warehouse, "phone")}
-            onChange={(e) => setForm({ ...form, warehouse_address: { ...warehouse, phone: e.target.value } })}
-            placeholder="Phone the courier can call at pickup, with country code"
-          />
-        </div>
-
-        <div>
-          <Label>Street Address</Label>
-          <Input
-            value={addressValue(warehouse, "street1")}
-            onChange={(e) => setForm({ ...form, warehouse_address: { ...warehouse, street1: e.target.value } })}
-            placeholder="e.g., 123 Moi Avenue"
-          />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label>City</Label>
-            <Input
-              value={addressValue(warehouse, "city")}
-              onChange={(e) => setForm({ ...form, warehouse_address: { ...warehouse, city: e.target.value } })}
-              placeholder="Nairobi"
-            />
-          </div>
-          <div>
-            <Label>State / Region</Label>
-            <Input
-              value={addressValue(warehouse, "state")}
-              onChange={(e) => setForm({ ...form, warehouse_address: { ...warehouse, state: e.target.value } })}
-              placeholder="Optional"
-            />
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label>ZIP / Postal Code</Label>
-            <Input
-              value={addressValue(warehouse, "zip")}
-              onChange={(e) => setForm({ ...form, warehouse_address: { ...warehouse, zip: e.target.value } })}
-              placeholder="00100"
-            />
-          </div>
-          <div>
-            <Label>Country (ISO code or name)</Label>
-            <Input
-              value={addressValue(warehouse, "country")}
-              onChange={(e) => setForm({ ...form, warehouse_address: { ...warehouse, country: e.target.value } })}
-              placeholder="KE"
-            />
-          </div>
-        </div>
-
-        </div>)}
         {section === "payouts" && (<div className="space-y-4">
         <h3 className="font-semibold pt-2 border-t border-border">Secure Payout Settings</h3>
         <p className="text-xs text-muted-foreground">
@@ -638,7 +613,7 @@ const VendorSettings = () => {
             <p className="text-sm text-muted-foreground">Staff invitations, role assignments and access revocation are not enabled. Only authorized seller accounts should access store management. No staff permissions are granted from this page.</p>
           </div>
         )}
-        {(["profile","branding","shipping"] as const).includes(section as "profile" | "branding" | "shipping") && <div className="flex flex-wrap justify-between gap-2 border-t pt-4"><Button type="button" variant="outline" onClick={() => setForm(JSON.parse(initialForm))} disabled={!isDirty || saving}><RotateCcw className="h-4 w-4 mr-2"/>Reset Changes</Button><div className="flex gap-2"><Button variant="outline" asChild><Link to={`/store/${vendor.slug}`} target="_blank"><ExternalLink className="h-4 w-4 mr-2"/>Preview Store</Link></Button><Button onClick={handleSave} disabled={saving || !isDirty || slugAvailability !== "available" || uiOnlyDirty} title={uiOnlyDirty ? "Preview-only fields cannot be saved until database integration" : undefined}>{saving ? "Saving..." : "Save Settings"}</Button></div></div>}
+        {(["profile","branding"] as const).includes(section as "profile" | "branding" | "shipping") && <div className="flex flex-wrap justify-between gap-2 border-t pt-4"><Button type="button" variant="outline" onClick={() => setForm(JSON.parse(initialForm))} disabled={!isDirty || saving}><RotateCcw className="h-4 w-4 mr-2"/>Reset Changes</Button><div className="flex gap-2"><Button variant="outline" asChild><Link to={`/store/${vendor.slug}`} target="_blank"><ExternalLink className="h-4 w-4 mr-2"/>Preview Store</Link></Button><Button onClick={handleSave} disabled={saving || !isDirty || slugAvailability !== "available" || uiOnlyDirty} title={uiOnlyDirty ? "Preview-only fields cannot be saved until database integration" : undefined}>{saving ? "Saving..." : "Save Settings"}</Button></div></div>}
       </div>
       </div>
     </div>
