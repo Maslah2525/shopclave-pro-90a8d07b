@@ -3077,12 +3077,6 @@ export type Database = {
       }
       vendors: {
         Row: {
-          store_email: string | null
-          primary_category_id: string | null
-          additional_category_ids: string[]
-          public_store_address: Json
-          store_language: string
-          contact_visibility: string
           banner_url: string | null
           commission_rate: number
           created_at: string
@@ -3103,12 +3097,6 @@ export type Database = {
           whatsapp: string | null
         }
         Insert: {
-          store_email?: string | null
-          primary_category_id?: string | null
-          additional_category_ids?: string[]
-          public_store_address?: Json
-          store_language?: string
-          contact_visibility?: string
           banner_url?: string | null
           commission_rate?: number
           created_at?: string
@@ -3129,12 +3117,6 @@ export type Database = {
           whatsapp?: string | null
         }
         Update: {
-          store_email?: string | null
-          primary_category_id?: string | null
-          additional_category_ids?: string[]
-          public_store_address?: Json
-          store_language?: string
-          contact_visibility?: string
           banner_url?: string | null
           commission_rate?: number
           created_at?: string
