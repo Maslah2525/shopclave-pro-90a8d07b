@@ -468,15 +468,16 @@ const VendorSettings = () => {
         <div className="flex flex-wrap gap-2 items-center"><span className={`rounded-md border px-3 py-2 text-xs font-semibold ${vendor.status === "approved" ? "border-green-200 bg-green-50 text-green-700" : "border-slate-200 bg-slate-50 text-slate-700"}`}>{vendor.status === "approved" ? "✓ Approved Seller Account" : `Seller Account: ${vendor.status || "Unknown"}`}</span><Link to={`/store/${vendor.slug}`} target="_blank" className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm"><ExternalLink className="h-4 w-4"/>View Store</Link></div>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)] gap-4 items-start">
-      <nav aria-label="Store settings sections" className="rounded-lg border bg-card p-2 space-y-1">
+      <div className="lg:hidden rounded-lg border bg-card p-3 space-y-2"><Label htmlFor="mobile-settings-section">Settings section</Label><select id="mobile-settings-section" aria-label="Select store settings section" value={section} onChange={e=>setSection(e.target.value as typeof section)} className="w-full h-11 rounded-md border border-input bg-background px-3 text-sm">{sections.map(([key,label],index)=><option key={key} value={key}>{index+1}. {label}</option>)}</select><p className="text-xs text-muted-foreground">Choose a section to edit its settings.</p></div>
+      <nav aria-label="Store settings sections" className="hidden lg:block rounded-lg border bg-card p-2 space-y-1">
         {sections.map(([key,label,description,Icon],index) => (
-          <button key={key} type="button" aria-current={section === key ? "step" : undefined} onClick={() => setSection(key)} className={`w-full flex items-center gap-3 rounded-md border p-3 text-left transition-colors ${section === key ? "border-orange-500 bg-orange-50 text-orange-700" : "border-transparent hover:bg-muted"}`}>
+          <button key={key} type="button" aria-current={section === key ? "page" : undefined} aria-label={`${index+1}. ${label}`} onClick={() => setSection(key)} className={`w-full flex items-center gap-3 rounded-md border p-3 text-left transition-colors ${section === key ? "border-orange-500 bg-orange-50 text-orange-700" : "border-transparent hover:bg-muted"}`}>
             <span className="h-7 w-7 shrink-0 rounded-full bg-slate-800 text-white flex items-center justify-center text-xs font-bold">{index+1}</span>
             <Icon className="h-6 w-6 shrink-0"/><span className="min-w-0 flex-1"><span className="block text-sm font-semibold">{label}</span><span className="block text-xs text-muted-foreground">{description}</span></span><ChevronRight className="h-4 w-4 shrink-0"/>
           </button>
         ))}
       </nav>
-      <div className="bg-card rounded-lg border border-border p-4 md:p-6 min-w-0 space-y-5">
+      <div className="bg-card rounded-lg border border-border p-3 sm:p-4 md:p-6 min-w-0 space-y-5">
         {section === "profile" && (<div className="space-y-4"><div><h3 className="text-xl font-bold">Store Profile</h3><p className="text-sm text-muted-foreground">Manage your public store information. This will be displayed on your store page.</p><p className="text-xs text-amber-700 mt-2">UI preview: category, store email, public address, language and visibility controls are not connected to the database yet.</p></div><h4 className="font-semibold border-b pb-2">Basic Information</h4>
         <div>
           <Label>Store Name</Label>
