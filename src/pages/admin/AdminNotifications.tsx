@@ -15,19 +15,21 @@ const AdminNotifications = () => {
   const queryClient = useQueryClient();
   const [form, setForm] = useState({ title: "", message: "", type: "info", recipientMode: "all", vendorId: "" });
 
-  const { data: vendors } = useQuery({
+  const { data: vendors, isLoading: vendorsLoading, error: vendorsError } = useQuery({
     queryKey: ["admin-vendors"],
     queryFn: async () => {
-      const { data } = await supabase.from("vendors").select("id, store_name, user_id").eq("status", "approved");
+      const { data, error } = await supabase.from("vendors").select("id, store_name, user_id").eq("status", "approved");
+      if (error) throw error;
       return data || [];
     },
     enabled: !!user,
   });
 
-  const { data: sentNotifications } = useQuery({
+  const { data: sentNotifications, isLoading: historyLoading, error: historyError } = useQuery({
     queryKey: ["admin-sent-notifications"],
     queryFn: async () => {
-      const { data } = await (supabase as any).from("notifications").select("*").order("created_at", { ascending: false }).limit(50);
+      const { data, error } = await (supabase as any).from("notifications").select("*").order("created_at", { ascending: false }).limit(50);
+      if (error) throw error;
       return data || [];
     },
     enabled: !!user,
@@ -36,6 +38,7 @@ const AdminNotifications = () => {
   const sendNotification = useMutation({
     mutationFn: async () => {
       if (!form.title.trim() || !form.message.trim()) throw new Error("Title and message required");
+      if (vendorsLoading || vendorsError || !vendors) throw new Error("Vendor recipients are not available. Please retry after they load.");
 
       const recipients = form.recipientMode === "all"
         ? vendors?.map((v: any) => v.user_id) || []
@@ -65,6 +68,7 @@ const AdminNotifications = () => {
   return (
     <div className="space-y-6">
       <h2 className="text-xl font-bold">Send Notifications</h2>
+      {vendorsError && <p role="alert" className="text-destructive">Unable to load vendor recipients. Sending is unavailable until this is resolved.</p>}
 
       <div className="bg-card rounded-lg border border-border p-6 max-w-lg space-y-4">
         <div>
@@ -112,7 +116,7 @@ const AdminNotifications = () => {
             </Select>
           </div>
         )}
-        <Button className="w-full gap-2" onClick={() => sendNotification.mutate()} disabled={sendNotification.isPending}>
+        <Button className="w-full gap-2" onClick={() => sendNotification.mutate()} disabled={sendNotification.isPending || vendorsLoading || !!vendorsError}>
           <Send className="h-4 w-4" /> {sendNotification.isPending ? "Sending..." : "Send Notification"}
         </Button>
       </div>
@@ -120,6 +124,8 @@ const AdminNotifications = () => {
       {/* History */}
       <div>
         <h3 className="font-semibold mb-3">Sent History</h3>
+        {historyLoading && <p className="text-sm text-muted-foreground">Loading notification history…</p>}
+        {historyError && <p role="alert" className="text-destructive">Unable to load notification history.</p>}
         <div className="space-y-2">
           {sentNotifications?.map((n: any) => (
             <div key={n.id} className="bg-card rounded-lg border border-border p-3 flex items-start gap-3">
