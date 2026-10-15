@@ -20,22 +20,23 @@ const AdminOrders = () => {
   const [filter, setFilter] = useState("");
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
 
-  const { data: orders } = useQuery({
+  const { data: orders, isLoading: ordersLoading, error: ordersError } = useQuery({
     queryKey: ["admin-orders-all"],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("orders")
         .select("*")
         .order("created_at", { ascending: false });
+      if (error) throw error;
       return data || [];
     },
     enabled: !!user,
   });
 
-  const { data: orderItems } = useQuery({
+  const { data: orderItems, isLoading: itemsLoading, error: itemsError } = useQuery({
     queryKey: ["admin-order-items-all"],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("order_items")
         .select("*, products(name, slug), vendors(store_name)")
         .order("created_at", { ascending: false });
@@ -67,7 +68,8 @@ const AdminOrders = () => {
         </div>
       </AdminPageHeader>
 
-      {filtered.length === 0 ? (
+      {(ordersError || itemsError) && <p role="alert" className="text-destructive mb-4">Unable to load all orders or order items. Please retry after checking database permissions and connectivity.</p>}
+      {(ordersLoading || itemsLoading) ? <p className="text-sm text-muted-foreground">Loading orders and order items…</p> : (ordersError || itemsError) ? null : filtered.length === 0 ? (
         <div className="admin-card">
           <AdminEmptyState
             icon={Package}
