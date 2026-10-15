@@ -164,12 +164,12 @@ const VendorSettings = () => {
     whatsapp: vendor.whatsapp || "",
     website: vendor.website || "",
     warehouse_address: vendor.warehouse_address || {},
-    store_email: vendor.store_email || "",
-    primary_category_id: vendor.primary_category_id || null as string | null,
-    additional_category_ids: (vendor.additional_category_ids || []) as string[],
-    public_store_address: asJsonRecord(vendor.public_store_address),
-    store_language: vendor.store_language || "en",
-    contact_visibility: vendor.contact_visibility || "all",
+    store_email: "" || "",
+    primary_category_id: null || null as string | null,
+    additional_category_ids: ([] || []) as string[],
+    public_store_address: asJsonRecord({}),
+    store_language: "en" || "en",
+    contact_visibility: "all" || "all",
   });
   const warehouse = asJsonRecord(form.warehouse_address);
   const publicAddress = asJsonRecord(form.public_store_address);
@@ -199,12 +199,12 @@ const VendorSettings = () => {
       whatsapp: vendor.whatsapp || "",
       website: vendor.website || "",
       warehouse_address: asJsonRecord(vendor.warehouse_address),
-      store_email: vendor.store_email || "",
-      primary_category_id: vendor.primary_category_id || null,
-      additional_category_ids: vendor.additional_category_ids || [],
-      public_store_address: asJsonRecord(vendor.public_store_address),
-      store_language: vendor.store_language || "en",
-      contact_visibility: vendor.contact_visibility || "all",
+      store_email: "" || "",
+      primary_category_id: null || null,
+      additional_category_ids: [] || [],
+      public_store_address: asJsonRecord({}),
+      store_language: "en" || "en",
+      contact_visibility: "all" || "all",
     };
     setForm(nextForm);
     setInitialForm(JSON.stringify(nextForm));
@@ -317,6 +317,38 @@ const VendorSettings = () => {
     taxId: "", taxCountry: "Canada", taxType: "GST / HST",
   };
   const [businessDraft, setBusinessDraft] = useState(businessInitial);
+  const { data: sellerApplication } = useQuery({
+    queryKey: ["seller-settings-application", user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("seller_applications")
+        .select("id,business_type,country,business_info,status,kyc_status,vendor_id")
+        .eq("user_id", user!.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+  useEffect(() => {
+    if (!sellerApplication) return;
+    const details = asJsonRecord(sellerApplication.business_info);
+    const pick = (...keys: string[]) => keys.map(key => details[key]).find(value => typeof value === "string") as string | undefined;
+    setBusinessDraft(current => ({...current,
+      type: sellerApplication.business_type || current.type,
+      country: sellerApplication.country || current.country,
+      legalName: pick("legal_business_name","legal_name","business_name") || current.legalName,
+      registration: pick("registration_number","business_registration_number") || current.registration,
+      tradingName: pick("trading_name","doing_business_as") || current.tradingName,
+      email: pick("business_email","email") || current.email,
+      phone: pick("business_phone","phone") || current.phone,
+      website: pick("business_website","website") || current.website,
+      province: pick("province","state") || current.province,
+      street: pick("street_address","address_line1") || current.street,
+      city: pick("city") || current.city,
+      unit: pick("suite","unit") || current.unit,
+      postal: pick("postal_code","zip") || current.postal,
+      taxId: pick("tax_id","tax_number") || current.taxId,
+    }));
+  }, [sellerApplication]);
   const [businessFiles, setBusinessFiles] = useState<Record<string, File | null>>({});
   const updateBusiness = (key: keyof typeof businessDraft, value: string) => setBusinessDraft(previous => ({ ...previous, [key]: value }));
   const businessInput = (key: keyof typeof businessDraft, label: string, required = false, hint = "", type = "text") => (
@@ -509,7 +541,8 @@ const VendorSettings = () => {
         {section === "business" && (
           <div className="space-y-5">
             <div className="flex items-start gap-3"><Building2 className="h-9 w-9 text-violet-600 shrink-0"/><div><h3 className="text-xl md:text-2xl font-bold">2. Business Information</h3><p className="text-sm text-muted-foreground">Manage your legal business details. This information is used for verification, tax and payout purposes.</p></div></div>
-            <p className="text-xs rounded-md border border-amber-200 bg-amber-50 text-amber-800 p-3">Design preview only. These details and document selections are not submitted, uploaded or saved to your seller verification record.</p>
+            <p className="text-xs rounded-md border border-amber-200 bg-amber-50 text-amber-800 p-3">Existing seller application details are loaded where available. Edits and document selections remain preview-only; verification changes must use the approved onboarding workflow.</p>
+            {sellerApplication && <p className="text-xs text-muted-foreground">Application status: <strong>{sellerApplication.status}</strong> · Identity verification: <strong>{sellerApplication.kyc_status}</strong> · <Link className="underline text-primary" to="/vendor/register">Open verification workflow</Link></p>}
             <section className="rounded-lg border p-3 md:p-4 space-y-3"><h4 className="font-semibold">Business Type</h4>
               <div className="grid md:grid-cols-3 gap-3">{([
                 ["individual","Individual Seller","Selling as a person (no registered business)"],
