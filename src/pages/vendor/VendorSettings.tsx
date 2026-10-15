@@ -478,6 +478,7 @@ const VendorSettings = () => {
         ))}
       </nav>
       <div className="bg-card rounded-lg border border-border p-3 sm:p-4 md:p-6 min-w-0 space-y-5">
+        {(["shipping","payouts","business","tax","returns","policies","branding","notifications","team","security","compliance"] as const).includes(section as any)&&<div role="note" className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950"><strong>Settings status:</strong> Some controls in this section are interface previews and are not connected to live store settings. Preview changes may be lost when you leave or reload the page. Only actions explicitly identified as connected will update your account.</div>}
         {section === "profile" && (<div className="space-y-4"><div><h3 className="text-xl font-bold">Store Profile</h3><p className="text-sm text-muted-foreground">Manage your public store information. This will be displayed on your store page.</p><p className="text-xs text-amber-700 mt-2">UI preview: category, store email, public address, language and visibility controls are not connected to the database yet.</p></div><h4 className="font-semibold border-b pb-2">Basic Information</h4>
         <div>
           <Label>Store Name</Label>
