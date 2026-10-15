@@ -162,6 +162,13 @@
       "when": 1792021430970,
       "tag": "0022_restrict_customer_return_to_signed_in",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1792022841056,
+      "tag": "0023_revoke_anon_privileges_on_user_roles",
+      "breakpoints": true
     }
   ]
 }
