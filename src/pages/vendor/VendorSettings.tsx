@@ -200,6 +200,28 @@ const VendorSettings = () => {
   if (["US", "CA", "GB", "DE", "FR", "AU", "IN", "CN", "NL", "ES", "IT"].includes(originIso) && !addressValue(warehouse, "zip").trim()) missingOrigin.push("postal code");
 
   const handleSave = async () => {
+    const storeName = form.store_name.trim();
+    const slug = form.slug.trim();
+    if (!storeName) {
+      toast.error("Store name is required.");
+      setSection("profile");
+      return;
+    }
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
+      toast.error("Store URL must use lowercase letters, numbers and single hyphens, without leading or trailing hyphens.");
+      setSection("profile");
+      return;
+    }
+    if (form.website.trim()) {
+      try {
+        const website = new URL(form.website.trim());
+        if (!["https:", "http:"].includes(website.protocol)) throw new Error("Unsupported protocol");
+      } catch {
+        toast.error("Website must be a valid HTTP or HTTPS URL.");
+        setSection("profile");
+        return;
+      }
+    }
     setSaving(true);
     try {
       if (!user?.id) throw new Error("Your session has expired. Please sign in again.");
