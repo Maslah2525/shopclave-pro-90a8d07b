@@ -167,7 +167,7 @@ const VendorSettings = () => {
   });
   const warehouse = asJsonRecord(form.warehouse_address);
   const [saving, setSaving] = useState(false);
-  const [section, setSection] = useState<"profile" | "branding" | "shipping" | "payouts" | "business" | "security" | "compliance" | "tax" | "returns" | "policies">("profile");
+  const [section, setSection] = useState<"profile" | "branding" | "shipping" | "payouts" | "business" | "security" | "compliance" | "tax" | "returns" | "policies" | "notifications" | "team">("profile");
 
   useEffect(() => {
     setForm({
@@ -263,7 +263,7 @@ const VendorSettings = () => {
       <h2 className="text-xl font-bold">Store Settings</h2>
       <div className="max-w-lg"><VendorProfileChecklist vendor={vendor} showLink={false} /></div>
       <nav aria-label="Store settings sections" className="flex flex-wrap gap-2">
-        {([["profile","Store Profile"],["branding","Appearance & Branding"],["shipping","Shipping Origin"],["payouts","Payments & Payouts"],["business","Business Information"],["security","Security & Account"],["compliance","Account Health & Compliance"],["tax","Tax Settings"],["returns","Returns & Refunds"],["policies","Store Policies"]] as const).map(([key,label]) => (
+        {([["profile","Store Profile"],["branding","Appearance & Branding"],["shipping","Shipping Origin"],["payouts","Payments & Payouts"],["business","Business Information"],["security","Security & Account"],["compliance","Account Health & Compliance"],["tax","Tax Settings"],["returns","Returns & Refunds"],["policies","Store Policies"],["notifications","Notifications"],["team","Team & Staff"]] as const).map(([key,label]) => (
           <Button key={key} type="button" size="sm" variant={section === key ? "default" : "outline"} aria-pressed={section === key} onClick={() => setSection(key)}>{label}</Button>
         ))}
       </nav>
@@ -452,6 +452,18 @@ const VendorSettings = () => {
             <h3 className="font-semibold">Store Policies</h3>
             <p className="text-sm text-muted-foreground">Published marketplace seller agreements and policies remain authoritative. Store-specific policy editing will be available only after a reviewed persistence and publishing workflow is implemented.</p>
             <Link to="/vendor/register" className="text-sm text-primary underline">Review seller agreements</Link>
+          </div>
+        )}
+        {section === "notifications" && (
+          <div className="space-y-3">
+            <h3 className="font-semibold">Notifications</h3>
+            <p className="text-sm text-muted-foreground">Essential order, payment, security and seller verification notices are controlled by the marketplace. Notification preferences cannot be changed until a secure, persistent preference service is implemented.</p>
+          </div>
+        )}
+        {section === "team" && (
+          <div className="space-y-3">
+            <h3 className="font-semibold">Team & Staff</h3>
+            <p className="text-sm text-muted-foreground">Staff invitations, role assignments and access revocation are not enabled. Only authorized seller accounts should access store management. No staff permissions are granted from this page.</p>
           </div>
         )}
         {(["profile","branding","shipping"] as const).includes(section as "profile" | "branding" | "shipping") && <Button onClick={handleSave} disabled={saving} className="w-full">
