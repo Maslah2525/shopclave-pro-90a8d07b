@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Loader2, Upload, Trash2, ImageIcon, Store, Building2, Truck, CreditCard, Receipt, PackageCheck, FileText, Palette, Bell, Users, Shield, ShieldCheck, ChevronRight, ExternalLink, RotateCcw } from "lucide-react";
+import { Loader2, Upload, Trash2, ImageIcon, Store, Building2, Mail, Link2, CheckCircle2, Save, Truck, CreditCard, Receipt, PackageCheck, FileText, Palette, Bell, Users, Shield, ShieldCheck, ChevronRight, ExternalLink, RotateCcw } from "lucide-react";
 import { convertImageToWebp } from "@/lib/imageToWebp";
 
 type ImageKind = "logo" | "banner";
@@ -350,6 +350,8 @@ const VendorSettings = () => {
     }));
   }, [sellerApplication]);
   const [businessFiles, setBusinessFiles] = useState<Record<string, File | null>>({});
+  const [businessCountryCode, setBusinessCountryCode] = useState("+1");
+  const canadianProvinces = ["Alberta","British Columbia","Manitoba","New Brunswick","Newfoundland and Labrador","Northwest Territories","Nova Scotia","Nunavut","Ontario","Prince Edward Island","Quebec","Saskatchewan","Yukon"];
   const { data: verifiedDocuments = [] } = useQuery({
     queryKey: ["seller-settings-documents", sellerApplication?.id],
     enabled: !!sellerApplication?.id,
@@ -565,13 +567,13 @@ const VendorSettings = () => {
               {businessInput("legalName","Legal Business Name",true,"Your official business name as per legal documents.")}
               {businessInput("registration","Business Registration Number (Optional)",false,"Company registration or business licence number.")}
               {businessInput("tradingName","Doing Business As (Trading Name)",false,"Your store or trading name (if different).")}
-              {businessInput("email","Business Email",true,"Official business email address.","email")}
-              {businessInput("phone","Business Phone",true,"Primary business contact number.","tel")}
-              {businessInput("website","Business Website (Optional)",false,"Your official business website.","url")}
+              <div className="space-y-1"><Label htmlFor="business-email">Business Email <span className="text-red-600">*</span></Label><div className="relative"><Mail className="absolute left-3 top-3 h-4 w-4 text-orange-600"/><Input id="business-email" className="pl-9" type="email" value={businessDraft.email} onChange={e=>updateBusiness("email",e.target.value)}/></div><p className="text-xs text-muted-foreground">Official business email address.</p></div>
+              <div className="space-y-1"><Label htmlFor="business-phone">Business Phone <span className="text-red-600">*</span></Label><div className="flex rounded-md border border-input overflow-hidden"><select aria-label="Phone country code" className="shrink-0 bg-muted px-2 text-sm border-r" value={businessCountryCode} onChange={e=>setBusinessCountryCode(e.target.value)}><option value="+1">🇨🇦 +1</option><option value="+254">🇰🇪 +254</option><option value="+44">🇬🇧 +44</option><option value="+61">🇦🇺 +61</option></select><Input id="business-phone" className="border-0 rounded-none focus-visible:ring-0" type="tel" value={businessDraft.phone} onChange={e=>updateBusiness("phone",e.target.value)}/></div><p className="text-xs text-muted-foreground">Primary business contact number.</p></div>
+              <div className="space-y-1"><Label htmlFor="business-website">Business Website (Optional)</Label><div className="relative"><Link2 className="absolute left-3 top-3 h-4 w-4 text-muted-foreground"/><Input id="business-website" className="pl-9" type="url" value={businessDraft.website} onChange={e=>updateBusiness("website",e.target.value)}/></div><p className="text-xs text-muted-foreground">Your official business website.</p></div>
             </div></section>
             <section className="rounded-lg border p-3 md:p-4 space-y-3"><h4 className="font-semibold">Business Address</h4><div className="grid md:grid-cols-2 gap-4">
-              {businessSelect("country","Country",["Canada","United States","United Kingdom","Kenya","Other"],true)}
-              {businessInput("province","Province / State",true)}
+              <div className="space-y-1"><Label>Country <span className="text-red-600">*</span></Label><div className="relative"><span className="absolute left-3 top-2.5">🇨🇦</span><select aria-label="Business country" className="w-full h-10 rounded-md border border-input bg-background pl-11 pr-3 text-sm" value={businessDraft.country} onChange={e=>setBusinessDraft(old=>({...old,country:e.target.value,province:""}))}>{["Canada","United States","United Kingdom","Kenya","Other"].map(country=><option key={country}>{country}</option>)}</select></div></div>
+              {businessDraft.country === "Canada" ? businessSelect("province","Province / State",["Select a province",...canadianProvinces],true) : businessInput("province","Province / State",true)}
               {businessInput("street","Street Address",true)}
               {businessInput("city","City",true)}
               {businessInput("unit","Suite / Unit (Optional)")}
@@ -583,10 +585,10 @@ const VendorSettings = () => {
             </section>
             <section className="rounded-lg border p-3 md:p-4 space-y-3"><h4 className="font-semibold">Tax Information</h4><div className="grid md:grid-cols-3 gap-4">
               {businessInput("taxId","Tax ID Number (Optional)",false,"GST/HST, EIN, VAT or other tax identification number.")}
-              {businessSelect("taxCountry","Tax Registration Country",["Canada","United States","United Kingdom","Kenya","Other"])}
+              <div className="space-y-1"><Label>Tax Registration Country</Label><div className="relative"><span className="absolute left-3 top-2.5">🇨🇦</span><select aria-label="Tax registration country" className="w-full h-10 rounded-md border border-input bg-background pl-11 pr-3 text-sm" value={businessDraft.taxCountry} onChange={e=>updateBusiness("taxCountry",e.target.value)}>{["Canada","United States","United Kingdom","Kenya","Other"].map(country=><option key={country}>{country}</option>)}</select></div></div>
               {businessSelect("taxType","Tax Type",["GST / HST","PST / QST","VAT","Sales Tax","Not Registered"])}
             </div></section>
-            <div className="flex justify-between gap-3 border-t pt-4"><Button variant="outline" type="button" onClick={()=>{setBusinessDraft(businessInitial);setBusinessFiles({});}}><RotateCcw className="h-4 w-4 mr-2"/>Reset Changes</Button><Button type="button" disabled title="Database integration pending" className="bg-orange-600 hover:bg-orange-700">Save Changes (Coming Soon)</Button></div>
+            <div className="flex justify-between gap-3 border-t pt-4"><Button variant="outline" type="button" onClick={()=>{setBusinessDraft(businessInitial);setBusinessFiles({});}}><RotateCcw className="h-4 w-4 mr-2"/>Reset Changes</Button><Button type="button" disabled title="Database integration pending" className="bg-orange-600 hover:bg-orange-700"><Save className="h-4 w-4 mr-2"/>Save Changes</Button></div>
           </div>
         )}
         {section === "security" && (
