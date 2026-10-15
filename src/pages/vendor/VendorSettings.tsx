@@ -167,7 +167,7 @@ const VendorSettings = () => {
   });
   const warehouse = asJsonRecord(form.warehouse_address);
   const [saving, setSaving] = useState(false);
-  const [section, setSection] = useState<"profile" | "branding" | "shipping" | "payouts">("profile");
+  const [section, setSection] = useState<"profile" | "branding" | "shipping" | "payouts" | "business" | "security">("profile");
 
   useEffect(() => {
     setForm({
@@ -241,7 +241,7 @@ const VendorSettings = () => {
       <h2 className="text-xl font-bold">Store Settings</h2>
       <div className="max-w-lg"><VendorProfileChecklist vendor={vendor} showLink={false} /></div>
       <nav aria-label="Store settings sections" className="flex flex-wrap gap-2">
-        {([["profile","Store Profile"],["branding","Appearance & Branding"],["shipping","Shipping Origin"],["payouts","Payments & Payouts"]] as const).map(([key,label]) => (
+        {([["profile","Store Profile"],["branding","Appearance & Branding"],["shipping","Shipping Origin"],["payouts","Payments & Payouts"],["business","Business Information"],["security","Security & Account"]] as const).map(([key,label]) => (
           <Button key={key} type="button" size="sm" variant={section === key ? "default" : "outline"} aria-pressed={section === key} onClick={() => setSection(key)}>{label}</Button>
         ))}
       </nav>
@@ -390,7 +390,21 @@ const VendorSettings = () => {
         </p>
 
         </div>)}
-        {section !== "payouts" && <Button onClick={handleSave} disabled={saving} className="w-full">
+        {section === "business" && (
+          <div className="space-y-3">
+            <h3 className="font-semibold">Verified Business Information</h3>
+            <p className="text-sm text-muted-foreground">Legal identity, business registration and verification documents are managed through the seller application review process. These fields cannot be changed through public store settings.</p>
+            <Link to="/vendor/register" className="text-sm text-primary underline">View seller registration and verification</Link>
+          </div>
+        )}
+        {section === "security" && (
+          <div className="space-y-3">
+            <h3 className="font-semibold">Security & Account</h3>
+            <p className="text-sm text-muted-foreground">Account credentials and authentication settings are separate from public storefront settings. Never enter passwords or banking credentials into store profile fields.</p>
+            <Link to="/auth" className="text-sm text-primary underline">Go to account sign-in</Link>
+          </div>
+        )}
+        {(["profile","branding","shipping"] as const).includes(section as "profile" | "branding" | "shipping") && <Button onClick={handleSave} disabled={saving} className="w-full">
           {saving ? "Saving..." : "Save Settings"}
         </Button>}
       </div>
