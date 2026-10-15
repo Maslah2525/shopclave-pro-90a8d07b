@@ -22,6 +22,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { countryByCode } from "@/lib/countries";
 import { INITIAL_SELLER_DRAFT, SellerDraft, validateSellerStep } from "@/lib/sellerOnboarding";
 import { cn } from "@/lib/utils";
+import type { SellerCountryRule } from "@/lib/sellerCountryPolicy";
 import { toast } from "sonner";
 
 const STEPS = ["Account", "Business", "Verification", "Store", "Payout", "Agreements", "Submit"];
@@ -103,8 +104,9 @@ export default function SellerOnboardingV2Page(){
   }
   return [...codes];
  },[rule,draft.is_business_registered]);
+ const sellerCountryRule: SellerCountryRule | null = rule && draft.business_type ? { country:draft.country, businessType:draft.business_type, requiredFields:rule.required_fields || [], requiredDocuments:rule.required_documents || [], reviewedAt:rule.reviewed_at, providerOnboardingEnabled:rule.stripe_connect_enabled } : null;
  const next=async()=>{
-  const validation=validateSellerStep(step,draft); if(validation){toast.error(validation);return;}
+  const validation=validateSellerStep(step,draft,sellerCountryRule); if(validation){toast.error(validation);return;}
   if(step===3&&rule&&effectiveDocuments.length>0&&!effectiveDocuments.every(code=>documents.some(d=>d.requirement_code===code))){toast.error("Upload each required verification document before continuing.");return;}
   if(step===5&&rule&&!payout?.provider_account_id){toast.error("Start secure payout onboarding before continuing.");return;}
   if(step===6&&rule){if(accepted.length!==SELLER_POLICY_CODES.length){toast.error("Accept all six published seller agreements before continuing.");return;} const {error}=await supabase.rpc("accept_seller_agreements",{p_codes:[...SELLER_POLICY_CODES]});if(error){toast.error(friendlyError(error.message));return;}}
@@ -116,7 +118,7 @@ export default function SellerOnboardingV2Page(){
   if(error||!data?.url){toast.error(data?.error||"Secure payout onboarding is not available yet.");return;}
   try{const url=new URL(data.url);if(url.protocol!=="https:"||!url.hostname.endsWith("stripe.com")){throw new Error();}window.location.assign(url.toString());}catch{toast.error("Stripe returned an invalid onboarding link.");}
  };
- const submit=async()=>{const validation=[1,2,4].map(s=>validateSellerStep(s,draft)).find(Boolean);if(validation){toast.error(validation);return;}setBusy(true);const {data,error}=await supabase.rpc("submit_seller_application");setBusy(false);if(error){toast.error(friendlyError(error.message));return;}setApplication(data as unknown as AppRow);toast.success("Application submitted for review");window.scrollTo({top:0,behavior:"smooth"});};
+ const submit=async()=>{const validation=[1,2,4].map(s=>validateSellerStep(s,draft,sellerCountryRule)).find(Boolean);if(validation){toast.error(validation);return;}setBusy(true);const {data,error}=await supabase.rpc("submit_seller_application");setBusy(false);if(error){toast.error(friendlyError(error.message));return;}setApplication(data as unknown as AppRow);toast.success("Application submitted for review");window.scrollTo({top:0,behavior:"smooth"});};
 
  if(authLoading||loading)return <MarketplaceLayout><div className="container flex min-h-[50vh] items-center justify-center"><Loader2 className="h-7 w-7 animate-spin text-primary"/></div></MarketplaceLayout>;
  if(!user)return null;
