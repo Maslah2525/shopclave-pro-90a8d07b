@@ -258,8 +258,8 @@ const VendorSettings = () => {
       return;
     }
     if (form.store_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.store_email)) { toast.error("Enter a valid store email."); return; }
-    if (section === "profile" && !form.primary_category_id) { toast.error("Select a main store category."); setSection("profile"); return; }
-    if (section === "profile" && ["country","state","city","zip"].some(key => !addressValue(form.public_store_address,key).trim())) { toast.error("Complete the public store address."); return; }
+
+
     if (form.store_description.length > 500) { toast.error("Store description must be 500 characters or fewer."); setSection("profile"); return; }
     if (slugAvailability !== "available") { toast.error("Confirm that the store URL is available before saving."); setSection("profile"); return; }
     if (form.website.trim()) {
@@ -277,7 +277,7 @@ const VendorSettings = () => {
       if (!user?.id) throw new Error("Your session has expired. Please sign in again.");
       const { data: updatedRows, error } = await supabase
         .from("vendors")
-        .update(form)
+        .update({ store_name: form.store_name, store_description: form.store_description, logo_url: form.logo_url, banner_url: form.banner_url, slug: form.slug, phone: form.phone, phone2: form.phone2, whatsapp: form.whatsapp, website: form.website, warehouse_address: form.warehouse_address })
         .eq("id", vendor.id)
         .eq("user_id", user.id)
         .select("id");
@@ -313,6 +313,7 @@ const VendorSettings = () => {
     ["profile","Store Profile","Basic store information",Store],["business","Business Information","Legal business details",Building2],["shipping","Shipping Settings","Shipping options & zones",Truck],["payouts","Payments & Payouts","Bank accounts & payouts",CreditCard],["tax","Tax Settings","Tax registration & documents",Receipt],["returns","Returns & Refunds","Return and refund policies",PackageCheck],["policies","Store Policies","Store rules and policies",FileText],["branding","Appearance & Branding","Logo, banner and theme",Palette],["notifications","Notifications","Email and alert settings",Bell],["team","Team & Staff","Manage team members",Users],["security","Security & Account","Password, 2FA and access",Shield],["compliance","Account Health & Compliance","Verification and compliance",ShieldCheck]
   ] as const;
   const isDirty = JSON.stringify(form) !== initialForm;
+  const uiOnlyDirty = (() => { const previous = JSON.parse(initialForm); return ["store_email","primary_category_id","additional_category_ids","public_store_address","store_language","contact_visibility"].some(key => JSON.stringify(form[key as keyof typeof form]) !== JSON.stringify(previous[key])); })();
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -329,7 +330,7 @@ const VendorSettings = () => {
         ))}
       </nav>
       <div className="bg-card rounded-lg border border-border p-4 md:p-6 min-w-0 space-y-5">
-        {section === "profile" && (<div className="space-y-4"><div><h3 className="text-xl font-bold">Store Profile</h3><p className="text-sm text-muted-foreground">Manage your public store information. This will be displayed on your store page.</p></div><h4 className="font-semibold border-b pb-2">Basic Information</h4>
+        {section === "profile" && (<div className="space-y-4"><div><h3 className="text-xl font-bold">Store Profile</h3><p className="text-sm text-muted-foreground">Manage your public store information. This will be displayed on your store page.</p><p className="text-xs text-amber-700 mt-2">UI preview: category, store email, public address, language and visibility controls are not connected to the database yet.</p></div><h4 className="font-semibold border-b pb-2">Basic Information</h4>
         <div>
           <Label>Store Name</Label>
           <Input value={form.store_name} onChange={(e) => setForm({ ...form, store_name: e.target.value })} />
@@ -538,7 +539,7 @@ const VendorSettings = () => {
             <p className="text-sm text-muted-foreground">Staff invitations, role assignments and access revocation are not enabled. Only authorized seller accounts should access store management. No staff permissions are granted from this page.</p>
           </div>
         )}
-        {(["profile","branding","shipping"] as const).includes(section as "profile" | "branding" | "shipping") && <div className="flex flex-wrap justify-between gap-2 border-t pt-4"><Button type="button" variant="outline" onClick={() => setForm(JSON.parse(initialForm))} disabled={!isDirty || saving}><RotateCcw className="h-4 w-4 mr-2"/>Reset Changes</Button><div className="flex gap-2"><Button variant="outline" asChild><Link to={`/store/${vendor.slug}`} target="_blank"><ExternalLink className="h-4 w-4 mr-2"/>Preview Store</Link></Button><Button onClick={handleSave} disabled={saving || !isDirty || slugAvailability !== "available"}>{saving ? "Saving..." : "Save Settings"}</Button></div></div>}
+        {(["profile","branding","shipping"] as const).includes(section as "profile" | "branding" | "shipping") && <div className="flex flex-wrap justify-between gap-2 border-t pt-4"><Button type="button" variant="outline" onClick={() => setForm(JSON.parse(initialForm))} disabled={!isDirty || saving}><RotateCcw className="h-4 w-4 mr-2"/>Reset Changes</Button><div className="flex gap-2"><Button variant="outline" asChild><Link to={`/store/${vendor.slug}`} target="_blank"><ExternalLink className="h-4 w-4 mr-2"/>Preview Store</Link></Button><Button onClick={handleSave} disabled={saving || !isDirty || slugAvailability !== "available" || uiOnlyDirty} title={uiOnlyDirty ? "Preview-only fields cannot be saved until database integration" : undefined}>{saving ? "Saving..." : "Save Settings"}</Button></div></div>}
       </div>
       </div>
     </div>
