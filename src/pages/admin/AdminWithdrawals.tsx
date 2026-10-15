@@ -20,13 +20,14 @@ const AdminWithdrawals = () => {
   const queryClient = useQueryClient();
   const [adminNotes, setAdminNotes] = useState<Record<string, string>>({});
 
-  const { data: withdrawals, refetch } = useQuery({
+  const { data: withdrawals, refetch, isLoading, error: withdrawalsError } = useQuery({
     queryKey: ["admin-withdrawals"],
     queryFn: async () => {
-      const { data } = await (supabase as any)
+      const { data, error } = await (supabase as any)
         .from("withdrawal_requests")
         .select("*, vendors(store_name, user_id)")
         .order("requested_at", { ascending: false });
+      if (error) throw error;
       return data || [];
     },
   });
@@ -84,8 +85,9 @@ const AdminWithdrawals = () => {
         <StatTile icon={Wallet} label="Total Requests" value={withdrawals?.length || 0} accent="bg-primary/10 text-primary" />
       </div>
 
+      {withdrawalsError && <p role="alert" className="text-destructive mb-4">Unable to load withdrawal requests. Check permissions or connectivity and retry.</p>}
       <div className="admin-card overflow-hidden">
-        {(!withdrawals || withdrawals.length === 0) ? (
+        {isLoading ? <p className="p-4 text-sm text-muted-foreground">Loading withdrawal requests…</p> : withdrawalsError ? null : (!withdrawals || withdrawals.length === 0) ? (
           <AdminEmptyState
             icon={Wallet}
             title="No withdrawal requests yet"
