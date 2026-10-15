@@ -20,6 +20,7 @@ const OrderChatPage = () => {
   const navigate = useNavigate();
   const [order, setOrder] = useState<any>(null);
   const [vendor, setVendor] = useState<any>(null);
+  const [multipleVendors, setMultipleVendors] = useState(false);
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
@@ -54,8 +55,10 @@ const OrderChatPage = () => {
         return;
       }
       setOrder(ord);
-      const firstVendor = ord.order_items?.[0]?.vendors;
-      setVendor(firstVendor);
+      const orderVendors = (ord.order_items || []).map((item: any) => item.vendors).filter(Boolean);
+      const distinctVendorIds = new Set(orderVendors.map((seller: any) => seller.id));
+      setMultipleVendors(distinctVendorIds.size > 1);
+      setVendor(distinctVendorIds.size === 1 ? orderVendors[0] : null);
 
       const { data: disp } = await supabase
         .from("disputes")
@@ -115,7 +118,7 @@ const OrderChatPage = () => {
   const isLocked = !!activeDispute;
 
   const handleSend = async (overrides?: { message_type: string; attachment_url: string; attachment_type: string; attachment_size: number; body?: string }) => {
-    if (!user || !vendor || !orderId) return;
+    if (!user || !vendor || !orderId || multipleVendors) return;
     if (!overrides && !newMessage.trim()) return;
     if (isLocked) return;
 
@@ -211,7 +214,7 @@ const OrderChatPage = () => {
               <p className="text-sm font-semibold mt-1">{formatPrice(Number(order?.total || 0))}</p>
             </div>
           </div>
-          {!isLocked && (
+          {!isLocked && !multipleVendors && (
             <div className="mt-3 pt-3 border-t border-border flex justify-end">
               <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setDisputeOpen(true)}>
                 <ShieldAlert className="h-3.5 w-3.5" /> Open Dispute
@@ -234,6 +237,8 @@ const OrderChatPage = () => {
           <ShieldCheck className="h-3.5 w-3.5 mt-0.5 shrink-0 text-primary" />
           <span>Chats related to orders may be securely retained for safety, dispute resolution, and fraud prevention.</span>
         </div>
+
+        {multipleVendors && <p role="alert" className="mb-3 rounded-md border border-border bg-muted p-3 text-sm">This order includes products from multiple sellers. Sending messages is disabled here to prevent routing a message to the wrong seller. Contact support at support@barakaz.com with your order number while seller-specific conversations are being implemented.</p>}
 
         {/* Messages */}
         <div className="bg-card rounded-lg border border-border p-3 min-h-[400px] max-h-[60vh] overflow-y-auto space-y-2">
@@ -258,7 +263,7 @@ const OrderChatPage = () => {
 
         {/* Composer */}
         <div className="flex gap-2 mt-3 items-center">
-          {!isLocked && (
+          {!isLocked && !multipleVendors && (
             <AttachmentButton
               userId={user.id}
               disabled={sending}
@@ -278,9 +283,9 @@ const OrderChatPage = () => {
             onChange={(e) => setNewMessage(e.target.value)}
             placeholder={isLocked ? "Chat locked" : "Type a message..."}
             onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
-            disabled={isLocked || sending}
+            disabled={isLocked || sending || multipleVendors}
           />
-          <Button size="icon" onClick={() => handleSend()} disabled={isLocked || sending || !newMessage.trim()}>
+          <Button size="icon" onClick={() => handleSend()} disabled={isLocked || sending || multipleVendors || !newMessage.trim()}>
             <Send className="h-4 w-4" />
           </Button>
         </div>
