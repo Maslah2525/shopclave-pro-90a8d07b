@@ -154,10 +154,10 @@ const Footer = () => {
             </div>
             <p className="hidden text-xs text-primary-foreground/45 lg:block">Prices shown in Canadian dollars (CAD)</p>
           </div>
-          <div className="grid grid-cols-5 gap-2 lg:grid-cols-10" aria-label="Payment methods that may be available at checkout">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-10" aria-label="Payment methods that may be available at checkout">
             {paymentMethods.map((method) => (
-              <div key={method.name} className="flex h-11 items-center justify-center overflow-hidden rounded border border-primary-foreground/15 bg-background px-2" title={method.name}>
-                <img src={method.logo} alt={method.name} className="h-7 w-full object-contain" loading="lazy" />
+              <div key={method.name} className="flex h-14 min-w-0 items-center justify-center overflow-hidden rounded-lg border border-primary-foreground/15 bg-background px-3 py-2" title={method.name}>
+                <img src={method.logo} alt={method.name} className="h-8 max-h-full w-full max-w-[110px] object-contain" loading="lazy" />
               </div>
             ))}
           </div>
