@@ -43,6 +43,7 @@ const AdminWithdrawals = () => {
 
   const updateStatus = useMutation({
     mutationFn: async ({ id, status, notes }: { id: string; status: string; notes?: string }) => {
+      if (status === "completed") throw new Error("Payout completion requires verified Stripe settlement and cannot be marked manually.");
       const updates: any = { status };
       if (notes) updates.admin_notes = notes;
       if (status === "completed" || status === "rejected") updates.processed_at = new Date().toISOString();
@@ -75,7 +76,7 @@ const AdminWithdrawals = () => {
 
   return (
     <div>
-      <AdminPageHeader title="Withdrawal Requests" subtitle="Review and process vendor payout requests." count={withdrawals?.length || 0} countLabel="requests" />
+      <AdminPageHeader title="Withdrawal Requests" subtitle="Review vendor payout requests. Completion requires verified Stripe settlement." count={withdrawals?.length || 0} countLabel="requests" />
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-5">
         <StatTile icon={Clock} label="Pending" value={`$${totals.pending.toLocaleString()}`} accent="bg-warning/10 text-warning" />
@@ -137,12 +138,7 @@ const AdminWithdrawals = () => {
                         </div>
                       )}
                       {w.status === "approved" && (
-                        <div className="flex justify-end">
-                          <Button size="sm" className="h-7 text-xs"
-                            onClick={() => updateStatus.mutate({ id: w.id, status: "completed" })}>
-                            Mark Completed
-                          </Button>
-                        </div>
+                        <span className="text-xs text-muted-foreground block text-right">Awaiting verified Stripe settlement</span>
                       )}
                       {(w.status === "completed" || w.status === "rejected") && (
                         <span className="text-xs text-muted-foreground block text-right">{w.admin_notes || "—"}</span>
