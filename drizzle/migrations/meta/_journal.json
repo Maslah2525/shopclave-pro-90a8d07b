@@ -169,6 +169,20 @@
       "when": 1792022841056,
       "tag": "0023_revoke_anon_privileges_on_user_roles",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1792064795491,
+      "tag": "0024_record_require_stripe_for_all_seller_kyc",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1792064807547,
+      "tag": "0025_record_revoke_anon_user_roles_grants",
+      "breakpoints": true
     }
   ]
 }
