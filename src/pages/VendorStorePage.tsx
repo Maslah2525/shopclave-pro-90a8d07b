@@ -51,7 +51,7 @@ const VendorStorePage = () => {
       const { data, error } = await supabase
         .from("vendors")
         .select(
-          "id, user_id, store_name, store_description, logo_url, banner_url, status, slug, phone, phone2, whatsapp, website, store_email, contact_visibility, public_store_address, created_at, updated_at"
+          "id, user_id, store_name, store_description, logo_url, banner_url, status, slug, phone, phone2, whatsapp, website, created_at, updated_at"
         )
         .eq(isUuid ? "id" : "slug", param)
         .maybeSingle();
@@ -186,14 +186,6 @@ const VendorStorePage = () => {
     vendor.store_description ||
     `Shop ${vendor.store_name} on Barakaz — verified vendor with ${products.length} products. Worldwide delivery available.`;
 
-  const visibility = vendor.contact_visibility || "all";
-  const showPhone = visibility === "all" || visibility === "phone";
-  const showEmail = visibility === "all" || visibility === "email";
-  const publicAddress = vendor.public_store_address && typeof vendor.public_store_address === "object" && !Array.isArray(vendor.public_store_address) ? vendor.public_store_address : {};
-  const publicCity = typeof publicAddress.city === "string" ? publicAddress.city : "";
-  const publicRegion = typeof publicAddress.state === "string" ? publicAddress.state : "";
-  const publicCountry = typeof publicAddress.country === "string" ? publicAddress.country : "";
-  const publicPostal = typeof publicAddress.zip === "string" ? publicAddress.zip : "";
   const storeJsonLd = {
     "@context": "https://schema.org",
     "@type": "Store",
@@ -201,9 +193,10 @@ const VendorStorePage = () => {
     url: storeUrl,
     image: vendor.logo_url || vendor.banner_url || undefined,
     description: vendor.store_description || undefined,
-    telephone: showPhone ? vendor.phone || undefined : undefined,
-    email: showEmail ? vendor.store_email || undefined : undefined,
-    address: publicCity || publicRegion || publicCountry ? { "@type": "PostalAddress", addressLocality: publicCity, addressRegion: publicRegion, addressCountry: publicCountry, postalCode: publicPostal } : undefined,
+    telephone: vendor.phone || undefined,
+    address: (vendor as any).address
+      ? { "@type": "PostalAddress", streetAddress: (vendor as any).address }
+      : undefined,
   };
 
   return (
@@ -256,7 +249,6 @@ const VendorStorePage = () => {
                 <div className="flex items-center gap-4 text-xs text-muted-foreground mt-2 flex-wrap">
                   <span className="flex items-center gap-1"><Users className="h-3 w-3" />{followerCount} Followers</span>
                   <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />Member since {memberSince}</span>
-                  {(publicCity || publicRegion || publicCountry) && <span>{[publicCity,publicRegion,publicCountry].filter(Boolean).join(", ")}</span>}
                 </div>
               </div>
 
@@ -277,8 +269,6 @@ const VendorStorePage = () => {
                     storeName={vendor.store_name}
                     logoUrl={vendor.logo_url}
                   />
-                  {showEmail && vendor.store_email && <Button size="sm" variant="outline" className="gap-2" asChild><a href={`mailto:${vendor.store_email}`}>Email Store</a></Button>}
-                  {showPhone && vendor.phone && <Button size="sm" variant="outline" className="gap-2" asChild><a href={`tel:${vendor.phone}`}><Phone className="h-4 w-4"/>Call Store</a></Button>}
                   {vendor.website && (
                     <Button
                       size="sm"
