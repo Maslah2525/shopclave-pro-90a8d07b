@@ -8,7 +8,7 @@ export const INITIAL_SELLER_DRAFT:SellerDraft={full_name:"",phone:"",country:"CA
 export function validateSellerStep(step:number,d:SellerDraft,rule?:SellerCountryRule|null){
  if(step===1&&(!d.full_name.trim()||!/^\+?[1-9]\d{7,14}$/.test(d.phone.replace(/[\s()-]/g,""))))return "Enter your full name and a valid international phone number.";
  if(step===2&&(!d.country||!d.business_type||!d.legal_name.trim()||!d.category.trim()))return "Complete all required business information.";
- if(step===2&&d.business_type){const missing=missingSellerBusinessFields(d.country,d.business_type,d as unknown as Record<string,unknown>,rule);if(missing.length)return `Complete required business fields: ${missing.join(", ")}.`;}
+ if(step===2&&d.business_type){const missing=missingSellerBusinessFields(d.country,d.business_type,d as unknown as Record<string,unknown>,rule);if(missing.length){if(missing.includes("registration_number")&&d.business_type==="sole_proprietor")return "Enter the registered business number.";return `Complete required business fields: ${missing.join(", ")}.`;}}
  if(step===2&&d.business_type==="company"&&!d.registration_number.trim())return "Enter the company registration / business number.";
  if(step===2&&d.business_type==="sole_proprietor"&&d.is_business_registered&&!d.registration_number.trim())return "Enter the registered business number.";
  if(step===4&&(!d.store_name.trim()||!d.store_description.trim()||!d.logo_url||!d.product_categories.length||!d.ship_from.trim()||!d.return_address.trim()))return "Complete all required store information.";
