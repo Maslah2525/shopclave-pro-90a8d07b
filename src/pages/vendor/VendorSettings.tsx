@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import VendorProfileChecklist from "@/components/vendor/VendorProfileChecklist";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -164,8 +164,24 @@ const VendorSettings = () => {
     whatsapp: vendor.whatsapp || "",
     website: vendor.website || "",
     warehouse_address: vendor.warehouse_address || {},
+    store_email: vendor.store_email || "",
+    primary_category_id: vendor.primary_category_id || null as string | null,
+    additional_category_ids: (vendor.additional_category_ids || []) as string[],
+    public_store_address: asJsonRecord(vendor.public_store_address),
+    store_language: vendor.store_language || "en",
+    contact_visibility: vendor.contact_visibility || "all",
   });
   const warehouse = asJsonRecord(form.warehouse_address);
+  const publicAddress = asJsonRecord(form.public_store_address);
+  const { data: categories = [] } = useQuery({
+    queryKey: ["store-settings-categories"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("categories").select("id,name,parent_id").order("name");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+  const setPublicAddress = (key: string, value: string) => setForm(f => ({ ...f, public_store_address: { ...asJsonRecord(f.public_store_address), [key]: value } }));
   const [saving, setSaving] = useState(false);
   const [slugAvailability, setSlugAvailability] = useState<"checking" | "available" | "taken" | "error" | null>(null);
   const [initialForm, setInitialForm] = useState(JSON.stringify(form));
@@ -183,6 +199,12 @@ const VendorSettings = () => {
       whatsapp: vendor.whatsapp || "",
       website: vendor.website || "",
       warehouse_address: asJsonRecord(vendor.warehouse_address),
+      store_email: vendor.store_email || "",
+      primary_category_id: vendor.primary_category_id || null,
+      additional_category_ids: vendor.additional_category_ids || [],
+      public_store_address: asJsonRecord(vendor.public_store_address),
+      store_language: vendor.store_language || "en",
+      contact_visibility: vendor.contact_visibility || "all",
     };
     setForm(nextForm);
     setInitialForm(JSON.stringify(nextForm));
@@ -235,6 +257,8 @@ const VendorSettings = () => {
       setSection("profile");
       return;
     }
+    if (form.store_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.store_email)) { toast.error("Enter a valid store email."); return; }
+    if (!form.primary_category_id) { toast.error("Select a main store category."); setSection("profile"); return; }
     if (form.store_description.length > 500) { toast.error("Store description must be 500 characters or fewer."); setSection("profile"); return; }
     if (slugAvailability !== "available") { toast.error("Confirm that the store URL is available before saving."); setSection("profile"); return; }
     if (form.website.trim()) {
@@ -335,7 +359,11 @@ const VendorSettings = () => {
           </p>
           {slugAvailability && <p role="status" className={`text-xs mt-1 ${slugAvailability === "available" ? "text-green-700" : slugAvailability === "taken" ? "text-red-600" : "text-muted-foreground"}`}>{slugAvailability === "checking" ? "Checking availability…" : slugAvailability === "available" ? "✓ Available" : slugAvailability === "taken" ? "This URL is already in use" : "Unable to check availability"}</p>}
         </div>
-
+        <h4 className="font-semibold border-b pb-2">Store Category</h4>
+        <div className="grid md:grid-cols-2 gap-3">
+          <div><Label htmlFor="main-category">Main Category *</Label><select id="main-category" className="w-full h-10 rounded-md border bg-background px-3 text-sm" value={form.primary_category_id || ""} onChange={e=>setForm(f=>({...f,primary_category_id:e.target.value || null,additional_category_ids:f.additional_category_ids.filter(id=>id!==e.target.value)}))}><option value="">Select a category</option>{categories.filter(c=>!c.parent_id).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+          <div><Label htmlFor="additional-categories">Additional Categories (Optional)</Label><select id="additional-categories" className="w-full h-10 rounded-md border bg-background px-3 text-sm" value="" onChange={e=>{const id=e.target.value;if(id)setForm(f=>({...f,additional_category_ids:[...new Set([...f.additional_category_ids,id])]}));}}><option value="">Add a category</option>{categories.filter(c=>c.id!==form.primary_category_id&&!form.additional_category_ids.includes(c.id)).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select><div className="flex flex-wrap gap-1 mt-2">{form.additional_category_ids.map(id=><button type="button" key={id} onClick={()=>setForm(f=>({...f,additional_category_ids:f.additional_category_ids.filter(v=>v!==id)}))} className="text-xs border rounded px-2 py-1">{categories.find(c=>c.id===id)?.name || id} ×</button>)}</div></div>
+        </div>
         </div>)}
         {section === "branding" && (<div className="space-y-4">
         <ImageUploadField
@@ -358,7 +386,7 @@ const VendorSettings = () => {
         {section === "profile" && (<div className="space-y-4">
         <h3 className="font-semibold pt-2 border-t border-border">Store Contact Information</h3>
         <p className="text-xs text-muted-foreground">These contact details are currently displayed according to the existing storefront implementation.</p>
-        <div><Label>Store Email</Label><Input type="email" value={user?.email || ""} disabled readOnly/><p className="text-xs text-muted-foreground mt-1">Account email is managed through authentication, not editable in store settings.</p></div>
+        <div><Label>Store Email *</Label><Input type="email" value={form.store_email} onChange={e=>setForm({...form,store_email:e.target.value})} placeholder={user?.email || "store@example.com"}/></div>
 
         <div>
           <Label>Phone Number *</Label>
@@ -377,6 +405,10 @@ const VendorSettings = () => {
           <Input value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} placeholder="https://yourstore.com" />
         </div>
 
+        <h3 className="font-semibold border-t pt-4">Store Address (Public)</h3>
+        <div className="grid md:grid-cols-2 gap-3">{([["country","Country"],["state","Province / State"],["city","City"],["zip","Postal / ZIP Code"]] as const).map(([key,label])=><div key={key}><Label>{label} *</Label><Input value={addressValue(publicAddress,key)} onChange={e=>setPublicAddress(key,e.target.value)} placeholder={key==="country"?"Canada":label}/></div>)}</div>
+        <h3 className="font-semibold border-t pt-4">Store Language & Visibility</h3>
+        <div className="grid md:grid-cols-2 gap-4"><div><Label>Store Language</Label><select className="w-full h-10 border rounded-md bg-background px-3" value={form.store_language} onChange={e=>setForm({...form,store_language:e.target.value})}><option value="en">English</option><option value="fr">French</option></select></div><fieldset><legend className="text-sm font-medium mb-2">Contact Information Visibility</legend>{([["all","Show all contact details"],["email","Show email only"],["phone","Show phone number only"],["hidden","Hide all contact details"]] as const).map(([value,label])=><label key={value} className="flex items-center gap-2 text-sm mb-2"><input type="radio" name="contact-visibility" checked={form.contact_visibility===value} onChange={()=>setForm({...form,contact_visibility:value})}/>{label}</label>)}<p className="text-xs text-muted-foreground">Visibility preferences require storefront rendering support before they affect public pages.</p></fieldset></div>
         </div>)}
         {section === "shipping" && (<div className="space-y-4">
         <h3 className="font-semibold pt-2 border-t border-border">Shipping Origin Address</h3>
