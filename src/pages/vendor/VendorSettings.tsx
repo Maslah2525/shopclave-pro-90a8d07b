@@ -167,7 +167,7 @@ const VendorSettings = () => {
   });
   const warehouse = asJsonRecord(form.warehouse_address);
   const [saving, setSaving] = useState(false);
-  const [section, setSection] = useState<"profile" | "branding" | "shipping" | "payouts" | "business" | "security">("profile");
+  const [section, setSection] = useState<"profile" | "branding" | "shipping" | "payouts" | "business" | "security" | "compliance">("profile");
 
   useEffect(() => {
     setForm({
@@ -263,7 +263,7 @@ const VendorSettings = () => {
       <h2 className="text-xl font-bold">Store Settings</h2>
       <div className="max-w-lg"><VendorProfileChecklist vendor={vendor} showLink={false} /></div>
       <nav aria-label="Store settings sections" className="flex flex-wrap gap-2">
-        {([["profile","Store Profile"],["branding","Appearance & Branding"],["shipping","Shipping Origin"],["payouts","Payments & Payouts"],["business","Business Information"],["security","Security & Account"]] as const).map(([key,label]) => (
+        {([["profile","Store Profile"],["branding","Appearance & Branding"],["shipping","Shipping Origin"],["payouts","Payments & Payouts"],["business","Business Information"],["security","Security & Account"],["compliance","Account Health & Compliance"]] as const).map(([key,label]) => (
           <Button key={key} type="button" size="sm" variant={section === key ? "default" : "outline"} aria-pressed={section === key} onClick={() => setSection(key)}>{label}</Button>
         ))}
       </nav>
@@ -424,6 +424,14 @@ const VendorSettings = () => {
             <h3 className="font-semibold">Security & Account</h3>
             <p className="text-sm text-muted-foreground">Account credentials and authentication settings are separate from public storefront settings. Never enter passwords or banking credentials into store profile fields.</p>
             <Link to="/auth" className="text-sm text-primary underline">Go to account sign-in</Link>
+          </div>
+        )}
+        {section === "compliance" && (
+          <div className="space-y-3">
+            <h3 className="font-semibold">Account Health & Compliance</h3>
+            <p className="text-sm text-muted-foreground">Your seller eligibility and verification status are governed by the reviewed seller application and payout provider. Storefront settings cannot override compliance restrictions.</p>
+            <p className="text-sm">Store approval: <span className="font-medium">{vendor.status || "Not available"}</span></p>
+            <Link to="/vendor/register" className="text-sm text-primary underline">Review seller verification requirements</Link>
           </div>
         )}
         {(["profile","branding","shipping"] as const).includes(section as "profile" | "branding" | "shipping") && <Button onClick={handleSave} disabled={saving} className="w-full">
