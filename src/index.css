@@ -216,3 +216,21 @@
     }
   }
 }
+
+/* Vendor Store Settings: small-screen form and action layout */
+@media (max-width: 639px) {
+  .vendor-settings-mobile { min-width: 0; max-width: 100%; }
+  .vendor-settings-mobile :is(input, select, textarea) { max-width: 100%; min-width: 0; }
+  .vendor-settings-mobile :is(h2, h3, h4, p, label) { overflow-wrap: anywhere; }
+  .vendor-settings-mobile .grid { min-width: 0; }
+  .vendor-settings-mobile .grid > * { min-width: 0; }
+  .vendor-settings-mobile .flex > * { min-width: 0; }
+  .vendor-settings-mobile .flex.flex-wrap { row-gap: 0.75rem; }
+  .vendor-settings-mobile .flex.justify-between:has(> button),
+  .vendor-settings-mobile .flex.justify-between:has(> a),
+  .vendor-settings-mobile .flex.justify-between:has(> [data-slot="button"]) { flex-wrap: wrap; gap: 0.75rem; }
+  .vendor-settings-mobile .flex.justify-between:has(> button) > button,
+  .vendor-settings-mobile .flex.justify-between:has(> a) > a { flex: 1 1 auto; white-space: normal; height: auto; min-height: 2.5rem; }
+  .vendor-settings-mobile table { min-width: 520px; }
+  .vendor-settings-mobile :is(.overflow-x-auto, [role="region"]) { max-width: 100%; }
+}
