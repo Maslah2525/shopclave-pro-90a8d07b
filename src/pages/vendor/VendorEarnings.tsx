@@ -1,42 +1,12 @@
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useOutletContext, Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
 import { DollarSign, TrendingUp, Wallet, Clock, ArrowDownToLine, AlertCircle } from "lucide-react";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
 
-interface PaymentDetails {
-  phone?: string;
-  email?: string;
-  account_name?: string;
-  bank_name?: string;
-  branch?: string;
-  account_number?: string;
-  swift_code?: string;
-}
-
 const VendorEarnings = () => {
   const { vendor } = useOutletContext<{ vendor: any }>();
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const [amount, setAmount] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState("bank_transfer");
-  const [paymentDetails, setPaymentDetails] = useState<PaymentDetails>({});
-
-  const updateDetail = (key: keyof PaymentDetails, value: string) =>
-    setPaymentDetails((prev) => ({ ...prev, [key]: value }));
-
-  const handleMethodChange = (method: string) => {
-    setPaymentMethod(method);
-    setPaymentDetails({});
-  };
-
   const { data: orderItems, isError: ordersError, isLoading: ordersLoading } = useQuery({
     queryKey: ["vendor-orders", vendor?.id],
     queryFn: async () => {
@@ -82,41 +52,6 @@ const VendorEarnings = () => {
     return Object.values(map).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
   })();
 
-  const validateDetails = (): string | null => {
-    if (paymentMethod === "bank_transfer") {
-      if (!paymentDetails.account_name?.trim()) return "Enter account name";
-      if (!paymentDetails.bank_name?.trim()) return "Enter bank name";
-      if (!paymentDetails.account_number?.trim()) return "Enter account number";
-    } else if (paymentMethod === "paypal") {
-      if (!paymentDetails.email?.trim()) return "Enter PayPal email";
-    }
-    return null;
-  };
-
-  const requestWithdrawal = useMutation({
-    mutationFn: async () => {
-      const amt = parseFloat(amount);
-      if (!balancesReady) throw new Error("Balance information is unavailable. Please retry.");
-      if (!amt || amt <= 0 || amt > availableBalance) throw new Error("Invalid amount");
-      const detailError = validateDetails();
-      if (detailError) throw new Error(detailError);
-      const { error } = await (supabase as any).from("withdrawal_requests").insert({
-        vendor_id: vendor.id,
-        amount: amt,
-        payment_method: paymentMethod,
-        payment_details: paymentDetails,
-      });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["vendor-withdrawals", vendor?.id] });
-      setAmount("");
-      setPaymentDetails({});
-      toast({ title: "Withdrawal requested successfully" });
-    },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
-  });
-
   const statusColors: Record<string, string> = {
     pending: "bg-warning/10 text-warning",
     approved: "bg-primary/10 text-primary",
@@ -156,71 +91,13 @@ const VendorEarnings = () => {
       </div>
 
       <p className="text-xs text-muted-foreground">Figures include confirmed paid orders only. Available balance is an estimate based on recorded commissions and withdrawal requests; final settlement and eligibility are subject to reconciliation.</p>
-      {/* Withdrawal Form */}
-      <div className="admin-card p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <ArrowDownToLine className="h-4 w-4 text-primary" />
-          <h3 className="font-semibold">Request Withdrawal</h3>
-        </div>
-        <div className="space-y-4">
-          <p className="text-xs text-muted-foreground">For Stripe Connect payouts, use <Link to="/vendor/payments" className="text-primary underline">Payment settings</Link>. Manual withdrawal requests require administrator review and do not initiate an automatic transfer.</p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <Label>Amount (CAD)</Label>
-              <Input type="number" placeholder="0" value={amount} onChange={(e) => setAmount(e.target.value)} max={availableBalance} />
-            </div>
-            <div>
-              <Label>Payment Method</Label>
-              <Select value={paymentMethod} onValueChange={handleMethodChange}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                  <SelectItem value="paypal">PayPal</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {paymentMethod === "bank_transfer" && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <Label>Account Name</Label>
-                <Input placeholder="John Doe" value={paymentDetails.account_name || ""} onChange={(e) => updateDetail("account_name", e.target.value)} />
-              </div>
-              <div>
-                <Label>Bank Name</Label>
-                <Input placeholder="e.g. Equity Bank" value={paymentDetails.bank_name || ""} onChange={(e) => updateDetail("bank_name", e.target.value)} />
-              </div>
-              <div>
-                <Label>Branch</Label>
-                <Input placeholder="e.g. Nairobi CBD" value={paymentDetails.branch || ""} onChange={(e) => updateDetail("branch", e.target.value)} />
-              </div>
-              <div>
-                <Label>Account Number</Label>
-                <Input placeholder="Account #" value={paymentDetails.account_number || ""} onChange={(e) => updateDetail("account_number", e.target.value)} />
-              </div>
-              <div>
-                <Label>SWIFT Code</Label>
-                <Input placeholder="e.g. EABORBI" value={paymentDetails.swift_code || ""} onChange={(e) => updateDetail("swift_code", e.target.value)} />
-              </div>
-            </div>
-          )}
-
-          {paymentMethod === "paypal" && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <Label>PayPal Email</Label>
-                <Input type="email" placeholder="email@example.com" value={paymentDetails.email || ""} onChange={(e) => updateDetail("email", e.target.value)} />
-              </div>
-            </div>
-          )}
-
-          <Button onClick={() => requestWithdrawal.mutate()} disabled={requestWithdrawal.isPending || !balancesReady || availableBalance <= 0}>
-            {requestWithdrawal.isPending ? "Submitting..." : "Request Withdrawal"}
-          </Button>
-        </div>
+      {/* Payout destinations are collected only by the verified payment provider. */}
+      <div className="admin-card p-6 space-y-2">
+        <h3 className="font-semibold">Secure payouts</h3>
+        <p className="text-sm text-muted-foreground">Bank and identity information must be submitted through the payment provider’s secure onboarding flow. Barakaz does not collect account numbers, routing numbers, IBANs or SWIFT details in withdrawal requests.</p>
+        <p className="text-sm"><Link to="/vendor/payments" className="text-primary underline">Open payment settings to view your provider verification status</Link>.</p>
+        <p className="text-xs text-muted-foreground">Balances displayed here are estimates, not a guarantee that funds are available for withdrawal. Provider-confirmed settlement and account eligibility govern payouts.</p>
       </div>
-
       {/* Top Products */}
       {topProducts.length > 0 && (
         <div className="space-y-3">
