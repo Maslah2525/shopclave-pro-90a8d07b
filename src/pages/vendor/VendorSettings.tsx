@@ -350,6 +350,17 @@ const VendorSettings = () => {
     }));
   }, [sellerApplication]);
   const [businessFiles, setBusinessFiles] = useState<Record<string, File | null>>({});
+  const { data: verifiedDocuments = [] } = useQuery({
+    queryKey: ["seller-settings-documents", sellerApplication?.id],
+    enabled: !!sellerApplication?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("seller_verification_documents")
+        .select("id,requirement_code,verification_status,uploaded_at,review_reason")
+        .eq("application_id", sellerApplication!.id);
+      if (error) throw error;
+      return data || [];
+    },
+  });
   const updateBusiness = (key: keyof typeof businessDraft, value: string) => setBusinessDraft(previous => ({ ...previous, [key]: value }));
   const businessInput = (key: keyof typeof businessDraft, label: string, required = false, hint = "", type = "text") => (
     <div className="space-y-1"><Label htmlFor={`business-${key}`}>{label}{required && <span className="text-red-600"> *</span>}</Label>
@@ -566,7 +577,8 @@ const VendorSettings = () => {
               {businessInput("unit","Suite / Unit (Optional)")}
               {businessInput("postal","Postal / ZIP Code",true)}
             </div></section>
-            <section className="rounded-lg border p-3 md:p-4 space-y-3"><h4 className="font-semibold">Business Documents</h4><p className="text-xs text-muted-foreground">Choose clear and valid documents for a future verification step. JPG, PNG or PDF (maximum 10MB each).</p>
+            <section className="rounded-lg border p-3 md:p-4 space-y-3"><h4 className="font-semibold">Business Documents</h4>
+              {verifiedDocuments.length > 0 && <div className="rounded-md bg-muted p-3"><p className="text-sm font-medium mb-2">Documents already submitted for verification</p>{verifiedDocuments.map(doc => <p key={doc.id} className="text-xs py-1">{doc.requirement_code.replace(/_/g," ")} — <strong>{doc.verification_status}</strong></p>)}<p className="text-xs text-muted-foreground mt-1">Document contents are private and are not exposed in Store Settings.</p></div>}<p className="text-xs text-muted-foreground">Choose clear and valid documents for a future verification step. JPG, PNG or PDF (maximum 10MB each).</p>
               <div className="grid md:grid-cols-3 gap-3">{(["Business License / Registration","Government ID","Tax Document (Optional)"] as const).map(label => <div key={label} className="rounded-md border p-3 space-y-2"><p className="text-xs font-semibold">{label}</p><label className="flex min-h-20 flex-col items-center justify-center gap-1 rounded border border-dashed cursor-pointer text-center p-2"><Upload className="h-5 w-5 text-muted-foreground"/><span className="text-xs break-all">{businessFiles[label]?.name || "Choose Document"}</span><span className="text-xs text-muted-foreground">JPG, PNG or PDF</span><input className="sr-only" type="file" accept=".jpg,.jpeg,.png,.pdf" onChange={e => {const file=e.target.files?.[0];if(!file)return;if(file.size>10*1024*1024 || !["image/jpeg","image/png","application/pdf"].includes(file.type)){toast.error("Choose a JPG, PNG or PDF under 10MB.");e.target.value="";return;}setBusinessFiles(old=>({...old,[label]:file}));}}/></label>{businessFiles[label] && <button type="button" className="text-xs text-orange-700 underline" onClick={()=>setBusinessFiles(old=>({...old,[label]:null}))}>Remove selection</button>}</div>)}</div>
             </section>
             <section className="rounded-lg border p-3 md:p-4 space-y-3"><h4 className="font-semibold">Tax Information</h4><div className="grid md:grid-cols-3 gap-4">
