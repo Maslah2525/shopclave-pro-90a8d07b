@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CheckCircle, XCircle, Search, Eye, MousePointer, Package, Store } from "lucide-react";
+import { XCircle, Search, Eye, MousePointer, Package, Store } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
@@ -150,11 +150,6 @@ const AdminVendors = () => {
                     <td><span className={`status-pill ${statusPill(v.status)}`}>{v.status}</span></td>
                     <td>
                       <div className="flex gap-1 justify-end">
-                        {false && v.status !== "approved" && (
-                          <Button size="sm" variant="ghost" className="h-8 px-2 text-success hover:text-success hover:bg-success/10" onClick={() => updateVendorStatus.mutate({ id: v.id, status: "approved" })}>
-                            <CheckCircle className="h-4 w-4" />
-                          </Button>
-                        )}
                         {v.status === "approved" && (
                           <Button size="sm" variant="ghost" className="h-8 px-2 text-warning hover:text-warning hover:bg-warning/10 text-xs" onClick={() => updateVendorStatus.mutate({ id: v.id, status: "suspended" })}>
                             Suspend
