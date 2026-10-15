@@ -185,7 +185,7 @@ const VendorSettings = () => {
   const [saving, setSaving] = useState(false);
   const [slugAvailability, setSlugAvailability] = useState<"checking" | "available" | "taken" | "error" | null>(null);
   const [initialForm, setInitialForm] = useState(JSON.stringify(form));
-  const [section, setSection] = useState<"profile" | "branding" | "shipping" | "payouts" | "business" | "security" | "compliance" | "tax" | "returns" | "policies" | "notifications" | "team">("profile");
+  const [section, setSection] = useState<"profile" | "branding" | "shipping" | "payouts" | "business" | "security" | "compliance" | "tax" | "returns" | "policies" | "notifications" | "team" | "overview">("overview");
 
   useEffect(() => {
     const nextForm = {
@@ -467,7 +467,9 @@ const VendorSettings = () => {
         <div><h2 className="text-2xl font-bold flex items-center gap-2"><Store className="h-6 w-6"/>Store Settings</h2><p className="text-sm text-muted-foreground">Manage your store and customize your selling experience.</p></div>
         <div className="flex flex-wrap gap-2 items-center"><span className={`rounded-md border px-3 py-2 text-xs font-semibold ${vendor.status === "approved" ? "border-green-200 bg-green-50 text-green-700" : "border-slate-200 bg-slate-50 text-slate-700"}`}>{vendor.status === "approved" ? "✓ Approved Seller Account" : `Seller Account: ${vendor.status || "Unknown"}`}</span><Link to={`/store/${vendor.slug}`} target="_blank" className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm"><ExternalLink className="h-4 w-4"/>View Store</Link></div>
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)] gap-4 items-start">
+      {section === "overview" && <div className="space-y-4"><div className="rounded-xl border bg-card p-5 sm:p-6"><h3 className="text-xl font-bold">Choose a settings section</h3><p className="mt-1 text-sm text-muted-foreground">All 12 store settings sections are available below. Select one to view its controls and make changes.</p></div><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{sections.map(([key,label,description,Icon],index)=><button key={key} type="button" onClick={()=>setSection(key)} className="group flex min-h-28 items-start gap-3 rounded-xl border bg-card p-4 text-left shadow-sm transition-all hover:border-orange-400 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted group-hover:bg-orange-50"><Icon className="h-5 w-5 text-foreground group-hover:text-orange-700"/></span><span className="min-w-0 flex-1"><span className="block text-xs font-medium text-muted-foreground">Section {String(index+1).padStart(2,"0")}</span><span className="mt-1 block font-semibold">{label}</span><span className="mt-1 block text-xs text-muted-foreground">{description}</span></span><ChevronRight className="mt-2 h-4 w-4 shrink-0 text-muted-foreground"/></button>)}</div></div>}
+      {section !== "overview" && <button type="button" onClick={()=>setSection("overview")} className="inline-flex items-center gap-2 text-sm font-semibold text-orange-700 hover:underline">← All 12 store settings sections</button>}
+      {section !== "overview" && <div className="grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)] gap-4 items-start">
       <div className="lg:hidden rounded-lg border bg-card p-3 space-y-2"><Label htmlFor="mobile-settings-section">Settings section</Label><select id="mobile-settings-section" aria-label="Select store settings section" value={section} onChange={e=>setSection(e.target.value as typeof section)} className="w-full h-11 rounded-md border border-input bg-background px-3 text-sm">{sections.map(([key,label],index)=><option key={key} value={key}>{index+1}. {label}</option>)}</select><p className="text-xs text-muted-foreground">Choose a section to edit its settings.</p></div>
       <nav aria-label="Store settings sections" className="hidden lg:block rounded-lg border bg-card p-2 space-y-1">
         {sections.map(([key,label,description,Icon],index) => (
@@ -742,7 +744,7 @@ const VendorSettings = () => {
         )}
         {(["profile","branding"] as const).includes(section as "profile" | "branding" | "shipping") && <div className="flex flex-wrap justify-between gap-2 border-t pt-4"><Button type="button" variant="outline" onClick={() => setForm(JSON.parse(initialForm))} disabled={!isDirty || saving}><RotateCcw className="h-4 w-4 mr-2"/>Reset Changes</Button><div className="flex gap-2"><Button variant="outline" asChild><Link to={`/store/${vendor.slug}`} target="_blank"><ExternalLink className="h-4 w-4 mr-2"/>Preview Store</Link></Button><Button onClick={handleSave} disabled={saving || !isDirty || slugAvailability !== "available" || uiOnlyDirty} title={uiOnlyDirty ? "Preview-only fields cannot be saved until database integration" : undefined}>{saving ? "Saving..." : "Save Settings"}</Button></div></div>}
       </div>
-      </div>
+      </div>}
     </div>
   );
 };
