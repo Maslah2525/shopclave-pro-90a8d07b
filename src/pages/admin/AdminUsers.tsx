@@ -41,7 +41,6 @@ const AdminUsers = () => {
   const addRole = useMutation({
     mutationFn: async ({ user_id, role }: { user_id: string; role: string }) => {
       throw new Error("Direct role grants are disabled. Use the verified seller onboarding process or a separately audited privileged administrator workflow.");
-      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-all-roles"] });
