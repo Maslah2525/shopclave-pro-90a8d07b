@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import VendorProfileChecklist from "@/components/vendor/VendorProfileChecklist";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Loader2, Upload, Trash2, ImageIcon } from "lucide-react";
+import { Loader2, Upload, Trash2, ImageIcon, Store, Building2, Truck, CreditCard, Receipt, PackageCheck, FileText, Palette, Bell, Users, Shield, ShieldCheck, ChevronRight, ExternalLink, RotateCcw } from "lucide-react";
 import { convertImageToWebp } from "@/lib/imageToWebp";
 
 type ImageKind = "logo" | "banner";
@@ -164,13 +164,31 @@ const VendorSettings = () => {
     whatsapp: vendor.whatsapp || "",
     website: vendor.website || "",
     warehouse_address: vendor.warehouse_address || {},
+    store_email: vendor.store_email || "",
+    primary_category_id: vendor.primary_category_id || null as string | null,
+    additional_category_ids: (vendor.additional_category_ids || []) as string[],
+    public_store_address: asJsonRecord(vendor.public_store_address),
+    store_language: vendor.store_language || "en",
+    contact_visibility: vendor.contact_visibility || "all",
   });
   const warehouse = asJsonRecord(form.warehouse_address);
+  const publicAddress = asJsonRecord(form.public_store_address);
+  const { data: categories = [] } = useQuery({
+    queryKey: ["store-settings-categories"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("categories").select("id,name,parent_id").order("name");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+  const setPublicAddress = (key: string, value: string) => setForm(f => ({ ...f, public_store_address: { ...asJsonRecord(f.public_store_address), [key]: value } }));
   const [saving, setSaving] = useState(false);
+  const [slugAvailability, setSlugAvailability] = useState<"checking" | "available" | "taken" | "error" | null>(null);
+  const [initialForm, setInitialForm] = useState(JSON.stringify(form));
   const [section, setSection] = useState<"profile" | "branding" | "shipping" | "payouts" | "business" | "security" | "compliance" | "tax" | "returns" | "policies" | "notifications" | "team">("profile");
 
   useEffect(() => {
-    setForm({
+    const nextForm = {
       store_name: vendor.store_name || "",
       store_description: vendor.store_description || "",
       logo_url: vendor.logo_url || "",
@@ -181,8 +199,35 @@ const VendorSettings = () => {
       whatsapp: vendor.whatsapp || "",
       website: vendor.website || "",
       warehouse_address: asJsonRecord(vendor.warehouse_address),
-    });
+      store_email: vendor.store_email || "",
+      primary_category_id: vendor.primary_category_id || null,
+      additional_category_ids: vendor.additional_category_ids || [],
+      public_store_address: asJsonRecord(vendor.public_store_address),
+      store_language: vendor.store_language || "en",
+      contact_visibility: vendor.contact_visibility || "all",
+    };
+    setForm(nextForm);
+    setInitialForm(JSON.stringify(nextForm));
   }, [vendor]);
+
+  useEffect(() => {
+    const slug = form.slug.trim();
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
+      setSlugAvailability(null);
+      return;
+    }
+    if (slug === vendor.slug) {
+      setSlugAvailability("available");
+      return;
+    }
+    setSlugAvailability("checking");
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      const { data, error } = await supabase.from("vendors").select("id").eq("slug", slug).neq("id", vendor.id).limit(1);
+      if (!cancelled) setSlugAvailability(error ? "error" : data?.length ? "taken" : "available");
+    }, 400);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [form.slug, vendor.id, vendor.slug]);
 
   // Mirrors the server-side check used at checkout (validateWarehouse).
   const originIso = (() => {
@@ -212,6 +257,11 @@ const VendorSettings = () => {
       setSection("profile");
       return;
     }
+    if (form.store_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.store_email)) { toast.error("Enter a valid store email."); return; }
+
+
+    if (form.store_description.length > 500) { toast.error("Store description must be 500 characters or fewer."); setSection("profile"); return; }
+    if (slugAvailability !== "available") { toast.error("Confirm that the store URL is available before saving."); setSection("profile"); return; }
     if (form.website.trim()) {
       try {
         const website = new URL(form.website.trim());
@@ -227,7 +277,7 @@ const VendorSettings = () => {
       if (!user?.id) throw new Error("Your session has expired. Please sign in again.");
       const { data: updatedRows, error } = await supabase
         .from("vendors")
-        .update(form)
+        .update({ store_name: form.store_name, store_description: form.store_description, logo_url: form.logo_url, banner_url: form.banner_url, slug: form.slug, phone: form.phone, phone2: form.phone2, whatsapp: form.whatsapp, website: form.website, warehouse_address: form.warehouse_address })
         .eq("id", vendor.id)
         .eq("user_id", user.id)
         .select("id");
@@ -245,6 +295,7 @@ const VendorSettings = () => {
         throw new Error("Your store was updated, but the shipping origin could not be verified. Please try again.");
       }
 
+      setInitialForm(JSON.stringify(form));
       await queryClient.invalidateQueries({ queryKey: ["vendor", user.id] });
       if (missingOrigin.length > 0) {
         toast.warning(`Settings saved and verified, but shipping still needs: ${missingOrigin.join(", ")}.`);
@@ -258,24 +309,36 @@ const VendorSettings = () => {
     }
   };
 
+  const sections = [
+    ["profile","Store Profile","Basic store information",Store],["business","Business Information","Legal business details",Building2],["shipping","Shipping Settings","Shipping options & zones",Truck],["payouts","Payments & Payouts","Bank accounts & payouts",CreditCard],["tax","Tax Settings","Tax registration & documents",Receipt],["returns","Returns & Refunds","Return and refund policies",PackageCheck],["policies","Store Policies","Store rules and policies",FileText],["branding","Appearance & Branding","Logo, banner and theme",Palette],["notifications","Notifications","Email and alert settings",Bell],["team","Team & Staff","Manage team members",Users],["security","Security & Account","Password, 2FA and access",Shield],["compliance","Account Health & Compliance","Verification and compliance",ShieldCheck]
+  ] as const;
+  const isDirty = JSON.stringify(form) !== initialForm;
+  const uiOnlyDirty = (() => { const previous = JSON.parse(initialForm); return ["store_email","primary_category_id","additional_category_ids","public_store_address","store_language","contact_visibility"].some(key => JSON.stringify(form[key as keyof typeof form]) !== JSON.stringify(previous[key])); })();
   return (
-    <div className="space-y-4">
-      <h2 className="text-xl font-bold">Store Settings</h2>
-      <div className="max-w-lg"><VendorProfileChecklist vendor={vendor} showLink={false} /></div>
-      <nav aria-label="Store settings sections" className="flex flex-wrap gap-2">
-        {([["profile","Store Profile"],["branding","Appearance & Branding"],["shipping","Shipping Origin"],["payouts","Payments & Payouts"],["business","Business Information"],["security","Security & Account"],["compliance","Account Health & Compliance"],["tax","Tax Settings"],["returns","Returns & Refunds"],["policies","Store Policies"],["notifications","Notifications"],["team","Team & Staff"]] as const).map(([key,label]) => (
-          <Button key={key} type="button" size="sm" variant={section === key ? "default" : "outline"} aria-pressed={section === key} onClick={() => setSection(key)}>{label}</Button>
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div><h2 className="text-2xl font-bold flex items-center gap-2"><Store className="h-6 w-6"/>Store Settings</h2><p className="text-sm text-muted-foreground">Manage your store and customize your selling experience.</p></div>
+        <div className="flex flex-wrap gap-2 items-center"><span className="rounded-md border border-green-200 bg-green-50 text-green-700 px-3 py-2 text-xs font-semibold">{vendor.status === "approved" ? "✓ Approved Seller Account" : `Seller Account: ${vendor.status || "Unknown"}`}</span><Link to={`/store/${vendor.slug}`} target="_blank" className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm"><ExternalLink className="h-4 w-4"/>View Store</Link></div>
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)] gap-4 items-start">
+      <nav aria-label="Store settings sections" className="rounded-lg border bg-card p-2 space-y-1">
+        {sections.map(([key,label,description,Icon],index) => (
+          <button key={key} type="button" aria-current={section === key ? "step" : undefined} onClick={() => setSection(key)} className={`w-full flex items-center gap-3 rounded-md border p-3 text-left transition-colors ${section === key ? "border-orange-500 bg-orange-50 text-orange-700" : "border-transparent hover:bg-muted"}`}>
+            <span className="h-7 w-7 shrink-0 rounded-full bg-slate-800 text-white flex items-center justify-center text-xs font-bold">{index+1}</span>
+            <Icon className="h-6 w-6 shrink-0"/><span className="min-w-0 flex-1"><span className="block text-sm font-semibold">{label}</span><span className="block text-xs text-muted-foreground">{description}</span></span><ChevronRight className="h-4 w-4 shrink-0"/>
+          </button>
         ))}
       </nav>
-      <div className="bg-card rounded-lg border border-border p-6 max-w-lg space-y-4">
-        {section === "profile" && (<div className="space-y-4">
+      <div className="bg-card rounded-lg border border-border p-4 md:p-6 min-w-0 space-y-5">
+        {section === "profile" && (<div className="space-y-4"><div><h3 className="text-xl font-bold">Store Profile</h3><p className="text-sm text-muted-foreground">Manage your public store information. This will be displayed on your store page.</p><p className="text-xs text-amber-700 mt-2">UI preview: category, store email, public address, language and visibility controls are not connected to the database yet.</p></div><h4 className="font-semibold border-b pb-2">Basic Information</h4>
         <div>
           <Label>Store Name</Label>
           <Input value={form.store_name} onChange={(e) => setForm({ ...form, store_name: e.target.value })} />
         </div>
         <div>
-          <Label>Store Description</Label>
-          <Textarea value={form.store_description} onChange={(e) => setForm({ ...form, store_description: e.target.value })} rows={3} />
+          <Label>Store Description *</Label>
+          <Textarea maxLength={500} value={form.store_description} onChange={(e) => setForm({ ...form, store_description: e.target.value })} rows={3} />
+          <p className="text-right text-xs text-muted-foreground">{form.store_description.length}/500</p>
         </div>
 
         <div>
@@ -296,8 +359,13 @@ const VendorSettings = () => {
           <p className="text-xs text-muted-foreground mt-1">
             Lowercase letters, numbers and hyphens only. Must be unique.
           </p>
+          {slugAvailability && <p role="status" className={`text-xs mt-1 ${slugAvailability === "available" ? "text-green-700" : slugAvailability === "taken" ? "text-red-600" : "text-muted-foreground"}`}>{slugAvailability === "checking" ? "Checking availability…" : slugAvailability === "available" ? "✓ Available" : slugAvailability === "taken" ? "This URL is already in use" : "Unable to check availability"}</p>}
         </div>
-
+        <h4 className="font-semibold border-b pb-2">Store Category</h4>
+        <div className="grid md:grid-cols-2 gap-3">
+          <div><Label htmlFor="main-category">Main Category *</Label><select id="main-category" className="w-full h-10 rounded-md border bg-background px-3 text-sm" value={form.primary_category_id || ""} onChange={e=>setForm(f=>({...f,primary_category_id:e.target.value || null,additional_category_ids:f.additional_category_ids.filter(id=>id!==e.target.value)}))}><option value="">Select a category</option>{categories.filter(c=>!c.parent_id).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+          <div><Label htmlFor="additional-categories">Additional Categories (Optional)</Label><select id="additional-categories" className="w-full h-10 rounded-md border bg-background px-3 text-sm" value="" onChange={e=>{const id=e.target.value;if(id)setForm(f=>({...f,additional_category_ids:[...new Set([...f.additional_category_ids,id])]}));}}><option value="">Add a category</option>{categories.filter(c=>c.id!==form.primary_category_id&&!form.additional_category_ids.includes(c.id)).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select><div className="flex flex-wrap gap-1 mt-2">{form.additional_category_ids.map(id=><button type="button" key={id} onClick={()=>setForm(f=>({...f,additional_category_ids:f.additional_category_ids.filter(v=>v!==id)}))} className="text-xs border rounded px-2 py-1">{categories.find(c=>c.id===id)?.name || id} ×</button>)}</div></div>
+        </div>
         </div>)}
         {section === "branding" && (<div className="space-y-4">
         <ImageUploadField
@@ -318,8 +386,9 @@ const VendorSettings = () => {
 
         </div>)}
         {section === "profile" && (<div className="space-y-4">
-        <h3 className="font-semibold pt-2 border-t border-border">Contact Information</h3>
-        <p className="text-xs text-muted-foreground">Customers will see these on your product pages to contact you directly.</p>
+        <h3 className="font-semibold pt-2 border-t border-border">Store Contact Information</h3>
+        <p className="text-xs text-muted-foreground">These contact details are currently displayed according to the existing storefront implementation.</p>
+        <div><Label>Store Email *</Label><Input type="email" value={form.store_email} onChange={e=>setForm({...form,store_email:e.target.value})} placeholder={user?.email || "store@example.com"}/></div>
 
         <div>
           <Label>Phone Number *</Label>
@@ -338,6 +407,10 @@ const VendorSettings = () => {
           <Input value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} placeholder="https://yourstore.com" />
         </div>
 
+        <h3 className="font-semibold border-t pt-4">Store Address (Public)</h3>
+        <div className="grid md:grid-cols-2 gap-3">{([["country","Country"],["state","Province / State"],["city","City"],["zip","Postal / ZIP Code"]] as const).map(([key,label])=><div key={key}><Label>{label} *</Label><Input value={addressValue(publicAddress,key)} onChange={e=>setPublicAddress(key,e.target.value)} placeholder={key==="country"?"Canada":label}/></div>)}</div>
+        <h3 className="font-semibold border-t pt-4">Store Language & Visibility</h3>
+        <div className="grid md:grid-cols-2 gap-4"><div><Label>Store Language</Label><select className="w-full h-10 border rounded-md bg-background px-3" value={form.store_language} onChange={e=>setForm({...form,store_language:e.target.value})}><option value="en">English</option><option value="fr">French</option></select></div><fieldset><legend className="text-sm font-medium mb-2">Contact Information Visibility</legend>{([["all","Show all contact details"],["email","Show email only"],["phone","Show phone number only"],["hidden","Hide all contact details"]] as const).map(([value,label])=><label key={value} className="flex items-center gap-2 text-sm mb-2"><input type="radio" name="contact-visibility" checked={form.contact_visibility===value} onChange={()=>setForm({...form,contact_visibility:value})}/>{label}</label>)}<p className="text-xs text-muted-foreground">Visibility preferences require storefront rendering support before they affect public pages.</p></fieldset></div>
         </div>)}
         {section === "shipping" && (<div className="space-y-4">
         <h3 className="font-semibold pt-2 border-t border-border">Shipping Origin Address</h3>
@@ -466,9 +539,8 @@ const VendorSettings = () => {
             <p className="text-sm text-muted-foreground">Staff invitations, role assignments and access revocation are not enabled. Only authorized seller accounts should access store management. No staff permissions are granted from this page.</p>
           </div>
         )}
-        {(["profile","branding","shipping"] as const).includes(section as "profile" | "branding" | "shipping") && <Button onClick={handleSave} disabled={saving} className="w-full">
-          {saving ? "Saving..." : "Save Settings"}
-        </Button>}
+        {(["profile","branding","shipping"] as const).includes(section as "profile" | "branding" | "shipping") && <div className="flex flex-wrap justify-between gap-2 border-t pt-4"><Button type="button" variant="outline" onClick={() => setForm(JSON.parse(initialForm))} disabled={!isDirty || saving}><RotateCcw className="h-4 w-4 mr-2"/>Reset Changes</Button><div className="flex gap-2"><Button variant="outline" asChild><Link to={`/store/${vendor.slug}`} target="_blank"><ExternalLink className="h-4 w-4 mr-2"/>Preview Store</Link></Button><Button onClick={handleSave} disabled={saving || !isDirty || slugAvailability !== "available" || uiOnlyDirty} title={uiOnlyDirty ? "Preview-only fields cannot be saved until database integration" : undefined}>{saving ? "Saving..." : "Save Settings"}</Button></div></div>}
+      </div>
       </div>
     </div>
   );
