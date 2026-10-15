@@ -167,6 +167,7 @@ const VendorSettings = () => {
   });
   const warehouse = asJsonRecord(form.warehouse_address);
   const [saving, setSaving] = useState(false);
+  const [slugAvailability, setSlugAvailability] = useState<"checking" | "available" | "taken" | "error" | null>(null);
   const [initialForm, setInitialForm] = useState(JSON.stringify(form));
   const [section, setSection] = useState<"profile" | "branding" | "shipping" | "payouts" | "business" | "security" | "compliance" | "tax" | "returns" | "policies" | "notifications" | "team">("profile");
 
@@ -186,6 +187,25 @@ const VendorSettings = () => {
     setForm(nextForm);
     setInitialForm(JSON.stringify(nextForm));
   }, [vendor]);
+
+  useEffect(() => {
+    const slug = form.slug.trim();
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
+      setSlugAvailability(null);
+      return;
+    }
+    if (slug === vendor.slug) {
+      setSlugAvailability("available");
+      return;
+    }
+    setSlugAvailability("checking");
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      const { data, error } = await supabase.from("vendors").select("id").eq("slug", slug).neq("id", vendor.id).limit(1);
+      if (!cancelled) setSlugAvailability(error ? "error" : data?.length ? "taken" : "available");
+    }, 400);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [form.slug, vendor.id, vendor.slug]);
 
   // Mirrors the server-side check used at checkout (validateWarehouse).
   const originIso = (() => {
@@ -215,6 +235,8 @@ const VendorSettings = () => {
       setSection("profile");
       return;
     }
+    if (form.store_description.length > 500) { toast.error("Store description must be 500 characters or fewer."); setSection("profile"); return; }
+    if (slugAvailability !== "available") { toast.error("Confirm that the store URL is available before saving."); setSection("profile"); return; }
     if (form.website.trim()) {
       try {
         const website = new URL(form.website.trim());
@@ -248,6 +270,7 @@ const VendorSettings = () => {
         throw new Error("Your store was updated, but the shipping origin could not be verified. Please try again.");
       }
 
+      setInitialForm(JSON.stringify(form));
       await queryClient.invalidateQueries({ queryKey: ["vendor", user.id] });
       if (missingOrigin.length > 0) {
         toast.warning(`Settings saved and verified, but shipping still needs: ${missingOrigin.join(", ")}.`);
@@ -287,8 +310,9 @@ const VendorSettings = () => {
           <Input value={form.store_name} onChange={(e) => setForm({ ...form, store_name: e.target.value })} />
         </div>
         <div>
-          <Label>Store Description</Label>
-          <Textarea value={form.store_description} onChange={(e) => setForm({ ...form, store_description: e.target.value })} rows={3} />
+          <Label>Store Description *</Label>
+          <Textarea maxLength={500} value={form.store_description} onChange={(e) => setForm({ ...form, store_description: e.target.value })} rows={3} />
+          <p className="text-right text-xs text-muted-foreground">{form.store_description.length}/500</p>
         </div>
 
         <div>
@@ -309,6 +333,7 @@ const VendorSettings = () => {
           <p className="text-xs text-muted-foreground mt-1">
             Lowercase letters, numbers and hyphens only. Must be unique.
           </p>
+          {slugAvailability && <p role="status" className={`text-xs mt-1 ${slugAvailability === "available" ? "text-green-700" : slugAvailability === "taken" ? "text-red-600" : "text-muted-foreground"}`}>{slugAvailability === "checking" ? "Checking availability…" : slugAvailability === "available" ? "✓ Available" : slugAvailability === "taken" ? "This URL is already in use" : "Unable to check availability"}</p>}
         </div>
 
         </div>)}
@@ -332,7 +357,8 @@ const VendorSettings = () => {
         </div>)}
         {section === "profile" && (<div className="space-y-4">
         <h3 className="font-semibold pt-2 border-t border-border">Store Contact Information</h3>
-        <p className="text-xs text-muted-foreground">Customers will see these on your product pages to contact you directly.</p>
+        <p className="text-xs text-muted-foreground">These contact details are currently displayed according to the existing storefront implementation.</p>
+        <div><Label>Store Email</Label><Input type="email" value={user?.email || ""} disabled readOnly/><p className="text-xs text-muted-foreground mt-1">Account email is managed through authentication, not editable in store settings.</p></div>
 
         <div>
           <Label>Phone Number *</Label>
@@ -479,7 +505,7 @@ const VendorSettings = () => {
             <p className="text-sm text-muted-foreground">Staff invitations, role assignments and access revocation are not enabled. Only authorized seller accounts should access store management. No staff permissions are granted from this page.</p>
           </div>
         )}
-        {(["profile","branding","shipping"] as const).includes(section as "profile" | "branding" | "shipping") && <div className="flex flex-wrap justify-between gap-2 border-t pt-4"><Button type="button" variant="outline" onClick={() => setForm(JSON.parse(initialForm))} disabled={!isDirty || saving}><RotateCcw className="h-4 w-4 mr-2"/>Reset Changes</Button><div className="flex gap-2"><Button variant="outline" asChild><Link to={`/store/${vendor.slug}`} target="_blank"><ExternalLink className="h-4 w-4 mr-2"/>Preview Store</Link></Button><Button onClick={handleSave} disabled={saving || !isDirty}>{saving ? "Saving..." : "Save Settings"}</Button></div></div>}
+        {(["profile","branding","shipping"] as const).includes(section as "profile" | "branding" | "shipping") && <div className="flex flex-wrap justify-between gap-2 border-t pt-4"><Button type="button" variant="outline" onClick={() => setForm(JSON.parse(initialForm))} disabled={!isDirty || saving}><RotateCcw className="h-4 w-4 mr-2"/>Reset Changes</Button><div className="flex gap-2"><Button variant="outline" asChild><Link to={`/store/${vendor.slug}`} target="_blank"><ExternalLink className="h-4 w-4 mr-2"/>Preview Store</Link></Button><Button onClick={handleSave} disabled={saving || !isDirty || slugAvailability !== "available"}>{saving ? "Saving..." : "Save Settings"}</Button></div></div>}
       </div>
       </div>
     </div>
