@@ -17,18 +17,17 @@ const HelpCenterPage = () => (
     <p>Go to your Account page and select "My Orders" to view the status and tracking information for all your orders.</p>
 
     <h3 className="text-base font-semibold text-foreground mt-4">What payment methods are accepted?</h3>
-    <p>We accept M-Pesa, Visa, Mastercard, bank transfers, and PayPal. Available payment methods may vary by region.</p>
+    <p>Available payment methods are shown securely at checkout. Card payments are processed through Stripe; options may vary by country and order.</p>
 
     <h3 className="text-base font-semibold text-foreground mt-4">How do I return a product?</h3>
-    <p>If you are not satisfied with your purchase, you can initiate a return within 7 days of delivery. Visit our Return Policy page for details.</p>
+    <p>For eligible items, request a return from My Orders within 7 days of delivery. Review the Return Policy for eligibility and exclusions.</p>
 
     <h3 className="text-base font-semibold text-foreground mt-4">How do I become a seller?</h3>
     <p>Click "Sell on Barakaz" in the navigation menu to register as a vendor. Once approved, you can start listing products immediately.</p>
 
     <h2 className="text-lg font-semibold text-foreground mt-6">Contact Support</h2>
     <p>Email: <strong>support@barakaz.com</strong></p>
-    <p>WhatsApp: <strong>+254 700 000 000</strong></p>
-    <p>We respond within 24 hours on business days.</p>
+    <p>Include your order number and a brief description of the issue so our support team can assist you.</p>
   </StaticPage>
 );
 
