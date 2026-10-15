@@ -31,14 +31,28 @@ const VendorEarnings = () => {
     enabled: !!vendor,
   });
 
+  // Use the existing ledger-maintained balance instead of inferring withdrawable funds
+  // from paid orders (which can include holds, refunds and unsettled payments).
+  const { data: ledgerBalance, isLoading: balanceLoading, isError: balanceError } = useQuery({
+    queryKey: ["vendor-ledger-balance", vendor?.id],
+    enabled: !!vendor?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("vendor_balances")
+        .select("available_balance,pending_balance,total_withdrawn,currency")
+        .eq("vendor_id", vendor.id).maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const totalRevenue = orderItems?.reduce((sum: number, i: any) => sum + Number(i.price) * i.quantity, 0) || 0;
   const totalCommission = orderItems?.reduce((sum: number, i: any) => sum + Number(i.commission_amount), 0) || 0;
   const netEarnings = totalRevenue - totalCommission;
-  const withdrawnOrPending = withdrawals
-    ?.filter((w: any) => w.status === "completed" || w.status === "pending" || w.status === "approved")
-    .reduce((s: number, w: any) => s + Number(w.amount), 0) || 0;
-  const availableBalance = netEarnings - withdrawnOrPending;
   const balancesReady = !ordersLoading && !withdrawalsLoading && !ordersError && !withdrawalsError;
+  const balanceCurrency = ledgerBalance?.currency || "CAD";
+  const formatBalance = (amount: number) => new Intl.NumberFormat("en-CA", { style: "currency", currency: balanceCurrency }).format(amount);
+  const availableBalance = ledgerBalance ? Number(ledgerBalance.available_balance) : null;
+  const pendingBalance = ledgerBalance ? Number(ledgerBalance.pending_balance) : null;
 
   const topProducts = (() => {
     const map: Record<string, { name: string; units: number; revenue: number }> = {};
@@ -63,7 +77,7 @@ const VendorEarnings = () => {
     { label: "Gross Revenue", value: `$${totalRevenue.toLocaleString()}`, icon: DollarSign, accent: "text-foreground", iconBg: "bg-muted text-muted-foreground" },
     { label: `Platform Fee (${vendor?.commission_rate}%)`, value: `- $${totalCommission.toLocaleString()}`, icon: TrendingUp, accent: "text-destructive", iconBg: "bg-destructive/10 text-destructive" },
     { label: "Net Earnings", value: `$${netEarnings.toLocaleString()}`, icon: Wallet, accent: "text-success", iconBg: "bg-success/10 text-success" },
-    { label: "Available Balance", value: `$${Math.max(0, availableBalance).toLocaleString()}`, icon: Clock, accent: "text-primary", iconBg: "bg-primary/10 text-primary" },
+    { label: "Available Balance", value: !balanceLoading && !balanceError && availableBalance !== null && Number.isFinite(availableBalance) ? formatBalance(availableBalance) : "Unavailable", icon: Clock, accent: "text-primary", iconBg: "bg-primary/10 text-primary" },
   ];
 
   return (
@@ -90,7 +104,7 @@ const VendorEarnings = () => {
         ))}
       </div>
 
-      <p className="text-xs text-muted-foreground">Figures include confirmed paid orders only. Available balance is an estimate based on recorded commissions and withdrawal requests; final settlement and eligibility are subject to reconciliation.</p>
+      <p className="text-xs text-muted-foreground">Gross revenue, commission and net earnings above are paid-order summaries, not settlement statements. Available balance comes from the existing vendor ledger-maintained balance; it does not guarantee payout eligibility.</p>\n      {balanceError && <p className="text-sm text-destructive">Ledger balance could not be loaded. No available balance can be confirmed.</p>}\n      {pendingBalance !== null && !balanceError && <p className="text-sm text-muted-foreground">Ledger pending balance: {formatBalance(pendingBalance)}. Payout eligibility still depends on settlement and provider verification.</p>}
       {/* Payout destinations are collected only by the verified payment provider. */}
       <div className="admin-card p-6 space-y-2">
         <h3 className="font-semibold">Secure payouts</h3>
