@@ -52,17 +52,17 @@ const faqCategories: FAQCategory[] = [
       {
         question: "What payment methods are accepted?",
         answer:
-          "Barakaz connects you directly with vendors. Most vendors accept M-Pesa, bank transfers, and cash on delivery. Available payment methods are displayed on each vendor's listing.",
+          "Available payment methods appear at secure checkout. Card payments are processed through Stripe; options may vary by region.",
       },
       {
-        question: "Is it safe to pay vendors directly?",
+        question: "How can I pay safely?",
         answer:
-          "Yes. We verify all vendors before listing. Always confirm payment details on the product page and use the in-app chat to keep records of your transaction.",
+          "Pay through Barakaz checkout. Do not send payments directly to sellers outside the platform.",
       },
       {
         question: "Will I be charged any platform fees?",
         answer:
-          "No. Buyers are not charged any platform fees. You only pay the price agreed with the vendor.",
+          "Your checkout total displays applicable product prices, shipping charges and taxes before payment.",
       },
     ],
   },
@@ -97,7 +97,7 @@ const faqCategories: FAQCategory[] = [
       {
         question: "How do I get a refund?",
         answer:
-          "Refunds are processed directly by the vendor once the returned product is received. If you face any issues, you can open a dispute through the in-app chat.",
+          "Request an eligible return from My Orders. Refunds require review and payment-provider processing; contact support if you need assistance.",
       },
     ],
   },
@@ -117,7 +117,7 @@ const faqCategories: FAQCategory[] = [
       {
         question: "How do I receive payments from buyers?",
         answer:
-          "Buyers pay you directly using your registered M-Pesa or bank account. Barakaz does not handle payments between buyers and vendors.",
+          "Buyer payments go through Barakaz checkout. Eligible seller payouts use Stripe Connect after onboarding and verification.",
       },
     ],
   },
