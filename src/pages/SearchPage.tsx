@@ -214,7 +214,8 @@ const SearchPage = () => {
         q = q.not("compare_at_price", "is", null);
       }
 
-      const { data } = await q;
+      const { data, error } = await q;
+      if (error) throw new Error(`Unable to load marketplace products: ${error.message}`);
       let list = data || [];
 
       if (dealsMode) {
