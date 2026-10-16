@@ -40,6 +40,8 @@ export function searchCountries(query: string): Country[] {
 export interface AddressFormat { regionLabel: string; postalLabel: string; postalRequired: boolean; postalPattern?: RegExp; postalExample?: string }
 
 const FORMATS: Record<string, AddressFormat> = {
+  CN: { regionLabel: "Province / Municipality", postalLabel: "Postal Code", postalRequired: false, postalPattern: /^\\d{6}$/, postalExample: "100000" },
+  KR: { regionLabel: "Province / Metropolitan City", postalLabel: "Postal Code", postalRequired: true, postalPattern: /^\\d{5}$/, postalExample: "04524" },
   CA: { regionLabel: "Province / Territory", postalLabel: "Postal Code", postalRequired: true, postalPattern: /^[A-Za-z]\d[A-Za-z][ -]?\d[A-Za-z]\d$/, postalExample: "K1A 0B1" },
   US: { regionLabel: "State", postalLabel: "ZIP Code", postalRequired: true, postalPattern: /^\d{5}(-\d{4})?$/, postalExample: "10001" },
   GB: { regionLabel: "County (optional)", postalLabel: "Postcode", postalRequired: true, postalPattern: /^[A-Za-z]{1,2}\d[A-Za-z\d]?\s?\d[A-Za-z]{2}$/, postalExample: "SW1A 1AA" },
