@@ -209,6 +209,28 @@ const VendorSettings = () => {
     };
     setForm(nextForm);
     setInitialForm(JSON.stringify(nextForm));
+    // Hydrate persisted settings sections saved under vendors.store_settings.
+    const saved = asJsonRecord(vendor.store_settings);
+    if (saved.shipping) setShippingPreview(prev => ({ ...prev, ...asJsonRecord(saved.shipping) }));
+    if (saved.zones) setShippingZonePreview(prev => ({ ...prev, ...asJsonRecord(saved.zones) }));
+    if (saved.zoneDrafts) setZoneDrafts(prev => ({ ...prev, ...asJsonRecord(saved.zoneDrafts) as Record<string, string> }));
+    if (Array.isArray(saved.additionalZones)) setAdditionalZones(saved.additionalZones.filter(z => typeof z === "string") as string[]);
+    if (saved.methodDrafts) setMethodDrafts(prev => ({ ...prev, ...asJsonRecord(saved.methodDrafts) as typeof prev }));
+    const payout = asJsonRecord(saved.payout);
+    if (typeof payout.tab === "string") setPayoutTab(payout.tab);
+    if (typeof payout.frequency === "string") setPayoutFrequency(payout.frequency);
+    if (payout.toggles) setPayoutToggles(prev => ({ ...prev, ...asJsonRecord(payout.toggles) as typeof prev }));
+    if (typeof payout.accountType === "string") setPayoutAccountType(payout.accountType);
+    const tax = asJsonRecord(saved.tax);
+    if (typeof tax.calculation === "string") setTaxCalculation(tax.calculation as "marketplace" | "custom");
+    if (tax.exemptions) setTaxExemptions(prev => ({ ...prev, ...asJsonRecord(tax.exemptions) as typeof prev }));
+    if (tax.draft) setTaxDraft(prev => ({ ...prev, ...asJsonRecord(tax.draft) as typeof prev }));
+    if (saved.returns) setReturnsDraft(prev => ({ ...prev, ...asJsonRecord(saved.returns) as typeof prev }));
+    const policies = asJsonRecord(saved.policies);
+    if (policies.drafts) setPolicyDrafts(prev => ({ ...prev, ...asJsonRecord(policies.drafts) as Record<string, string> }));
+    if (policies.display) setPolicyDisplay(prev => ({ ...prev, ...asJsonRecord(policies.display) as typeof prev }));
+    if (saved.branding) setBrandingDraft(prev => ({ ...prev, ...asJsonRecord(saved.branding) as typeof prev }));
+    if (saved.notifications) setNotificationDraft(prev => ({ ...prev, ...asJsonRecord(saved.notifications) as typeof prev }));
   }, [vendor]);
 
   useEffect(() => {
@@ -278,7 +300,7 @@ const VendorSettings = () => {
       if (!user?.id) throw new Error("Your session has expired. Please sign in again.");
       const { data: updatedRows, error } = await supabase
         .from("vendors")
-        .update({ store_name: form.store_name, store_description: form.store_description, logo_url: form.logo_url, banner_url: form.banner_url, slug: form.slug, phone: form.phone, phone2: form.phone2, whatsapp: form.whatsapp, website: form.website, warehouse_address: form.warehouse_address })
+        .update({ store_name: form.store_name, store_description: form.store_description, logo_url: form.logo_url, banner_url: form.banner_url, slug: form.slug, phone: form.phone, phone2: form.phone2, whatsapp: form.whatsapp, website: form.website, warehouse_address: form.warehouse_address, store_settings: { shipping: shippingPreview, zones: shippingZonePreview, zoneDrafts, additionalZones, methodDrafts, payout: { tab: payoutTab, frequency: payoutFrequency, toggles: payoutToggles, accountType: payoutAccountType }, tax: { calculation: taxCalculation, exemptions: taxExemptions, draft: taxDraft }, returns: returnsDraft, policies: { drafts: policyDrafts, display: policyDisplay }, branding: brandingDraft, notifications: notificationDraft } })
         .eq("id", vendor.id)
         .eq("user_id", user.id)
         .select("id");
