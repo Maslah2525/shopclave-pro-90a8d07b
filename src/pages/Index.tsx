@@ -96,6 +96,19 @@ const Index = () => {
         } catch (e) { console.warn("Barakaz catalogue fallback unavailable", e); }
       }
 
+      // When no products are featured, show recently added active products instead.
+      if (!featuredQ.data?.length) {
+        const recentQ = await supabase
+          .from("products")
+          .select("*, vendors(store_name, status), product_images(url, position)")
+          .eq("status", "active")
+          .order("created_at", { ascending: false })
+          .limit(60);
+        if (recentQ.error) console.error("Unable to load active marketplace products", recentQ.error);
+        if (recentQ.data?.length) featuredQ = recentQ;
+      }
+      if (featuredQ.error) console.error("Unable to load featured marketplace products", featuredQ.error);
+
       // Determine if any active products exist at all (for first-run demo logic)
       const anyActiveQ = await supabase
         .from("products")
