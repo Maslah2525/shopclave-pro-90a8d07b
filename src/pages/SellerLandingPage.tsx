@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { ArrowRight, BadgeCheck, BarChart3, BookOpen, Box, CircleHelp, Globe2, Headset, Package, ShieldCheck, Store, Tag, TrendingUp, Users, UserRoundCheck } from "lucide-react";
 import MarketplaceLayout from "@/components/layout/MarketplaceLayout";
+import sellerHero from "@/assets/hero-banner-1.webp";
 
 const benefits = [
   { icon: Users, title: "Reach More Customers", description: "Make your products discoverable to shoppers across supported markets.", color: "bg-orange-100 text-orange-600" },
@@ -35,7 +36,7 @@ export default function SellerLandingPage() {
             </div>
           </div>
           <div className="relative min-h-72 overflow-hidden rounded-2xl bg-gradient-to-br from-sky-100 to-orange-100 shadow-lg md:min-h-[440px]">
-            <img src="/seller-hero.jpg" alt="Small business seller preparing customer orders" className="h-full min-h-72 w-full object-cover md:absolute md:inset-0 md:min-h-full" onError={e=>{e.currentTarget.style.display="none";}} />
+            <img src={sellerHero} alt="Small business seller preparing customer orders" className="h-full min-h-72 w-full object-cover md:absolute md:inset-0 md:min-h-full" onError={e=>{e.currentTarget.style.display="none";}} />
             <div className="absolute left-4 top-5 rounded-xl bg-white/95 px-4 py-3 text-sm font-semibold text-[#0b1749] shadow-lg"><TrendingUp className="mr-2 inline h-5 w-5 text-emerald-600" /> Grow Your Sales</div>
             <div className="absolute bottom-6 left-4 rounded-xl bg-white/95 px-4 py-3 text-sm font-semibold text-[#0b1749] shadow-lg"><Users className="mr-2 inline h-5 w-5 text-blue-600" /> Reach More Shoppers</div>
             <div className="absolute right-4 top-20 rounded-xl bg-white/95 px-4 py-3 text-sm font-semibold text-[#0b1749] shadow-lg"><Box className="mr-2 inline h-5 w-5 text-orange-600" /> Sell Worldwide</div>
