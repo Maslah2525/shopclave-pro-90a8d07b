@@ -1,4 +1,4 @@
-import { COUNTRIES, countryByCode, countryByName, addressFormat } from "@/lib/countries";
+import { COUNTRIES, countryByName, addressFormat } from "@/lib/countries";
 import { useEffect, useRef, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import VendorProfileChecklist from "@/components/vendor/VendorProfileChecklist";
@@ -524,6 +524,7 @@ const VendorSettings = () => {
         {!categoriesLoading && !categoriesError && categories.length === 0 && <p className="text-sm text-amber-700">No categories were returned by the database.</p>}
         <div className="grid md:grid-cols-2 gap-3">
           <div><Label htmlFor="main-category">Main Category *</Label><select id="main-category" className="w-full h-10 rounded-md border bg-background px-3 text-sm" value={form.primary_category_id || ""} onChange={e=>setForm(f=>({...f,primary_category_id:e.target.value || null,additional_category_ids:f.additional_category_ids.filter(id=>id!==e.target.value)}))}><option value="">Select a category</option>{categories.filter(c=>!c.parent_id).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+          <div><Label htmlFor="store-subcategory">Subcategory</Label><select id="store-subcategory" className="w-full h-10 rounded-md border bg-background px-3 text-sm" value="" disabled={!form.primary_category_id} onChange={e=>{const id=e.target.value;if(id)setForm(f=>({...f,additional_category_ids:[...new Set([...f.additional_category_ids,id])]}));}}><option value="">Select a subcategory</option>{categories.filter(c=>c.parent_id===form.primary_category_id&&!form.additional_category_ids.includes(c.id)).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select><p className="mt-1 text-xs text-muted-foreground">Subcategories are loaded from the selected parent category in the database.</p></div>
           <div><Label htmlFor="additional-categories">Additional Categories (Optional)</Label><select id="additional-categories" className="w-full h-10 rounded-md border bg-background px-3 text-sm" value="" onChange={e=>{const id=e.target.value;if(id)setForm(f=>({...f,additional_category_ids:[...new Set([...f.additional_category_ids,id])]}));}}><option value="">Add a category</option>{categories.filter(c=>c.id!==form.primary_category_id&&!form.additional_category_ids.includes(c.id)).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select><div className="flex flex-wrap gap-1 mt-2">{form.additional_category_ids.map(id=><button type="button" key={id} onClick={()=>setForm(f=>({...f,additional_category_ids:f.additional_category_ids.filter(v=>v!==id)}))} className="text-xs border rounded px-2 py-1">{categories.find(c=>c.id===id)?.name || id} ×</button>)}</div></div>
         </div>
         </div>)}
