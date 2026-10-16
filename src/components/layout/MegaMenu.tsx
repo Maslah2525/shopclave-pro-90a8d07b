@@ -54,7 +54,7 @@ const SidebarMenu = ({ open, onOpenChange }: SidebarMenuProps) => {
   const [expandedSub, setExpandedSub] = useState<string | null>(null);
   const { user, signOut, userRoles } = useAuth();
 
-  const { data: topLevel = [], isLoading } = useCategoryChildren(null);
+  const { data: topLevel = [], isLoading, isError, refetch } = useCategoryChildren(null);
 
   const close = () => onOpenChange(false);
 
@@ -74,7 +74,8 @@ const SidebarMenu = ({ open, onOpenChange }: SidebarMenuProps) => {
           {isLoading && (
             <p className="px-5 py-3 text-sm text-muted-foreground">Loading…</p>
           )}
-          {!isLoading && topLevel.length === 0 && (
+          {isError && <div role="alert" className="px-5 py-3 text-sm text-destructive">Categories could not be loaded. <button type="button" className="underline font-medium" onClick={() => void refetch()}>Retry</button></div>}
+          {!isLoading && !isError && topLevel.length === 0 && (
             <p className="px-5 py-3 text-sm text-muted-foreground">No categories available</p>
           )}
           {topLevel.map((cat) => {
@@ -135,9 +136,11 @@ const SubLevel = ({
   setExpandedSub: (id: string | null) => void;
   onNavigate: () => void;
 }) => {
-  const { data: subs = [], isLoading } = useCategoryChildren(parent.id);
+  const { data: subs = [], isLoading, isError, refetch } = useCategoryChildren(parent.id);
 
   if (isLoading) return <div className="bg-secondary/50 px-10 py-2 text-xs text-muted-foreground">Loading…</div>;
+
+  if (isError) return <div className="px-10 py-2 text-xs text-destructive">Unable to load subcategories. <button type="button" className="underline" onClick={() => void refetch()}>Retry</button></div>;
 
   if (subs.length === 0) {
     // No children — provide direct link to the top-level category
@@ -176,9 +179,11 @@ const SubLevel = ({
 };
 
 const LeafLevel = ({ parent, onNavigate }: { parent: CategoryRow; onNavigate: () => void }) => {
-  const { data: children = [], isLoading } = useCategoryChildren(parent.id);
+  const { data: children = [], isLoading, isError, refetch } = useCategoryChildren(parent.id);
 
   if (isLoading) return <div className="bg-secondary/80 pl-14 py-2 text-xs text-muted-foreground">Loading…</div>;
+
+  if (isError) return <div className="pl-14 py-2 text-xs text-destructive">Unable to load categories. <button type="button" className="underline" onClick={() => void refetch()}>Retry</button></div>;
 
   if (children.length === 0) {
     return (
