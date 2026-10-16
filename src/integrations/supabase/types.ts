@@ -3090,6 +3090,7 @@ export type Database = {
           status: string
           store_description: string | null
           store_name: string
+          store_settings: Json
           updated_at: string
           user_id: string
           warehouse_address: Json | null
@@ -3110,6 +3111,7 @@ export type Database = {
           status?: string
           store_description?: string | null
           store_name: string
+          store_settings?: Json
           updated_at?: string
           user_id: string
           warehouse_address?: Json | null
@@ -3130,6 +3132,7 @@ export type Database = {
           status?: string
           store_description?: string | null
           store_name?: string
+          store_settings?: Json
           updated_at?: string
           user_id?: string
           warehouse_address?: Json | null

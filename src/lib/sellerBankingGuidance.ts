@@ -12,3 +12,16 @@ export function sellerBankingGuidance(country: string): string {
     default: return "IBAN, BIC/SWIFT or local banking identifiers may be required, depending on the country and payout provider.";
   }
 }
+
+/** Bank detail fields a seller in the given country should expect to provide
+ * during secure provider onboarding. Presentation only — the payout provider
+ * collects these details directly; Barakaz never stores them here. */
+export function sellerBankFields(country: string): string[] {
+  switch (country.toUpperCase()) {
+    case "CA": return ["Transit number (5 digits)", "Institution number (3 digits)", "Account number"];
+    case "US": return ["Routing number (9 digits)", "Account number"];
+    case "CN": return ["Bank name", "Account number", "SWIFT/BIC code"];
+    case "KR": return ["Bank name", "Account number"];
+    default: return ["IBAN or local account number", "BIC/SWIFT or local bank code"];
+  }
+}

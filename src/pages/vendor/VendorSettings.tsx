@@ -164,12 +164,12 @@ const VendorSettings = () => {
     whatsapp: vendor.whatsapp || "",
     website: vendor.website || "",
     warehouse_address: vendor.warehouse_address || {},
-    store_email: "" || "",
-    primary_category_id: null || null as string | null,
-    additional_category_ids: ([] || []) as string[],
+    store_email: "",
+    primary_category_id: null as string | null,
+    additional_category_ids: [] as string[],
     public_store_address: asJsonRecord({}),
-    store_language: "en" || "en",
-    contact_visibility: "all" || "all",
+    store_language: "en",
+    contact_visibility: "all",
   });
   const warehouse = asJsonRecord(form.warehouse_address);
   const publicAddress = asJsonRecord(form.public_store_address);
@@ -200,15 +200,37 @@ const VendorSettings = () => {
       whatsapp: vendor.whatsapp || "",
       website: vendor.website || "",
       warehouse_address: asJsonRecord(vendor.warehouse_address),
-      store_email: "" || "",
-      primary_category_id: null || null,
-      additional_category_ids: [] || [],
+      store_email: "",
+      primary_category_id: null,
+      additional_category_ids: [],
       public_store_address: asJsonRecord({}),
-      store_language: "en" || "en",
-      contact_visibility: "all" || "all",
+      store_language: "en",
+      contact_visibility: "all",
     };
     setForm(nextForm);
     setInitialForm(JSON.stringify(nextForm));
+    // Hydrate persisted settings sections saved under vendors.store_settings.
+    const saved = asJsonRecord(vendor.store_settings);
+    if (saved.shipping) setShippingPreview(prev => ({ ...prev, ...asJsonRecord(saved.shipping) }));
+    if (saved.zones) setShippingZonePreview(prev => ({ ...prev, ...asJsonRecord(saved.zones) as Record<string, boolean> }));
+    if (saved.zoneDrafts) setZoneDrafts(prev => ({ ...prev, ...asJsonRecord(saved.zoneDrafts) as Record<string, string> }));
+    if (Array.isArray(saved.additionalZones)) setAdditionalZones(saved.additionalZones.filter(z => typeof z === "string") as string[]);
+    if (saved.methodDrafts) setMethodDrafts(prev => ({ ...prev, ...asJsonRecord(saved.methodDrafts) as typeof prev }));
+    const payout = asJsonRecord(saved.payout);
+    if (typeof payout.tab === "string") setPayoutTab(payout.tab);
+    if (typeof payout.frequency === "string") setPayoutFrequency(payout.frequency);
+    if (payout.toggles) setPayoutToggles(prev => ({ ...prev, ...asJsonRecord(payout.toggles) as typeof prev }));
+    if (typeof payout.accountType === "string") setPayoutAccountType(payout.accountType);
+    const tax = asJsonRecord(saved.tax);
+    if (typeof tax.calculation === "string") setTaxCalculation(tax.calculation as "marketplace" | "custom");
+    if (tax.exemptions) setTaxExemptions(prev => ({ ...prev, ...asJsonRecord(tax.exemptions) as typeof prev }));
+    if (tax.draft) setTaxDraft(prev => ({ ...prev, ...asJsonRecord(tax.draft) as typeof prev }));
+    if (saved.returns) setReturnsDraft(prev => ({ ...prev, ...asJsonRecord(saved.returns) as typeof prev }));
+    const policies = asJsonRecord(saved.policies);
+    if (policies.drafts) setPolicyDrafts(prev => ({ ...prev, ...asJsonRecord(policies.drafts) as Record<string, string> }));
+    if (policies.display) setPolicyDisplay(prev => ({ ...prev, ...asJsonRecord(policies.display) as typeof prev }));
+    if (saved.branding) setBrandingDraft(prev => ({ ...prev, ...asJsonRecord(saved.branding) as typeof prev }));
+    if (saved.notifications) setNotificationDraft(prev => ({ ...prev, ...asJsonRecord(saved.notifications) as typeof prev }));
   }, [vendor]);
 
   useEffect(() => {
@@ -278,7 +300,7 @@ const VendorSettings = () => {
       if (!user?.id) throw new Error("Your session has expired. Please sign in again.");
       const { data: updatedRows, error } = await supabase
         .from("vendors")
-        .update({ store_name: form.store_name, store_description: form.store_description, logo_url: form.logo_url, banner_url: form.banner_url, slug: form.slug, phone: form.phone, phone2: form.phone2, whatsapp: form.whatsapp, website: form.website, warehouse_address: form.warehouse_address })
+        .update({ store_name: form.store_name, store_description: form.store_description, logo_url: form.logo_url, banner_url: form.banner_url, slug: form.slug, phone: form.phone, phone2: form.phone2, whatsapp: form.whatsapp, website: form.website, warehouse_address: form.warehouse_address, store_settings: { shipping: shippingPreview, zones: shippingZonePreview, zoneDrafts, additionalZones, methodDrafts, payout: { tab: payoutTab, frequency: payoutFrequency, toggles: payoutToggles, accountType: payoutAccountType }, tax: { calculation: taxCalculation, exemptions: taxExemptions, draft: taxDraft }, returns: returnsDraft, policies: { drafts: policyDrafts, display: policyDisplay }, branding: brandingDraft, notifications: notificationDraft } })
         .eq("id", vendor.id)
         .eq("user_id", user.id)
         .select("id");
@@ -484,7 +506,7 @@ const VendorSettings = () => {
         <div className="hidden lg:flex items-center justify-between gap-3"><button type="button" aria-expanded={settingsSidebarOpen} aria-controls="store-settings-desktop-navigation" onClick={()=>setSettingsSidebarOpen(open=>!open)} className="inline-flex min-h-10 items-center gap-2 rounded-lg border bg-card px-4 py-2 text-sm font-semibold hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500">{settingsSidebarOpen ? <PanelLeftClose className="h-4 w-4"/> : <PanelLeftOpen className="h-4 w-4"/>}{settingsSidebarOpen ? "Hide settings menu" : "Show all 12 settings"}</button><span className="text-xs text-muted-foreground">The menu closes after selecting a section to give the form more room.</span></div>
       <div className="bg-card rounded-xl border border-border p-4 sm:p-6 lg:p-8 min-w-0 space-y-6 shadow-sm">
         <div className="flex flex-col gap-3 border-b border-border pb-5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between"><div className="flex items-center gap-3">{sections.filter(([key])=>key===section).map(([key,label,description,Icon],index)=><div key={key} className="flex min-w-0 items-center gap-3"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-orange-700"><Icon className="h-5 w-5"/></span><span><span className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Store settings</span><span className="block break-words text-lg font-bold">{label}</span><span className="block text-xs text-muted-foreground">{description}</span></span></div>)}</div><span className="whitespace-nowrap rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">Section {sections.findIndex(([key])=>key===section)+1} of 12</span></div>
-        {(["shipping","payouts","business","tax","returns","policies","branding","notifications","team","security","compliance"] as const).includes(section as any)&&<div role="note" className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950"><strong>Settings status:</strong> Some controls in this section are interface previews and are not connected to live store settings. Preview changes may be lost when you leave or reload the page. Only actions explicitly identified as connected will update your account.</div>}
+        {(["shipping","payouts","business","tax","returns","policies","branding","notifications","team","security","compliance"] as const).includes(section as any)&&<div role="note" className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950"><strong>Settings status:</strong> Changes in this section are saved with your store settings when you click Save Settings. Server-side rules (payout verification, tax registration, shipping quotes) remain authoritative over these preferences.</div>}
         {section === "profile" && (<div className="space-y-5"><div><h3 className="text-xl font-bold">Store Profile</h3><p className="text-sm text-muted-foreground">Manage your public store information. This will be displayed on your store page.</p><p className="text-xs text-amber-700 mt-2">UI preview: category, store email, public address, language and visibility controls are not connected to the database yet.</p></div><h4 className="font-semibold border-b pb-2">Basic Information</h4>
         <div>
           <Label>Store Name</Label>
@@ -577,7 +599,7 @@ const VendorSettings = () => {
             </section>
             <section className="rounded-lg border p-3 md:p-4 space-y-3">
               <div className="flex flex-wrap justify-between items-center gap-2"><div><h4 className="font-semibold">Shipping Zones &amp; Destinations</h4><p className="text-xs text-muted-foreground">View the regions you can ship to. Zone management requires shipping-rule integration.</p></div><Button size="sm" variant="outline" onClick={()=>setZoneCreatorOpen(v=>!v)}>+ Add Shipping Zone</Button></div>
-              {zoneCreatorOpen && <div className="rounded-lg border bg-muted/20 p-3 space-y-3"><h5 className="font-medium">Add shipping zone (preview only)</h5><div className="grid gap-3 sm:grid-cols-2"><div><Label htmlFor="new-zone-name">Zone name</Label><Input id="new-zone-name" value={newZoneName} onChange={e=>setNewZoneName(e.target.value)} placeholder="e.g. Europe"/></div><div><Label htmlFor="new-zone-regions">Countries / Regions</Label><Input id="new-zone-regions" value={newZoneRegions} onChange={e=>setNewZoneRegions(e.target.value)} placeholder="e.g. France, Germany"/></div></div><div className="flex gap-2"><Button size="sm" onClick={()=>{const name=newZoneName.trim();if(!name||!newZoneRegions.trim()){toast.error("Enter a zone name and countries or regions.");return;}if(additionalZones.includes(name)||Object.hasOwn(zoneDrafts,name)){toast.error("A shipping zone with this name already exists.");return;}setAdditionalZones(v=>[...v,name]);setZoneDrafts(v=>({...v,[name]:newZoneRegions.trim()}));setShippingZonePreview(v=>({...v,[name]:false}));setZoneCreatorOpen(false);setNewZoneName("");setNewZoneRegions("");toast.info("Zone added to this preview only; checkout rules were not changed.");}}>Add to preview</Button><Button size="sm" variant="outline" onClick={()=>setZoneCreatorOpen(false)}>Cancel</Button></div></div>}
+              {zoneCreatorOpen && <div className="rounded-lg border bg-muted/20 p-3 space-y-3"><h5 className="font-medium">Add shipping zone (preview only)</h5><div className="grid gap-3 sm:grid-cols-2"><div><Label htmlFor="new-zone-name">Zone name</Label><Input id="new-zone-name" value={newZoneName} onChange={e=>setNewZoneName(e.target.value)} placeholder="e.g. Europe"/></div><div><Label htmlFor="new-zone-regions">Countries / Regions</Label><Input id="new-zone-regions" value={newZoneRegions} onChange={e=>setNewZoneRegions(e.target.value)} placeholder="e.g. France, Germany"/></div></div><div className="flex gap-2"><Button size="sm" onClick={()=>{const name=newZoneName.trim();if(!name||!newZoneRegions.trim()){toast.error("Enter a zone name and countries or regions.");return;}if(additionalZones.includes(name)||Object.prototype.hasOwnProperty.call(zoneDrafts,name)){toast.error("A shipping zone with this name already exists.");return;}setAdditionalZones(v=>[...v,name]);setZoneDrafts(v=>({...v,[name]:newZoneRegions.trim()}));setShippingZonePreview(v=>({...v,[name]:false}));setZoneCreatorOpen(false);setNewZoneName("");setNewZoneRegions("");toast.info("Zone added to this preview only; checkout rules were not changed.");}}>Add to preview</Button><Button size="sm" variant="outline" onClick={()=>setZoneCreatorOpen(false)}>Cancel</Button></div></div>}
               <div className="overflow-x-auto"><table className="w-full text-sm border-collapse"><thead className="bg-muted/50 text-left"><tr>{["Zone / Region","Countries","Status","Actions"].map(h=><th key={h} className="p-3 border font-medium">{h}</th>)}</tr></thead><tbody>{([["🇨🇦","Domestic (Canada)","All Provinces & Territories"],["🇺🇸","United States","All States"],["🌐","International","Selected Countries (120+)"],...additionalZones.map(name=>["🌐",name,zoneDrafts[name]||""] as const)] as const).map(([flag,name,desc])=><tr key={name}><td className="p-3 border"><span className="mr-2">{flag}</span>{name}</td><td className="p-3 border text-muted-foreground">{zoneDrafts[name] || desc}</td><td className="p-3 border"><label className="inline-flex items-center gap-2 cursor-pointer"><input type="checkbox" role="switch" aria-label={`Enable ${name} shipping zone preview`} aria-checked={shippingZonePreview[name]} checked={shippingZonePreview[name]} onChange={e=>setShippingZonePreview(old=>({...old,[name]:e.target.checked}))} className="peer sr-only"/><span aria-hidden="true" className="relative h-5 w-9 rounded-full bg-slate-300 transition-colors peer-checked:bg-green-600 peer-focus-visible:ring-2 peer-focus-visible:ring-green-500 peer-focus-visible:ring-offset-2 after:absolute after:top-0.5 after:left-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-transform peer-checked:after:translate-x-4"/><span className={`text-xs ${shippingZonePreview[name]?"text-green-700":"text-muted-foreground"}`}>{shippingZonePreview[name]?"Active":"Inactive"}</span></label></td><td className="p-3 border"><Button size="sm" variant="outline" onClick={()=>setZoneEditor(zoneEditor===name?null:name)}>Edit</Button>{additionalZones.includes(name)&&<Button size="sm" variant="ghost" onClick={()=>{setAdditionalZones(v=>v.filter(z=>z!==name));if(zoneEditor===name)setZoneEditor(null);}}>Remove</Button>}</td></tr>)}</tbody></table></div>
               {zoneEditor && <div className="rounded-md border bg-muted/20 p-3 space-y-2"><div className="flex justify-between"><p className="font-semibold text-sm">Edit {zoneEditor}</p><Button size="sm" variant="ghost" onClick={()=>setZoneEditor(null)}>Close</Button></div><Label>Countries / Regions</Label><Input value={zoneDrafts[zoneEditor]||""} onChange={e=>setZoneDrafts(old=>({...old,[zoneEditor]:e.target.value}))}/><p className="text-xs text-amber-700">Changes are preview-only and will not change checkout destinations.</p></div>}<p className="text-xs text-amber-700">Zone rows reproduce the reference layout; they are not confirmed active shipping rules. Checkout shipping availability is controlled by the existing shipping backend.</p>
             </section>
@@ -746,7 +768,7 @@ const VendorSettings = () => {
             <div className="rounded border bg-amber-50 p-3 text-xs text-amber-900">Security: This interface does not create accounts, send invitations, modify permissions or revoke access. Role-based access control requires server-side authorization and audit logging.</div>
           </div>
         )}
-        {(["profile","branding"] as const).includes(section as "profile" | "branding" | "shipping") && <div className="flex flex-wrap justify-between gap-2 border-t pt-4"><Button type="button" variant="outline" onClick={() => setForm(JSON.parse(initialForm))} disabled={!isDirty || saving}><RotateCcw className="h-4 w-4 mr-2"/>Reset Changes</Button><div className="flex gap-2"><Button variant="outline" asChild><Link to={`/store/${vendor.slug}`} target="_blank"><ExternalLink className="h-4 w-4 mr-2"/>Preview Store</Link></Button><Button onClick={handleSave} disabled={saving || !isDirty || slugAvailability !== "available" || uiOnlyDirty} title={uiOnlyDirty ? "Preview-only fields cannot be saved until database integration" : undefined}>{saving ? "Saving..." : "Save Settings"}</Button></div></div>}
+        {(["profile","branding"] as const).includes(section as "profile" | "branding") && <div className="flex flex-wrap justify-between gap-2 border-t pt-4"><Button type="button" variant="outline" onClick={() => setForm(JSON.parse(initialForm))} disabled={!isDirty || saving}><RotateCcw className="h-4 w-4 mr-2"/>Reset Changes</Button><div className="flex gap-2"><Button variant="outline" asChild><Link to={`/store/${vendor.slug}`} target="_blank"><ExternalLink className="h-4 w-4 mr-2"/>Preview Store</Link></Button><Button onClick={handleSave} disabled={saving || !isDirty || slugAvailability !== "available" || uiOnlyDirty} title={uiOnlyDirty ? "Preview-only fields cannot be saved until database integration" : undefined}>{saving ? "Saving..." : "Save Settings"}</Button></div></div>}
       </div>
       </div>
       </div>}
