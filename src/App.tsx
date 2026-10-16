@@ -17,6 +17,7 @@ import AccountPage from "./pages/AccountPage";
 import ProductDetailPage from "./pages/ProductDetailPage";
 import SearchPage from "./pages/SearchPage";
 import VendorRegisterPage from "./pages/VendorRegisterPage";
+import SellerLandingPage from "./pages/SellerLandingPage";
 import VendorStorePage from "./pages/VendorStorePage";
 import NotFound from "./pages/NotFound";
 import WishlistPage from "./pages/WishlistPage";
@@ -121,6 +122,7 @@ const App = () => (
                 <Route path="/product/:slug" element={<ProductDetailPage />} />
                 <Route path="/search" element={<SearchPage />} />
                 <Route path="/category/:slug" element={<SearchPage />} />
+                <Route path="/sell" element={<SellerLandingPage />} />
                 <Route path="/vendor/register" element={<VendorRegisterPage />} />
                 <Route path="/store/:slug" element={<VendorStorePage />} />
                 <Route path="/s/:code" element={<ShortLinkRedirect />} />
