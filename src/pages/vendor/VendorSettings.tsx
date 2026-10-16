@@ -1,3 +1,4 @@
+import { COUNTRIES, countryByCode, countryByName, addressFormat } from "@/lib/countries";
 import { useEffect, useRef, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import VendorProfileChecklist from "@/components/vendor/VendorProfileChecklist";
@@ -173,7 +174,7 @@ const VendorSettings = () => {
   });
   const warehouse = asJsonRecord(form.warehouse_address);
   const publicAddress = asJsonRecord(form.public_store_address);
-  const { data: categories = [] } = useQuery({
+  const { data: categories = [], isLoading: categoriesLoading, error: categoriesError } = useQuery({
     queryKey: ["store-settings-categories"],
     queryFn: async () => {
       const { data, error } = await supabase.from("categories").select("id,name,parent_id").order("name");
@@ -312,7 +313,7 @@ const VendorSettings = () => {
 
   // Business Information is a UI-only draft until seller verification integration is approved.
   const businessInitial = {
-    type: "sole_proprietor", legalName: vendor.store_name || "", registration: "", tradingName: vendor.store_name || "",
+    type: "sole_proprietor", otherBusinessType: "", legalName: vendor.store_name || "", registration: "", tradingName: vendor.store_name || "",
     email: user?.email || "", phone: vendor.phone || "", website: vendor.website || "",
     country: "Canada", province: "", street: "", city: "", unit: "", postal: "",
     taxId: "", taxCountry: "Canada", taxType: "GST / HST",
@@ -335,6 +336,7 @@ const VendorSettings = () => {
     const pick = (...keys: string[]) => keys.map(key => details[key]).find(value => typeof value === "string") as string | undefined;
     setBusinessDraft(current => ({...current,
       type: sellerApplication.business_type || current.type,
+      otherBusinessType: pick("other_business_type") || current.otherBusinessType,
       country: sellerApplication.country || current.country,
       legalName: pick("legal_business_name","legal_name","business_name") || current.legalName,
       registration: pick("registration_number","business_registration_number") || current.registration,
@@ -517,6 +519,9 @@ const VendorSettings = () => {
           {slugAvailability && <p role="status" className={`text-xs mt-1 ${slugAvailability === "available" ? "text-green-700" : slugAvailability === "taken" ? "text-red-600" : "text-muted-foreground"}`}>{slugAvailability === "checking" ? "Checking availability…" : slugAvailability === "available" ? "✓ Available" : slugAvailability === "taken" ? "This URL is already in use" : "Unable to check availability"}</p>}
         </div>
         <h4 className="font-semibold border-b pb-2">Store Category</h4>
+        {categoriesLoading && <p className="text-sm text-muted-foreground">Loading categories from the database…</p>}
+        {categoriesError && <p role="alert" className="text-sm text-red-600">Unable to load categories. Please retry.</p>}
+        {!categoriesLoading && !categoriesError && categories.length === 0 && <p className="text-sm text-amber-700">No categories were returned by the database.</p>}
         <div className="grid md:grid-cols-2 gap-3">
           <div><Label htmlFor="main-category">Main Category *</Label><select id="main-category" className="w-full h-10 rounded-md border bg-background px-3 text-sm" value={form.primary_category_id || ""} onChange={e=>setForm(f=>({...f,primary_category_id:e.target.value || null,additional_category_ids:f.additional_category_ids.filter(id=>id!==e.target.value)}))}><option value="">Select a category</option>{categories.filter(c=>!c.parent_id).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
           <div><Label htmlFor="additional-categories">Additional Categories (Optional)</Label><select id="additional-categories" className="w-full h-10 rounded-md border bg-background px-3 text-sm" value="" onChange={e=>{const id=e.target.value;if(id)setForm(f=>({...f,additional_category_ids:[...new Set([...f.additional_category_ids,id])]}));}}><option value="">Add a category</option>{categories.filter(c=>c.id!==form.primary_category_id&&!form.additional_category_ids.includes(c.id)).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select><div className="flex flex-wrap gap-1 mt-2">{form.additional_category_ids.map(id=><button type="button" key={id} onClick={()=>setForm(f=>({...f,additional_category_ids:f.additional_category_ids.filter(v=>v!==id)}))} className="text-xs border rounded px-2 py-1">{categories.find(c=>c.id===id)?.name || id} ×</button>)}</div></div>
@@ -620,11 +625,15 @@ const VendorSettings = () => {
             <p className="text-xs rounded-md border border-amber-200 bg-amber-50 text-amber-800 p-3">Existing seller application details are loaded where available. Edits and document selections remain preview-only; verification changes must use the approved onboarding workflow.</p>
             {sellerApplication && <p className="text-xs text-muted-foreground">Application status: <strong>{sellerApplication.status}</strong> · Identity verification: <strong>{sellerApplication.kyc_status}</strong> · <Link className="underline text-primary" to="/vendor/register">Open verification workflow</Link></p>}
             <section className="rounded-lg border p-3 md:p-4 space-y-3"><h4 className="font-semibold">Business Type</h4>
-              <div className="grid md:grid-cols-3 gap-3">{([
+              <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">{([
                 ["individual","Individual Seller","Selling as a person (no registered business)"],
                 ["sole_proprietor","Sole Proprietorship (Self Employed)","You own the business personally"],
-                ["company","Incorporated Company","Registered business (e.g. Ltd, Inc, Corp)"]
+                ["company","Corporation / Registered Company","Registered business (e.g. Ltd, Inc, Corp)"],
+                ["partnership","Partnership","Business owned by two or more partners"],
+                ["other","Other","Specify the legal form of your business"]
               ] as const).map(([value,label,help]) => <label key={value} className="flex items-start gap-2 cursor-pointer"><input type="radio" className="mt-1 accent-orange-600" name="business-type" checked={businessDraft.type === value} onChange={() => updateBusiness("type",value)}/><span><span className="text-sm font-medium">{label}</span><span className="block text-xs text-muted-foreground">{help}</span></span></label>)}</div>
+              {businessDraft.type === "other" && businessInput("otherBusinessType","Specify Business Type",true,"Enter the legal business structure used in your country.")}
+              <p className="text-xs text-amber-700">Business Information is a preview; update your verified registration through the seller verification workflow.</p>
             </section>
             <section className="rounded-lg border p-3 md:p-4 space-y-3"><h4 className="font-semibold">Legal Business Information</h4><div className="grid md:grid-cols-2 gap-4">
               {businessInput("legalName","Legal Business Name",true,"Your official business name as per legal documents.")}
@@ -635,12 +644,12 @@ const VendorSettings = () => {
               <div className="space-y-1"><Label htmlFor="business-website">Business Website (Optional)</Label><div className="relative"><Link2 className="absolute left-3 top-3 h-4 w-4 text-muted-foreground"/><Input id="business-website" className="pl-9" type="url" value={businessDraft.website} onChange={e=>updateBusiness("website",e.target.value)}/></div><p className="text-xs text-muted-foreground">Your official business website.</p></div>
             </div></section>
             <section className="rounded-lg border p-3 md:p-4 space-y-3"><h4 className="font-semibold">Business Address</h4><div className="grid md:grid-cols-2 gap-4">
-              <div className="space-y-1"><Label>Country <span className="text-red-600">*</span></Label><div className="relative"><span className="absolute left-3 top-2.5">🇨🇦</span><select aria-label="Business country" className="w-full h-10 rounded-md border border-input bg-background pl-11 pr-3 text-sm" value={businessDraft.country} onChange={e=>setBusinessDraft(old=>({...old,country:e.target.value,province:""}))}>{["Canada","United States","United Kingdom","Kenya","Other"].map(country=><option key={country}>{country}</option>)}</select></div></div>
-              {businessDraft.country === "Canada" ? businessSelect("province","Province / State",["Select a province",...canadianProvinces],true) : businessInput("province","Province / State",true)}
+              <div className="space-y-1"><Label>Country <span className="text-red-600">*</span></Label><div className="relative"><span className="absolute left-3 top-2.5">🌐</span><select aria-label="Business country" className="w-full h-10 rounded-md border border-input bg-background pl-11 pr-3 text-sm" value={businessDraft.country} onChange={e=>setBusinessDraft(old=>({...old,country:e.target.value,province:""}))}>{COUNTRIES.map(country=><option key={country.code} value={country.name}>{country.name}</option>)}</select></div></div>
+              {countryByName(businessDraft.country)?.code === "CA" ? businessSelect("province",addressFormat("CA").regionLabel,["",...canadianProvinces],true) : businessInput("province",addressFormat(countryByName(businessDraft.country)?.code || "").regionLabel,true)}
               {businessInput("street","Street Address",true)}
               {businessInput("city","City",true)}
               {businessInput("unit","Suite / Unit (Optional)")}
-              {businessInput("postal","Postal / ZIP Code",true)}
+              {businessInput("postal",addressFormat(countryByName(businessDraft.country)?.code || "").postalLabel,addressFormat(countryByName(businessDraft.country)?.code || "").postalRequired)}
             </div></section>
             <section className="rounded-lg border p-3 md:p-4 space-y-3"><h4 className="font-semibold">Business Documents</h4>
               {verifiedDocuments.length > 0 && <div className="rounded-md bg-muted p-3"><p className="text-sm font-medium mb-2">Documents already submitted for verification</p>{verifiedDocuments.map(doc => <p key={doc.id} className="text-xs py-1">{doc.requirement_code.replace(/_/g," ")} — <strong>{doc.verification_status}</strong></p>)}<p className="text-xs text-muted-foreground mt-1">Document contents are private and are not exposed in Store Settings.</p></div>}<p className="text-xs text-muted-foreground">Choose clear and valid documents for a future verification step. JPG, PNG or PDF (maximum 10MB each).</p>
