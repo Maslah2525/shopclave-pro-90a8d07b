@@ -101,7 +101,7 @@ const AdminWithdrawals = () => {
                   <th>Vendor</th>
                   <th>Amount</th>
                   <th>Method</th>
-                  <th>Details</th>
+                  <th>Payout details</th>
                   <th>Status</th>
                   <th>Date</th>
                   <th className="text-right">Actions</th>
@@ -114,7 +114,7 @@ const AdminWithdrawals = () => {
                     <td className="font-bold text-foreground">${Number(w.amount).toLocaleString()}</td>
                     <td className="capitalize text-sm">{w.payment_method?.replace("_", " ")}</td>
                     <td className="text-xs font-mono max-w-[180px] truncate text-muted-foreground">
-                      {w.payment_details ? JSON.stringify(w.payment_details) : "—"}
+                      {w.payment_details ? "On file — restricted" : "Not provided"}
                     </td>
                     <td><span className={`status-pill capitalize ${statusPill[w.status] || ""}`}>{w.status}</span></td>
                     <td className="text-muted-foreground text-xs">{new Date(w.requested_at).toLocaleDateString()}</td>
