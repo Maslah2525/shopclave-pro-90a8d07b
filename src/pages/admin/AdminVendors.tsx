@@ -161,11 +161,11 @@ const AdminVendors = () => {
                     <td><span className="inline-flex items-center gap-1 text-sm"><Package className="h-3.5 w-3.5 text-muted-foreground" /> {v.listing_count}</span></td>
                     <td><span className="inline-flex items-center gap-1 text-sm"><Eye className="h-3.5 w-3.5 text-muted-foreground" /> {v.stats.views}</span></td>
                     <td><span className="inline-flex items-center gap-1 text-sm"><MousePointer className="h-3.5 w-3.5 text-muted-foreground" /> {v.stats.clicks}</span></td>
-                    <td><span className={`status-pill ${statusPill(v.status)}`}>{v.status}</span></td>
+                    <td><span className={`status-pill ${statusPill(v.status)}`}>{v.status}</span>{v.status !== "approved" && <span className={`block mt-1 text-[11px] ${(v.setup_completed_sections?.length ?? 0) >= 12 ? "text-success" : "text-muted-foreground"}`}>{v.setup_completed_sections?.length ?? 0}/12 steps{v.submitted_for_review_at ? " · submitted" : ""}</span>}</td>
                     <td>
                       <div className="flex gap-1 justify-end">
                         {v.status !== "approved" && (
-                          <Button size="sm" className="h-8 px-3 text-xs" onClick={() => updateVendorStatus.mutate({ id: v.id, status: "approved" })}>
+                          <Button size="sm" className="h-8 px-3 text-xs" disabled={(v.setup_completed_sections?.length ?? 0) < 12 || !v.submitted_for_review_at} title={(v.setup_completed_sections?.length ?? 0) < 12 ? "Seller hasn't finished all 12 setup steps" : !v.submitted_for_review_at ? "Seller hasn't submitted for review" : undefined} onClick={() => updateVendorStatus.mutate({ id: v.id, status: "approved" })}>
                             {v.status === "rejected" ? "Re-approve" : "Approve"}
                           </Button>
                         )}
