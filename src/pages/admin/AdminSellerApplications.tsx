@@ -47,36 +47,40 @@ const AdminSellerApplications = () => {
   onSuccess:()=>{toast.success("Review decision recorded");void qc.invalidateQueries({queryKey:["admin-seller-applications"]});},
   onError:(e:Error)=>toast.error(e.message)
  });
- return <div className="space-y-5">
-  <h1 className="text-2xl font-bold">Seller Applications</h1>
-  <p className="text-sm text-muted-foreground">Review applications and request missing information. Approval requires separate verified KYC and vendor activation.</p>
-  {isLoading&&<p>Loading applications…</p>}
-  {error&&<p role="alert" className="text-destructive">Applications could not be loaded. Check permissions and database migration status.</p>}
-  {!isLoading&&!error&&data.length===0&&<p>No submitted applications.</p>}
-  {data.map(a=><article key={a.id} className="rounded-xl border p-5 space-y-3">
-   <div className="flex flex-wrap gap-3 justify-between">
-    <h2 className="font-semibold">{a.store_info?.store_name||a.business_info?.legal_name||"Unnamed application"}</h2>
-    <span className="capitalize">{a.status.replace(/_/g," ")}</span>
-   </div>
-   <p className="text-sm">Country: {a.country||"—"} · Business type: {a.business_type||"—"} · KYC: {a.kyc_status||"not started"}</p>
-   <p className="text-xs text-muted-foreground">Submitted: {a.submitted_at?new Date(a.submitted_at).toLocaleString():"—"}</p>
-   {a.review_reason&&<p className="text-sm">Previous review note: {a.review_reason}</p>}
-   <label className="block text-sm">Review note
-    <Textarea value={reasons[a.id]||""} onChange={e=>setReasons(x=>({...x,[a.id]:e.target.value}))}
-      placeholder="Specify missing information or reason for rejection" />
-   </label>
-   <AdminSellerDocuments applicationId={a.id} onReviewed={()=>void qc.invalidateQueries({queryKey:["admin-seller-applications"]})} />
-   <div className="flex flex-wrap gap-2">
-    <Button variant="outline" disabled={kycReview.isPending||!reasons[a.id]?.trim()} onClick={()=>kycReview.mutate({id:a.id,result:"verified"})}>Confirm independently verified KYC</Button>
-    <Button variant="outline" disabled={kycReview.isPending||!reasons[a.id]?.trim()} onClick={()=>kycReview.mutate({id:a.id,result:"action_required"})}>KYC action required</Button>
-   </div>
-   <div className="flex flex-wrap gap-2">
-    <Button disabled={approve.isPending || a.kyc_status!=="verified" || !["submitted","under_review"].includes(a.status)} onClick={()=>approve.mutate(a.id)}>Approve verified seller</Button>
-    <Button disabled={review.isPending} variant="outline" onClick={()=>review.mutate({id:a.id,decision:"under_review"})}>Mark under review</Button>
-    <Button disabled={review.isPending||!reasons[a.id]?.trim()} variant="secondary" onClick={()=>review.mutate({id:a.id,decision:"more_information_required"})}>Request information</Button>
-    <Button disabled={review.isPending||!reasons[a.id]?.trim()} variant="destructive" onClick={()=>review.mutate({id:a.id,decision:"rejected"})}>Reject</Button>
-   </div>
-  </article>)}
- </div>;
+  const busy=kycReview.isPending||approve.isPending||review.isPending;
+  return <div className="space-y-4">
+   <h1 className="text-2xl font-bold">Seller Applications</h1>
+   {isLoading&&<p>Loading…</p>}
+   {error&&<p role="alert" className="text-destructive">Couldn't load applications.</p>}
+   {!isLoading&&!error&&data.length===0&&<p className="text-sm text-muted-foreground">No submitted applications yet. Sellers appear here after they finish step 7.</p>}
+   {data.map(a=>{
+    const note=reasons[a.id]?.trim();
+    const rejected=a.status==="rejected";
+    const kycOk=a.kyc_status==="verified";
+    const canApprove=["submitted","under_review"].includes(a.status);
+    return <article key={a.id} className="rounded-xl border p-4 space-y-3">
+     <div className="flex flex-wrap gap-2 justify-between items-center">
+      <h2 className="font-semibold">{a.store_info?.store_name||a.business_info?.legal_name||"Unnamed"}</h2>
+      <span className="text-xs rounded-full bg-muted px-2 py-1 capitalize">{a.status.replace(/_/g," ")} · KYC {(a.kyc_status||"not started").replace(/_/g," ")}</span>
+     </div>
+     <p className="text-xs text-muted-foreground">{a.country||"—"} · {a.business_type?.replace(/_/g," ")||"—"} · {a.submitted_at?new Date(a.submitted_at).toLocaleDateString():"—"}</p>
+     {a.review_reason&&<p className="text-sm">Note: {a.review_reason}</p>}
+     <details><summary className="text-sm cursor-pointer text-muted-foreground">Documents</summary>
+      <AdminSellerDocuments applicationId={a.id} onReviewed={()=>void qc.invalidateQueries({queryKey:["admin-seller-applications"]})} />
+     </details>
+     <Textarea value={reasons[a.id]||""} onChange={e=>setReasons(x=>({...x,[a.id]:e.target.value}))} placeholder="Note (needed to verify KYC, request info or reject)" rows={2} />
+     <div className="flex flex-wrap gap-2">
+      {rejected?
+       <Button disabled={busy} onClick={()=>review.mutate({id:a.id,decision:"under_review"})}>Reconsider</Button>
+      :<>
+       {canApprove&&!kycOk&&<Button variant="outline" disabled={busy||!note} onClick={()=>kycReview.mutate({id:a.id,result:"verified"})}>Verify KYC</Button>}
+       {canApprove&&<Button disabled={busy||!kycOk} title={kycOk?"":"Verify KYC first"} onClick={()=>approve.mutate(a.id)}>Approve</Button>}
+       {a.status==="submitted"&&<Button variant="outline" disabled={busy} onClick={()=>review.mutate({id:a.id,decision:"under_review"})}>Under review</Button>}
+       {a.status!=="approved"&&<Button variant="secondary" disabled={busy||!note} onClick={()=>review.mutate({id:a.id,decision:"more_information_required"})}>Request info</Button>}
+       {a.status!=="approved"&&<Button variant="destructive" disabled={busy||!note} onClick={()=>review.mutate({id:a.id,decision:"rejected"})}>Reject</Button>}
+      </>}
+     </div>
+    </article>;})}
+  </div>;
 };
 export default AdminSellerApplications;
