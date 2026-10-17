@@ -7,3 +7,4 @@
 - Temporary marketplace social-proof fallbacks and rating breakdowns are deterministic presentation-only values that yield to real customer activity and never write fabricated history. The reviews panel shows only the review count and star distribution — no sample or customer review cards.
 - Product colour thumbnails and galleries resolve images across every variant sharing that colour, including legacy variant image fields, while purchase selection remains explicit.
 - New customer-facing raster uploads are normalized through the shared WebP optimizer; evidence documents and existing uploads remain byte-preserved.
+- Store settings drafts and private preferences use owner-only vendor_settings_preferences; only allowlisted storefront fields are copied to vendors.store_settings, and preferences never override payment, tax, verification, staff authorization, or shipping quotes.

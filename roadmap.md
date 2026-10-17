@@ -1,5 +1,12 @@
 # Seller onboarding roadmap
 
+## Store settings persistence
+- [x] Audit all store settings against live storage and save/readback paths.
+- [x] Connect profile preferences and private drafts for branding, shipping, business, tax, returns, policies, notifications, payouts and security without overriding authoritative safeguards.
+- [x] Run persistence/privacy tests, verify owner-only grants and policies, and check public store rendering.
+- [ ] Verify saving and reloading through a signed-in seller account — blocked by unavailable authorized seller session.
+- [ ] Activate notification delivery preferences, reviewed policy/return rules, shipping configuration and staff management — requires separately authorized service integration/compliance work; saved drafts do not activate these.
+
 - [x] Apply secure seller application schema and server-validated workflow
 - [x] Create private KYC storage and deploy seller functions
 - [x] Build seven-step draft-first seller application UI

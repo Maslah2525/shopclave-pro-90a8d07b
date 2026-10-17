@@ -183,6 +183,13 @@
       "when": 1792064807547,
       "tag": "0025_record_revoke_anon_user_roles_grants",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1792260454763,
+      "tag": "0026_private_vendor_settings_preferences",
+      "breakpoints": true
     }
   ]
 }

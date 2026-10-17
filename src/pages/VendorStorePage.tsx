@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { useProductRatings } from "@/hooks/useProductRatings";
 import SEO, { SITE_URL } from "@/components/seo/SEO";
 import StoreQRDialog from "@/components/vendor/StoreQRDialog";
+import { settingsRecord } from "@/lib/vendorSettingsPersistence";
 
 type SortOption = "newest" | "price_asc" | "price_desc";
 
@@ -51,7 +52,7 @@ const VendorStorePage = () => {
       const { data, error } = await supabase
         .from("vendors")
         .select(
-          "id, user_id, store_name, store_description, logo_url, banner_url, status, slug, phone, phone2, whatsapp, website, created_at, updated_at"
+          "id, user_id, store_name, store_description, logo_url, banner_url, status, slug, website, store_settings, created_at, updated_at"
         )
         .eq(isUuid ? "id" : "slug", param)
         .maybeSingle();
@@ -179,6 +180,17 @@ const VendorStorePage = () => {
   }
 
   const initial = vendor.store_name?.charAt(0).toUpperCase() || "?";
+  const storeSettings = settingsRecord(vendor.store_settings);
+  const publicProfile = settingsRecord(storeSettings.profile);
+  const branding = settingsRecord(storeSettings.branding);
+  const publicAddress = settingsRecord(publicProfile.public_store_address);
+  const storeLocation = [publicAddress.city, publicAddress.state, publicAddress.country].filter(value => typeof value === "string" && value.trim()).join(", ");
+  const welcome = typeof branding.welcome === "string" ? branding.welcome : "";
+  const socialLinks = ["instagram", "facebook", "tiktok", "youtube"].flatMap(name => {
+    const value = branding[name];
+    if (typeof value !== "string" || !value) return [];
+    try { const url = new URL(value); return ["https:", "http:"].includes(url.protocol) ? [{ name, url: url.toString() }] : []; } catch { return []; }
+  });
   const memberSince = new Date(vendor.created_at).toLocaleDateString(undefined, { month: "long", year: "numeric" });
   const storePath = `/store/${vendor.slug ?? vendor.id}`;
   const storeUrl = `${SITE_URL}${storePath}`;
@@ -193,10 +205,7 @@ const VendorStorePage = () => {
     url: storeUrl,
     image: vendor.logo_url || vendor.banner_url || undefined,
     description: vendor.store_description || undefined,
-    telephone: vendor.phone || undefined,
-    address: (vendor as any).address
-      ? { "@type": "PostalAddress", streetAddress: (vendor as any).address }
-      : undefined,
+    address: storeLocation ? { "@type": "PostalAddress", addressLocality: publicAddress.city, addressRegion: publicAddress.state, addressCountry: publicAddress.country } : undefined,
   };
 
   return (
@@ -246,6 +255,9 @@ const VendorStorePage = () => {
                 {vendor.store_description && (
                   <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{vendor.store_description}</p>
                 )}
+                {welcome && <p className="mt-2 text-sm break-words">{welcome}</p>}
+                {storeLocation && <p className="mt-2 text-xs text-muted-foreground">{storeLocation}</p>}
+                {socialLinks.length > 0 && <div className="mt-2 flex flex-wrap gap-2">{socialLinks.map(link => <Button key={link.name} asChild size="sm" variant="link"><a href={link.url} target="_blank" rel="noopener noreferrer" className="capitalize">{link.name}<Globe className="ml-1 h-3 w-3"/></a></Button>)}</div>}
                 <div className="flex items-center gap-4 text-xs text-muted-foreground mt-2 flex-wrap">
                   <span className="flex items-center gap-1"><Users className="h-3 w-3" />{followerCount} Followers</span>
                   <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />Member since {memberSince}</span>
