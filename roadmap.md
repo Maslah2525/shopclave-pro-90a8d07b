@@ -1,5 +1,10 @@
 # Seller onboarding roadmap
 
+## Store settings persistence
+- [ ] Audit all store settings against live storage and save/readback paths.
+- [ ] Connect missing editable store preferences without changing payment, tax, or approval safeguards.
+- [ ] Run focused persistence checks and verify the signed-in settings flow when an authorized session is available.
+
 - [x] Apply secure seller application schema and server-validated workflow
 - [x] Create private KYC storage and deploy seller functions
 - [x] Build seven-step draft-first seller application UI
