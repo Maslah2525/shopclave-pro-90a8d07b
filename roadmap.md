@@ -1,7 +1,7 @@
 # Seller onboarding roadmap
 
 ## Store settings persistence
-- [x] Step four: Canadian bank selector, PayPal-only preferences elsewhere, and compact shared footer logos; country-rule and persistence tests pass.
+- [x] Step four: Canada offers Bank or PayPal; bank selection reveals account-holder entry and secure bank-details link, PayPal reveals email; larger footer logos and preference tests pass.
 - [ ] Verify step-four save/reload in a seller session — requesting user has no matching account available for automatic sign-in.
 - [x] Audit all store settings against live storage and save/readback paths.
 - [x] Connect profile preferences and private drafts for branding, shipping, business, tax, returns, policies, notifications, payouts and security without overriding authoritative safeguards.
