@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, ArrowRight, Check, Clock3, Loader2, Save, ShieldCheck, Store } from "lucide-react";
+import { ArrowLeft, ArrowRight, Building2, Check, Clock3, CreditCard, FileCheck2, Loader2, Save, Send, ShieldCheck, Store, User } from "lucide-react";
 import MarketplaceLayout from "@/components/layout/MarketplaceLayout";
 import CountrySelector from "@/components/vendor/CountrySelector";
 import CategorySelector from "@/components/vendor/CategorySelector";
@@ -13,7 +13,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -25,7 +24,9 @@ import { cn } from "@/lib/utils";
 import type { SellerCountryRule } from "@/lib/sellerCountryPolicy";
 import { toast } from "sonner";
 
-const STEPS = ["Account", "Business", "Verification", "Store", "Payout", "Agreements", "Submit"];
+const STEPS = ["Account Information", "Business Information", "Verification (KYC)", "Store Setup", "Payments & Payouts", "Policies & Agreements", "Review & Submit"];
+const STEP_TITLES = ["Create Your Account", "Business Information", "Verification (KYC)", "Store Setup", "Payments & Payouts", "Policies & Agreements", "Review & Submit"];
+const STEP_ICONS = [User, Building2, ShieldCheck, Store, CreditCard, FileCheck2, Send];
 type AppRow = { id:string; status:string; current_step:number; country:string|null; business_type:string|null; business_info:Record<string,unknown>; store_info:Record<string,unknown>; kyc_status:string; rules_version:string|null; review_reason:string|null; submitted_at:string|null };
 type ConditionalRequirement={when_field:string;equals:boolean;required_fields?:string[];required_documents?:string[]};
 type Rule = { rules_version:string; required_documents:string[]; required_fields:string[]; conditional_requirements?:ConditionalRequirement[]; stripe_connect_enabled:boolean; reviewed_at:string|null };
