@@ -21,7 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { countryByCode } from "@/lib/countries";
 import { INITIAL_SELLER_DRAFT, SellerDraft, validateSellerStep } from "@/lib/sellerOnboarding";
 import { cn } from "@/lib/utils";
-import type { SellerCountryRule } from "@/lib/sellerCountryPolicy";
+import { sellerRequiredAddressFields, type SellerCountryRule } from "@/lib/sellerCountryPolicy";
 import { toast } from "sonner";
 
 const STEPS = ["Account Information", "Business Information", "Verification (KYC)", "Store Setup", "Payments & Payouts", "Policies & Agreements", "Review & Submit"];
@@ -54,6 +54,7 @@ export default function SellerOnboardingV2Page(){
  const [documents,setDocuments]=useState<DocumentRow[]>([]); const [payout,setPayout]=useState<PayoutRow|null>(null);
  const [accepted,setAccepted]=useState<string[]>([]); const [reviewConfirmed,setReviewConfirmed]=useState(false);
  const editable=!application||["draft","more_information_required"].includes(application.status);
+ const requiredAddressFields=sellerRequiredAddressFields(draft.country||"CA");
  const set=(key:keyof SellerDraft,value:SellerDraft[keyof SellerDraft])=>setDraft(current=>({...current,[key]:value}));
 
  const refreshRelated=useCallback(async(app:AppRow|null)=>{
