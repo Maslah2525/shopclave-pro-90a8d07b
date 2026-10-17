@@ -488,7 +488,6 @@ const VendorSettings = () => {
   const [payoutPaypalEmail, setPayoutPaypalEmail] = useState("");
   const [payoutFrequency,setPayoutFrequency] = useState("Weekly");
   const [payoutToggles,setPayoutToggles] = useState({automatic:true,email:true,refunds:true});
-  const [payoutAccountType,setPayoutAccountType] = useState("Individual");
   const [payoutDateFrom,setPayoutDateFrom] = useState("2026-10-01");
   const [payoutDateTo,setPayoutDateTo] = useState("2026-10-15");
   const [payoutStatus,setPayoutStatus] = useState("All Statuses");
