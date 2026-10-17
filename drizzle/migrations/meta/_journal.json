@@ -204,6 +204,13 @@
       "when": 1792271953114,
       "tag": "0028_vendor_dashboard_first_submission",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1792273605120,
+      "tag": "0029_vendor_setup_twelve_steps",
+      "breakpoints": true
     }
   ]
 }

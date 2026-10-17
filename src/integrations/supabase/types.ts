@@ -3122,6 +3122,7 @@ export type Database = {
           payment_details: Json | null
           phone: string | null
           phone2: string | null
+          setup_completed_sections: string[]
           slug: string | null
           status: string
           store_description: string | null
@@ -3144,6 +3145,7 @@ export type Database = {
           payment_details?: Json | null
           phone?: string | null
           phone2?: string | null
+          setup_completed_sections?: string[]
           slug?: string | null
           status?: string
           store_description?: string | null
@@ -3166,6 +3168,7 @@ export type Database = {
           payment_details?: Json | null
           phone?: string | null
           phone2?: string | null
+          setup_completed_sections?: string[]
           slug?: string | null
           status?: string
           store_description?: string | null
@@ -3543,6 +3546,10 @@ export type Database = {
       mark_messages_seen: {
         Args: { _message_ids: string[] }
         Returns: undefined
+      }
+      mark_vendor_setup_section: {
+        Args: { p_section: string }
+        Returns: string[]
       }
       move_to_dlq: {
         Args: {
