@@ -3127,6 +3127,7 @@ export type Database = {
           store_description: string | null
           store_name: string
           store_settings: Json
+          submitted_for_review_at: string | null
           updated_at: string
           user_id: string
           warehouse_address: Json | null
@@ -3148,6 +3149,7 @@ export type Database = {
           store_description?: string | null
           store_name: string
           store_settings?: Json
+          submitted_for_review_at?: string | null
           updated_at?: string
           user_id: string
           warehouse_address?: Json | null
@@ -3169,6 +3171,7 @@ export type Database = {
           store_description?: string | null
           store_name?: string
           store_settings?: Json
+          submitted_for_review_at?: string | null
           updated_at?: string
           user_id?: string
           warehouse_address?: Json | null
@@ -3371,6 +3374,10 @@ export type Database = {
           original_attachment_url: string
           original_message: string
         }[]
+      }
+      admin_get_vendor_owner_email: {
+        Args: { _vendor_id: string }
+        Returns: string
       }
       approve_seller_application: {
         Args: { p_application_id: string }
@@ -3741,6 +3748,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      submit_vendor_for_review: { Args: never; Returns: string }
     }
     Enums: {
       app_role: "admin" | "vendor" | "customer"
