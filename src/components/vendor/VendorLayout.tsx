@@ -90,6 +90,13 @@ const VendorLayout = () => {
               )}
             </div>
           </header>
+          {vendor.status !== "approved" && location.pathname !== "/vendor/settings" && (
+            <Link to="/vendor/settings" className="block bg-primary text-primary-foreground px-4 py-2.5 text-sm font-medium">
+              {vendor.submitted_for_review_at && vendor.status === "pending"
+                ? "Your application is under review. We'll email you once approved."
+                : "Finish your store setup to proceed → Store Settings"}
+            </Link>
+          )}
           <main key={location.pathname} className="flex-1 p-4 md:p-6 overflow-auto animate-fade-in">
             <Outlet context={{ vendor }} />
           </main>

@@ -69,6 +69,15 @@ const AdminVendors = () => {
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
       const { error } = await supabase.from("vendors").update({ status }).eq("id", id);
       if (error) throw error;
+      if (status === "approved") {
+        const { data: email } = await supabase.rpc("admin_get_vendor_owner_email", { _vendor_id: id });
+        const v = vendors?.find((x: any) => x.id === id);
+        if (email) {
+          await supabase.functions.invoke("send-transactional-email", {
+            body: { templateName: "seller-approved", recipientEmail: email, idempotencyKey: `seller-approved-${id}-${Date.now()}`, templateData: { storeName: v?.store_name } },
+          }).catch(() => undefined);
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-vendors-detail"] });

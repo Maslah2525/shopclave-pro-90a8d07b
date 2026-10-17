@@ -1,50 +1,59 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import MarketplaceLayout from "@/components/layout/MarketplaceLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Store, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { Loader2, Store } from "lucide-react";
 
 export default function VendorRegisterPage() {
- const { user, loading: authLoading } = useAuth();
- const navigate = useNavigate();
- const [checking, setChecking] = useState(true);
- const [submitting, setSubmitting] = useState(false);
- const [status, setStatus] = useState<string | null>(null);
- useEffect(() => {
-  if (authLoading) return;
-  if (!user) { navigate("/auth", { replace: true, state: { from: "/vendor/register" } }); return; }
-  let active = true;
-  void supabase.from("vendors").select("status").eq("user_id", user.id).maybeSingle().then(({ data, error }) => {
-   if (!active) return;
-   if (error) toast.error("Could not check seller application status.");
-   if (data?.status === "approved") { navigate("/vendor/settings", { replace: true }); return; }
-   setStatus(data?.status ?? null); setChecking(false);
-  });
-  return () => { active = false; };
- }, [authLoading, user, navigate]);
- const apply = async () => {
-  if (!user || submitting || status) return;
-  setSubmitting(true);
-  // Placeholder is internal only. Seller must choose a real store name in Settings before listing.
-  const { error } = await supabase.from("vendors").insert({
-   user_id: user.id, store_name: `Pending Store Setup ${user.id.slice(0, 8)}`,
-   status: "pending"
-  });
-  setSubmitting(false);
-  if (error) {
-   if (error.code === "23505") { setStatus("pending"); toast.info("Your seller application already exists."); return; }
-   toast.error("Unable to submit your seller application. Please try again."); return;
-  }
-  setStatus("pending"); toast.success("Seller application submitted for admin review.");
- };
- if (authLoading || checking) return <MarketplaceLayout><div className="container py-16 flex justify-center"><Loader2 className="animate-spin" /></div></MarketplaceLayout>;
- return <MarketplaceLayout><main className="container max-w-lg py-12"><section className="rounded-xl border bg-card p-8 text-center space-y-5">
-  <Store className="mx-auto h-10 w-10 text-primary" />
-  <h1 className="text-2xl font-bold">Become a Seller</h1>
-  {status ? <><p role="status">{status === "pending" ? "Your application is awaiting admin approval." : status === "rejected" || status === "suspended" ? "Your seller application is not approved. Contact support for assistance." : `Application status: ${status}`}</p><Button variant="outline" onClick={() => navigate("/account")}>Back to My Account</Button></> :
-   <><p className="text-muted-foreground">Apply using your existing Barakaz account. Once approved, complete Store Settings before listing products.</p><Button className="w-full" onClick={() => void apply()} disabled={submitting}>{submitting ? "Submitting…" : "Apply to Become a Seller"}</Button></>}
- </section></main></MarketplaceLayout>;
+  const { user, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
+  const [failed, setFailed] = useState(false);
+  const started = useRef(false);
+
+  const prepare = async () => {
+    if (!user) return;
+    setFailed(false);
+    const minDelay = new Promise((r) => setTimeout(r, 2500));
+    const { data: existing, error: readErr } = await supabase.from("vendors").select("id,status").eq("user_id", user.id).maybeSingle();
+    if (readErr) { setFailed(true); return; }
+    if (!existing) {
+      const { error } = await supabase.from("vendors").insert({
+        user_id: user.id, store_name: `Pending Store Setup ${user.id.slice(0, 8)}`, status: "pending",
+      });
+      if (error && error.code !== "23505") { setFailed(true); return; }
+    }
+    await minDelay;
+    navigate(existing?.status === "approved" ? "/vendor/dashboard" : "/vendor/settings?setup=1", { replace: true });
+  };
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) { navigate("/auth", { replace: true, state: { from: "/vendor/register" } }); return; }
+    if (started.current) return;
+    started.current = true;
+    void prepare();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, user]);
+
+  return (
+    <main className="min-h-screen flex items-center justify-center bg-background px-6">
+      <div className="text-center space-y-4 max-w-sm" role="status">
+        <div className="mx-auto h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+          <Store className="h-8 w-8 text-primary" />
+        </div>
+        {failed ? (
+          <>
+            <p className="font-semibold">We couldn't prepare your dashboard.</p>
+            <Button onClick={() => void prepare()}>Try again</Button>
+          </>
+        ) : (
+          <>
+            <h1 className="text-xl font-bold">We are preparing your vendor dashboard</h1>
+            <Loader2 className="mx-auto h-6 w-6 animate-spin text-primary" />
+          </>
+        )}
+      </div>
+    </main>
+  );
 }
