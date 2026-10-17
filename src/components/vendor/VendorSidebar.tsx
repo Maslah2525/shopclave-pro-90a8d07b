@@ -139,7 +139,7 @@ export function VendorSidebar() {
                         <NavLink
                           to={item.url}
                           end
-                          className="relative flex items-center gap-2.5 px-3 py-2 rounded-md text-sm text-[hsl(var(--vendor-sidebar-fg))] hover:bg-[hsl(var(--vendor-sidebar-bg-elevated))] hover:text-white transition-colors"
+                          className={`relative flex items-center gap-2.5 px-3 py-2 rounded-md text-sm text-[hsl(var(--vendor-sidebar-fg))] hover:bg-[hsl(var(--vendor-sidebar-bg-elevated))] hover:text-white transition-colors ${item.url === "/vendor/settings" && vendor?.status && vendor.status !== "approved" ? "ring-2 ring-primary animate-pulse" : ""}`}
                           activeClassName="!bg-[hsl(var(--vendor-sidebar-active-bg))] !text-[hsl(var(--vendor-sidebar-active-fg))] font-medium shadow-sm"
                         >
                           <item.icon className="h-4 w-4 shrink-0" />
