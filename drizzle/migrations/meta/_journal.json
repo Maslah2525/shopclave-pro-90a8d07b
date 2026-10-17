@@ -190,6 +190,13 @@
       "when": 1792260454763,
       "tag": "0026_private_vendor_settings_preferences",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1792270273299,
+      "tag": "0027_allow_reopen_rejected_seller",
+      "breakpoints": true
     }
   ]
 }
