@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import StoreSetupSubmitCard from "@/components/vendor/StoreSetupSubmitCard";
+import { storeSetupChecklist } from "@/lib/storeSetup";
 import { Link, useOutletContext } from "react-router-dom";
 import VendorProfileChecklist from "@/components/vendor/VendorProfileChecklist";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -617,6 +618,8 @@ const VendorSettings = () => {
     const firstOpen = sections.find(([key]) => !completedSteps.includes(key));
     setSection((firstOpen ?? sections[sections.length - 1])[0]);
   }, [setupMode]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [setupSubmitted, setSetupSubmitted] = useState(false);
+  const [finalSubmitting, setFinalSubmitting] = useState(false);
   const saveAndContinue = async () => {
     const key = section;
     if (key === "overview") return;
@@ -628,7 +631,23 @@ const VendorSettings = () => {
     queryClient.invalidateQueries({ queryKey: ["vendor"] });
     const next = sections[stepIndex + 1];
     if (next) { setSection(next[0]); window.scrollTo({ top: 0, behavior: "smooth" }); }
-    else toast.success("All 10 steps are complete. Submit your store for review below.");
+    else {
+      setFinalSubmitting(true);
+      try {
+        const { data: latestVendor, error: reloadError } = await supabase.from("vendors").select("store_name,store_description,phone,logo_url").eq("id", vendor.id).single();
+        if (reloadError) throw reloadError;
+        if (storeSetupChecklist(latestVendor).some(item => !item.done)) {
+          toast.error("Complete the required store profile details before submitting.");
+          return;
+        }
+        const { error: submitError } = await supabase.rpc("submit_vendor_for_review");
+        if (submitError) throw submitError;
+        setSetupSubmitted(true);
+        await queryClient.invalidateQueries({ queryKey: ["vendor"] });
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Your store could not be submitted. Please try again.");
+      } finally { setFinalSubmitting(false); }
+    }
   };
   const isDirty = JSON.stringify(form) !== initialForm;
 
@@ -638,7 +657,13 @@ const VendorSettings = () => {
         <div><h2 className="text-2xl font-bold flex items-center gap-2"><Store className="h-6 w-6"/>Store Settings</h2><p className="text-sm text-muted-foreground">Manage your store and customize your selling experience.</p></div>
         <div className="flex flex-wrap gap-2 items-center max-w-full"><span className={`rounded-md border px-3 py-2 text-xs font-semibold ${vendor.status === "approved" ? "border-green-200 bg-green-50 text-green-700" : "border-slate-200 bg-slate-50 text-slate-700"}`}>{vendor.status === "approved" ? "✓ Approved Seller Account" : `Seller Account: ${vendor.status || "Unknown"}`}</span><Link to={`/store/${vendor.slug}`} target="_blank" className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm"><ExternalLink className="h-4 w-4"/>View Store</Link></div>
       </div>
-      {setupMode && <div className="rounded-xl border bg-card p-4 shadow-sm"><p className="mb-3 text-sm font-semibold">Store setup · Step {Math.max(stepIndex,0)+1} of 10 · {doneSteps.length} completed</p><ol className="flex items-start overflow-x-auto pb-2">{sections.map(([key,label],index)=>{const done=doneSteps.includes(key);const current=key===section;return <li key={key} className="flex min-w-[64px] flex-1 flex-col items-center text-center relative">{index>0&&<span aria-hidden className={`absolute top-4 right-1/2 h-0.5 w-full ${done||current?"bg-primary":"bg-border"}`}/>}<button type="button" onClick={()=>setSection(key)} aria-current={current?"step":undefined} aria-label={`Step ${index+1}: ${label}${done?" (completed)":""}`} className={`relative z-10 flex h-8 w-8 items-center justify-center rounded-full border-2 text-xs font-bold ${current?"border-primary bg-primary text-primary-foreground":done?"border-primary bg-background text-primary":"border-border bg-background text-muted-foreground"}`}>{done&&!current?<CheckCircle2 className="h-4 w-4"/>:index+1}</button><span className={`mt-1 px-1 text-[10px] leading-tight ${current?"font-semibold text-foreground":"text-muted-foreground"}`}>{label}</span></li>;})}</ol></div>}
+      {setupSubmitted && <div role="status" aria-live="polite" className="rounded-xl border border-green-300 bg-green-50 p-6 text-center space-y-3">
+        <CheckCircle2 className="mx-auto h-12 w-12 text-green-700" />
+        <h3 className="text-2xl font-bold text-green-900">Congratulations! Your store setup has been submitted.</h3>
+        <p className="text-sm text-green-900">Our team will review your store information. We'll notify you when a decision is made. You can return to your account while you wait.</p>
+        <Button variant="outline" asChild><Link to="/account">Go to My Account</Link></Button>
+      </div>}
+      {setupMode && !setupSubmitted && <div className="rounded-xl border bg-card p-4 shadow-sm"><p className="mb-3 text-sm font-semibold">Store setup · Step {Math.max(stepIndex,0)+1} of 10 · {doneSteps.length} completed</p><ol className="flex items-start overflow-x-auto pb-2">{sections.map(([key,label],index)=>{const done=doneSteps.includes(key);const current=key===section;return <li key={key} className="flex min-w-[64px] flex-1 flex-col items-center text-center relative">{index>0&&<span aria-hidden className={`absolute top-4 right-1/2 h-0.5 w-full ${done||current?"bg-primary":"bg-border"}`}/>}<button type="button" onClick={()=>setSection(key)} aria-current={current?"step":undefined} aria-label={`Step ${index+1}: ${label}${done?" (completed)":""}`} className={`relative z-10 flex h-8 w-8 items-center justify-center rounded-full border-2 text-xs font-bold ${current?"border-primary bg-primary text-primary-foreground":done?"border-primary bg-background text-primary":"border-border bg-background text-muted-foreground"}`}>{done&&!current?<CheckCircle2 className="h-4 w-4"/>:index+1}</button><span className={`mt-1 px-1 text-[10px] leading-tight ${current?"font-semibold text-foreground":"text-muted-foreground"}`}>{label}</span></li>;})}</ol></div>}
       {(!setupMode || doneSteps.length >= 10) && <StoreSetupSubmitCard vendor={vendor} allStepsDone={doneSteps.length >= 10} />}
       {preferencesLoading && <p role="status" className="text-sm text-muted-foreground">Loading saved store preferences…</p>}
       {preferencesError && <div role="alert" className="rounded-md border border-destructive p-3 text-sm text-destructive">Saved preferences could not be loaded. Reload before editing; no settings have been overwritten.</div>}
@@ -946,7 +971,7 @@ const VendorSettings = () => {
           </div>
         )}
         {(section==="profile"||section==="branding") && <div className="flex flex-wrap justify-between gap-2 border-t pt-4"><Button type="button" variant="outline" onClick={() => setForm(JSON.parse(initialForm))} disabled={!isDirty || saving}><RotateCcw className="h-4 w-4 mr-2"/>Reset Changes</Button><div className="flex gap-2"><Button variant="outline" asChild><Link to={`/store/${vendor.slug}`} target="_blank"><ExternalLink className="h-4 w-4 mr-2"/>Preview Store</Link></Button><Button onClick={handleSave} disabled={saving || preferencesLoading || !!preferencesError || slugAvailability !== "available"} >{saving ? "Saving..." : "Save Settings"}</Button></div></div>}
-        {setupMode && <div className="sticky bottom-0 -mx-4 sm:-mx-6 lg:-mx-8 flex items-center justify-between gap-2 border-t bg-card px-4 sm:px-6 lg:px-8 py-3"><Button type="button" variant="outline" disabled={stepIndex<=0||saving} onClick={()=>setSection(sections[stepIndex-1][0])}>Back</Button><Button type="button" disabled={saving||preferencesLoading||!!preferencesError} onClick={()=>void saveAndContinue()}>{saving?"Saving…":stepIndex===sections.length-1?"Save & finish":"Save & continue"}<ChevronRight className="h-4 w-4 ml-1"/></Button></div>}
+        {setupMode && <div className="sticky bottom-0 -mx-4 sm:-mx-6 lg:-mx-8 flex items-center justify-between gap-2 border-t bg-card px-4 sm:px-6 lg:px-8 py-3"><Button type="button" variant="outline" disabled={stepIndex<=0||saving} onClick={()=>setSection(sections[stepIndex-1][0])}>Back</Button><Button type="button" disabled={saving||finalSubmitting||preferencesLoading||!!preferencesError} onClick={()=>void saveAndContinue()}>{saving||finalSubmitting?"Saving…":stepIndex===sections.length-1?"Save and Submit":"Save & continue"}<ChevronRight className="h-4 w-4 ml-1"/></Button></div>}
       </div>
       </div>
       </div>}
