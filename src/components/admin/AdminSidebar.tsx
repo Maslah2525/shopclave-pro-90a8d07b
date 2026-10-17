@@ -72,7 +72,6 @@ const groups: { label: string; items: Item[] }[] = [
     label: "System",
     items: [
       { title: "Vendors", url: "/admin/vendors", icon: Store, permission: PERMISSIONS.VENDORS_VIEW },
-      { title: "Seller Applications", url: "/admin/seller-applications", icon: Shield, permission: PERMISSIONS.VENDORS_VIEW },
       { title: "Users", url: "/admin/users", icon: Users, permission: PERMISSIONS.USERS_VIEW },
       { title: "Team & Roles", url: "/admin/team", icon: UserCog, permission: PERMISSIONS.TEAM_MANAGE },
       { title: "Settings", url: "/admin/settings", icon: Settings, permission: PERMISSIONS.SETTINGS_MANAGE },

@@ -67,7 +67,6 @@ const AdminVendors = () => {
 
   const updateVendorStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      if (status === "approved") throw new Error("Seller approval must use the verified application workflow. Review the application under Seller Applications.");
       const { error } = await supabase.from("vendors").update({ status }).eq("id", id);
       if (error) throw error;
     },
@@ -97,7 +96,7 @@ const AdminVendors = () => {
         </div>
       </AdminPageHeader>
 
-      <Tabs defaultValue="applications">
+      <Tabs defaultValue="vendors">
       <TabsList className="mb-4"><TabsTrigger value="applications">Applications to approve</TabsTrigger><TabsTrigger value="vendors">All vendors</TabsTrigger></TabsList>
       <TabsContent value="applications"><AdminSellerApplications /></TabsContent>
       <TabsContent value="vendors">
@@ -156,6 +155,11 @@ const AdminVendors = () => {
                     <td><span className={`status-pill ${statusPill(v.status)}`}>{v.status}</span></td>
                     <td>
                       <div className="flex gap-1 justify-end">
+                        {v.status !== "approved" && (
+                          <Button size="sm" className="h-8 px-3 text-xs" onClick={() => updateVendorStatus.mutate({ id: v.id, status: "approved" })}>
+                            {v.status === "rejected" ? "Re-approve" : "Approve"}
+                          </Button>
+                        )}
                         {v.status === "approved" && (
                           <Button size="sm" variant="ghost" className="h-8 px-2 text-warning hover:text-warning hover:bg-warning/10 text-xs" onClick={() => updateVendorStatus.mutate({ id: v.id, status: "suspended" })}>
                             Suspend
