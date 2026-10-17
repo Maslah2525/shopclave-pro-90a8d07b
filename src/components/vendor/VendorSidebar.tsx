@@ -66,7 +66,7 @@ export function VendorSidebar() {
   const { data: vendor } = useQuery({
     queryKey: ["vendor-for-sidebar", user?.id],
     queryFn: async () => {
-      const { data } = await supabase.from("vendors").select("id").eq("user_id", user!.id).single();
+      const { data } = await supabase.from("vendors").select("id,status").eq("user_id", user!.id).maybeSingle();
       return data;
     },
     enabled: !!user,
