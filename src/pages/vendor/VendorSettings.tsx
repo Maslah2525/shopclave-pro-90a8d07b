@@ -188,12 +188,23 @@ const VendorSettings = () => {
   const warehouse = asJsonRecord(form.warehouse_address);
   const publicAddress = asJsonRecord(form.public_store_address);
   const { data: categories = [], isLoading: categoriesLoading, error: categoriesError } = useQuery({
-    queryKey: ["store-settings-categories"],
+    queryKey: ["store-settings-root-categories"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("categories").select("id,name,parent_id").order("name");
+      const { data, error } = await supabase.from("categories").select("id,name,parent_id").is("parent_id", null).order("name").limit(1000);
       if (error) throw error;
       return data || [];
     },
+    staleTime: 5 * 60 * 1000,
+  });
+  const { data: subcategories = [], isLoading: subcategoriesLoading } = useQuery({
+    queryKey: ["store-settings-subcategories", form.primary_category_id],
+    enabled: !!form.primary_category_id,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("categories").select("id,name,parent_id").eq("parent_id", form.primary_category_id as string).order("name").limit(1000);
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 5 * 60 * 1000,
   });
   const setPublicAddress = (key: string, value: string) => setForm(f => ({ ...f, public_store_address: { ...asJsonRecord(f.public_store_address), [key]: value, ...(key === "country" ? { state: "", city: "", zip: "" } : key === "state" ? { city: "", zip: "" } : {}) } }));
   const canadianCities: Record<string,string[]> = {
@@ -213,7 +224,6 @@ const VendorSettings = () => {
   };
   const canadaSelected = ["Canada","CA"].includes(addressValue(publicAddress,"country"));
   const addressCities = canadaSelected ? (canadianCities[addressValue(publicAddress,"state")] || []) : [];
-  const subcategories = categories.filter(c => c.parent_id === form.primary_category_id);
   const chosenSubcategory = form.additional_category_ids.find(id => subcategories.some(c => c.id === id)) || "";
   const [saving, setSaving] = useState(false);
   const [slugAvailability, setSlugAvailability] = useState<"checking" | "available" | "taken" | "error" | null>(null);
