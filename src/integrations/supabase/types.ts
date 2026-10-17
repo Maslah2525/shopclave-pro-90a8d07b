@@ -2873,6 +2873,42 @@ export type Database = {
           },
         ]
       }
+      vendor_settings_preferences: {
+        Row: {
+          section: string
+          settings: Json
+          updated_at: string
+          vendor_id: string
+        }
+        Insert: {
+          section: string
+          settings?: Json
+          updated_at?: string
+          vendor_id: string
+        }
+        Update: {
+          section?: string
+          settings?: Json
+          updated_at?: string
+          vendor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_settings_preferences_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_settings_preferences_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vendor_stripe_accounts: {
         Row: {
           charges_enabled: boolean
