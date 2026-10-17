@@ -164,12 +164,12 @@ const VendorSettings = () => {
     whatsapp: vendor.whatsapp || "",
     website: vendor.website || "",
     warehouse_address: vendor.warehouse_address || {},
-    store_email: "" || "",
-    primary_category_id: null || null as string | null,
-    additional_category_ids: ([] || []) as string[],
+    store_email: "",
+    primary_category_id: null as string | null,
+    additional_category_ids: [] as string[],
     public_store_address: asJsonRecord({}),
-    store_language: "en" || "en",
-    contact_visibility: "all" || "all",
+    store_language: "en",
+    contact_visibility: "all",
   });
   const warehouse = asJsonRecord(form.warehouse_address);
   const publicAddress = asJsonRecord(form.public_store_address);
@@ -200,12 +200,12 @@ const VendorSettings = () => {
       whatsapp: vendor.whatsapp || "",
       website: vendor.website || "",
       warehouse_address: asJsonRecord(vendor.warehouse_address),
-      store_email: "" || "",
-      primary_category_id: null || null,
-      additional_category_ids: [] || [],
+      store_email: "",
+      primary_category_id: null as string | null,
+      additional_category_ids: [] as string[],
       public_store_address: asJsonRecord({}),
-      store_language: "en" || "en",
-      contact_visibility: "all" || "all",
+      store_language: "en",
+      contact_visibility: "all",
     };
     setForm(nextForm);
     setInitialForm(JSON.stringify(nextForm));
@@ -577,7 +577,7 @@ const VendorSettings = () => {
             </section>
             <section className="rounded-lg border p-3 md:p-4 space-y-3">
               <div className="flex flex-wrap justify-between items-center gap-2"><div><h4 className="font-semibold">Shipping Zones &amp; Destinations</h4><p className="text-xs text-muted-foreground">View the regions you can ship to. Zone management requires shipping-rule integration.</p></div><Button size="sm" variant="outline" onClick={()=>setZoneCreatorOpen(v=>!v)}>+ Add Shipping Zone</Button></div>
-              {zoneCreatorOpen && <div className="rounded-lg border bg-muted/20 p-3 space-y-3"><h5 className="font-medium">Add shipping zone (preview only)</h5><div className="grid gap-3 sm:grid-cols-2"><div><Label htmlFor="new-zone-name">Zone name</Label><Input id="new-zone-name" value={newZoneName} onChange={e=>setNewZoneName(e.target.value)} placeholder="e.g. Europe"/></div><div><Label htmlFor="new-zone-regions">Countries / Regions</Label><Input id="new-zone-regions" value={newZoneRegions} onChange={e=>setNewZoneRegions(e.target.value)} placeholder="e.g. France, Germany"/></div></div><div className="flex gap-2"><Button size="sm" onClick={()=>{const name=newZoneName.trim();if(!name||!newZoneRegions.trim()){toast.error("Enter a zone name and countries or regions.");return;}if(additionalZones.includes(name)||Object.hasOwn(zoneDrafts,name)){toast.error("A shipping zone with this name already exists.");return;}setAdditionalZones(v=>[...v,name]);setZoneDrafts(v=>({...v,[name]:newZoneRegions.trim()}));setShippingZonePreview(v=>({...v,[name]:false}));setZoneCreatorOpen(false);setNewZoneName("");setNewZoneRegions("");toast.info("Zone added to this preview only; checkout rules were not changed.");}}>Add to preview</Button><Button size="sm" variant="outline" onClick={()=>setZoneCreatorOpen(false)}>Cancel</Button></div></div>}
+              {zoneCreatorOpen && <div className="rounded-lg border bg-muted/20 p-3 space-y-3"><h5 className="font-medium">Add shipping zone (preview only)</h5><div className="grid gap-3 sm:grid-cols-2"><div><Label htmlFor="new-zone-name">Zone name</Label><Input id="new-zone-name" value={newZoneName} onChange={e=>setNewZoneName(e.target.value)} placeholder="e.g. Europe"/></div><div><Label htmlFor="new-zone-regions">Countries / Regions</Label><Input id="new-zone-regions" value={newZoneRegions} onChange={e=>setNewZoneRegions(e.target.value)} placeholder="e.g. France, Germany"/></div></div><div className="flex gap-2"><Button size="sm" onClick={()=>{const name=newZoneName.trim();if(!name||!newZoneRegions.trim()){toast.error("Enter a zone name and countries or regions.");return;}if(additionalZones.includes(name)||Object.prototype.hasOwnProperty.call(zoneDrafts,name)){toast.error("A shipping zone with this name already exists.");return;}setAdditionalZones(v=>[...v,name]);setZoneDrafts(v=>({...v,[name]:newZoneRegions.trim()}));setShippingZonePreview(v=>({...v,[name]:false}));setZoneCreatorOpen(false);setNewZoneName("");setNewZoneRegions("");toast.info("Zone added to this preview only; checkout rules were not changed.");}}>Add to preview</Button><Button size="sm" variant="outline" onClick={()=>setZoneCreatorOpen(false)}>Cancel</Button></div></div>}
               <div className="overflow-x-auto"><table className="w-full text-sm border-collapse"><thead className="bg-muted/50 text-left"><tr>{["Zone / Region","Countries","Status","Actions"].map(h=><th key={h} className="p-3 border font-medium">{h}</th>)}</tr></thead><tbody>{([["🇨🇦","Domestic (Canada)","All Provinces & Territories"],["🇺🇸","United States","All States"],["🌐","International","Selected Countries (120+)"],...additionalZones.map(name=>["🌐",name,zoneDrafts[name]||""] as const)] as const).map(([flag,name,desc])=><tr key={name}><td className="p-3 border"><span className="mr-2">{flag}</span>{name}</td><td className="p-3 border text-muted-foreground">{zoneDrafts[name] || desc}</td><td className="p-3 border"><label className="inline-flex items-center gap-2 cursor-pointer"><input type="checkbox" role="switch" aria-label={`Enable ${name} shipping zone preview`} aria-checked={shippingZonePreview[name]} checked={shippingZonePreview[name]} onChange={e=>setShippingZonePreview(old=>({...old,[name]:e.target.checked}))} className="peer sr-only"/><span aria-hidden="true" className="relative h-5 w-9 rounded-full bg-slate-300 transition-colors peer-checked:bg-green-600 peer-focus-visible:ring-2 peer-focus-visible:ring-green-500 peer-focus-visible:ring-offset-2 after:absolute after:top-0.5 after:left-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-transform peer-checked:after:translate-x-4"/><span className={`text-xs ${shippingZonePreview[name]?"text-green-700":"text-muted-foreground"}`}>{shippingZonePreview[name]?"Active":"Inactive"}</span></label></td><td className="p-3 border"><Button size="sm" variant="outline" onClick={()=>setZoneEditor(zoneEditor===name?null:name)}>Edit</Button>{additionalZones.includes(name)&&<Button size="sm" variant="ghost" onClick={()=>{setAdditionalZones(v=>v.filter(z=>z!==name));if(zoneEditor===name)setZoneEditor(null);}}>Remove</Button>}</td></tr>)}</tbody></table></div>
               {zoneEditor && <div className="rounded-md border bg-muted/20 p-3 space-y-2"><div className="flex justify-between"><p className="font-semibold text-sm">Edit {zoneEditor}</p><Button size="sm" variant="ghost" onClick={()=>setZoneEditor(null)}>Close</Button></div><Label>Countries / Regions</Label><Input value={zoneDrafts[zoneEditor]||""} onChange={e=>setZoneDrafts(old=>({...old,[zoneEditor]:e.target.value}))}/><p className="text-xs text-amber-700">Changes are preview-only and will not change checkout destinations.</p></div>}<p className="text-xs text-amber-700">Zone rows reproduce the reference layout; they are not confirmed active shipping rules. Checkout shipping availability is controlled by the existing shipping backend.</p>
             </section>
@@ -746,7 +746,7 @@ const VendorSettings = () => {
             <div className="rounded border bg-amber-50 p-3 text-xs text-amber-900">Security: This interface does not create accounts, send invitations, modify permissions or revoke access. Role-based access control requires server-side authorization and audit logging.</div>
           </div>
         )}
-        {(["profile","branding"] as const).includes(section as "profile" | "branding" | "shipping") && <div className="flex flex-wrap justify-between gap-2 border-t pt-4"><Button type="button" variant="outline" onClick={() => setForm(JSON.parse(initialForm))} disabled={!isDirty || saving}><RotateCcw className="h-4 w-4 mr-2"/>Reset Changes</Button><div className="flex gap-2"><Button variant="outline" asChild><Link to={`/store/${vendor.slug}`} target="_blank"><ExternalLink className="h-4 w-4 mr-2"/>Preview Store</Link></Button><Button onClick={handleSave} disabled={saving || !isDirty || slugAvailability !== "available" || uiOnlyDirty} title={uiOnlyDirty ? "Preview-only fields cannot be saved until database integration" : undefined}>{saving ? "Saving..." : "Save Settings"}</Button></div></div>}
+        {(section==="profile"||section==="branding") && <div className="flex flex-wrap justify-between gap-2 border-t pt-4"><Button type="button" variant="outline" onClick={() => setForm(JSON.parse(initialForm))} disabled={!isDirty || saving}><RotateCcw className="h-4 w-4 mr-2"/>Reset Changes</Button><div className="flex gap-2"><Button variant="outline" asChild><Link to={`/store/${vendor.slug}`} target="_blank"><ExternalLink className="h-4 w-4 mr-2"/>Preview Store</Link></Button><Button onClick={handleSave} disabled={saving || !isDirty || slugAvailability !== "available" || uiOnlyDirty} title={uiOnlyDirty ? "Preview-only fields cannot be saved until database integration" : undefined}>{saving ? "Saving..." : "Save Settings"}</Button></div></div>}
       </div>
       </div>
       </div>}
