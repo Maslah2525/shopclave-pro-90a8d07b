@@ -13,10 +13,12 @@ const VendorLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const { data: vendor, isLoading: vendorLoading } = useQuery({
+  const { data: vendor, isLoading: vendorLoading, error: vendorError, refetch } = useQuery({
     queryKey: ["vendor", user?.id],
     queryFn: async () => {
-      const { data } = await supabase.from("vendors").select("*").eq("user_id", user!.id).single();
+      if (!user) return null;
+      const { data, error } = await supabase.from("vendors").select("*").eq("user_id", user.id).maybeSingle();
+      if (error) throw error;
       if (!data) return null;
       // payment_details and warehouse_address are restricted at the column level;
       // fetch them via the owner-scoped SECURITY DEFINER RPC.
@@ -39,6 +41,8 @@ const VendorLayout = () => {
   }, [user, loading, navigate]);
 
   if (loading || !user || vendorLoading) return null;
+
+  if (vendorError) return <div role="alert" className="flex min-h-screen flex-col items-center justify-center gap-3 px-4 text-center"><p>Your store could not be loaded. Your saved settings have not been changed.</p><Button onClick={()=>void refetch()}>Try again</Button></div>;
 
   if (!vendor) {
     return (
