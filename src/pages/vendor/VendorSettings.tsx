@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { Loader2, Upload, Trash2, ImageIcon, Store, Building2, Mail, Link2, CheckCircle2, Save, Truck, CreditCard, Receipt, PackageCheck, FileText, Palette, Bell, Users, Shield, ShieldCheck, ChevronRight, PanelLeftOpen, PanelLeftClose, ExternalLink, RotateCcw } from "lucide-react";
 import { convertImageToWebp } from "@/lib/imageToWebp";
 import { mergeSettings, publicStoreSettings, restoreSettings, sameSettings, settingsRecord } from "@/lib/vendorSettingsPersistence";
+import { COUNTRIES } from "@/lib/countries";
 import type { Json } from "@/integrations/supabase/types";
 
 type ImageKind = "logo" | "banner";
@@ -185,7 +186,7 @@ const VendorSettings = () => {
   const savedPreferenceRef = useRef<Record<string, Record<string, unknown>>>({});
   const warehouse = asJsonRecord(form.warehouse_address);
   const publicAddress = asJsonRecord(form.public_store_address);
-  const { data: categories = [] } = useQuery({
+  const { data: categories = [], isLoading: categoriesLoading, error: categoriesError } = useQuery({
     queryKey: ["store-settings-categories"],
     queryFn: async () => {
       const { data, error } = await supabase.from("categories").select("id,name,parent_id").order("name");
@@ -193,7 +194,26 @@ const VendorSettings = () => {
       return data || [];
     },
   });
-  const setPublicAddress = (key: string, value: string) => setForm(f => ({ ...f, public_store_address: { ...asJsonRecord(f.public_store_address), [key]: value } }));
+  const setPublicAddress = (key: string, value: string) => setForm(f => ({ ...f, public_store_address: { ...asJsonRecord(f.public_store_address), [key]: value, ...(key === "country" ? { state: "", city: "", zip: "" } : key === "state" ? { city: "", zip: "" } : {}) } }));
+  const canadianCities: Record<string,string[]> = {
+    "Alberta":["Calgary","Edmonton","Red Deer","Lethbridge","Medicine Hat"],
+    "British Columbia":["Vancouver","Victoria","Surrey","Burnaby","Kelowna","Richmond"],
+    "Manitoba":["Winnipeg","Brandon","Steinbach"],
+    "New Brunswick":["Moncton","Saint John","Fredericton"],
+    "Newfoundland and Labrador":["St. John's","Mount Pearl","Corner Brook"],
+    "Northwest Territories":["Yellowknife","Hay River","Inuvik"],
+    "Nova Scotia":["Halifax","Sydney","Truro"],
+    "Nunavut":["Iqaluit","Rankin Inlet"],
+    "Ontario":["Toronto","Ottawa","Mississauga","Brampton","Hamilton","London","Kitchener","Markham"],
+    "Prince Edward Island":["Charlottetown","Summerside"],
+    "Quebec":["Montreal","Quebec City","Laval","Gatineau","Longueuil"],
+    "Saskatchewan":["Saskatoon","Regina","Prince Albert"],
+    "Yukon":["Whitehorse","Dawson City"]
+  };
+  const canadaSelected = ["Canada","CA"].includes(addressValue(publicAddress,"country"));
+  const addressCities = canadaSelected ? (canadianCities[addressValue(publicAddress,"state")] || []) : [];
+  const subcategories = categories.filter(c => c.parent_id === form.primary_category_id);
+  const chosenSubcategory = form.additional_category_ids.find(id => subcategories.some(c => c.id === id)) || "";
   const [saving, setSaving] = useState(false);
   const [slugAvailability, setSlugAvailability] = useState<"checking" | "available" | "taken" | "error" | null>(null);
   const [initialForm, setInitialForm] = useState(JSON.stringify(form));
@@ -615,9 +635,10 @@ const VendorSettings = () => {
           {slugAvailability && <p role="status" className={`text-xs mt-1 ${slugAvailability === "available" ? "text-green-700" : slugAvailability === "taken" ? "text-red-600" : "text-muted-foreground"}`}>{slugAvailability === "checking" ? "Checking availability…" : slugAvailability === "available" ? "✓ Available" : slugAvailability === "taken" ? "This URL is already in use" : "Unable to check availability"}</p>}
         </div>
         <h4 className="font-semibold border-b pb-2">Store Category</h4>
-        <div className="grid md:grid-cols-2 gap-3">
-          <div><Label htmlFor="main-category">Main Category *</Label><select id="main-category" className="w-full h-10 rounded-md border bg-background px-3 text-sm" value={form.primary_category_id || ""} onChange={e=>setForm(f=>({...f,primary_category_id:e.target.value || null,additional_category_ids:f.additional_category_ids.filter(id=>id!==e.target.value)}))}><option value="">Select a category</option>{categories.filter(c=>!c.parent_id).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
-          <div><Label htmlFor="additional-categories">Additional Categories (Optional)</Label><select id="additional-categories" className="w-full h-10 rounded-md border bg-background px-3 text-sm" value="" onChange={e=>{const id=e.target.value;if(id)setForm(f=>({...f,additional_category_ids:[...new Set([...f.additional_category_ids,id])]}));}}><option value="">Add a category</option>{categories.filter(c=>c.id!==form.primary_category_id&&!form.additional_category_ids.includes(c.id)).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select><div className="flex flex-wrap gap-1 mt-2">{form.additional_category_ids.map(id=><button type="button" key={id} onClick={()=>setForm(f=>({...f,additional_category_ids:f.additional_category_ids.filter(v=>v!==id)}))} className="text-xs border rounded px-2 py-1">{categories.find(c=>c.id===id)?.name || id} ×</button>)}</div></div>
+        {categoriesError && <p role="alert" className="text-sm text-red-600">Categories could not be loaded. Reload the page and try again.</p>}
+        <div className="grid gap-3 md:grid-cols-2">
+          <div><Label htmlFor="main-category">Main Category *</Label><select id="main-category" disabled={categoriesLoading||!!categoriesError} className="w-full h-10 rounded-md border bg-background px-3 text-sm" value={form.primary_category_id || ""} onChange={e=>setForm(f=>({...f,primary_category_id:e.target.value||null,additional_category_ids:[]}))}><option value="">{categoriesLoading?"Loading categories…":"Select a category"}</option>{categories.filter(c=>!c.parent_id).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+          <div><Label htmlFor="store-subcategory">Subcategory</Label><select id="store-subcategory" disabled={!form.primary_category_id||categoriesLoading||!!categoriesError} className="w-full h-10 rounded-md border bg-background px-3 text-sm" value={chosenSubcategory} onChange={e=>setForm(f=>({...f,additional_category_ids:e.target.value?[e.target.value]:[]}))}><option value="">{form.primary_category_id?"Select a subcategory":"Select a main category first"}</option>{subcategories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select>{form.primary_category_id&&subcategories.length===0&&!categoriesLoading&&<p className="mt-1 text-xs text-muted-foreground">No subcategories are available for this category.</p>}</div>
         </div>
         </div>)}
         {section === "branding" && (<div className="space-y-5">
@@ -631,19 +652,19 @@ const VendorSettings = () => {
         {section === "profile" && (<div className="space-y-5">
         <h3 className="font-semibold pt-2 border-t border-border">Store Contact Information</h3>
         <p className="text-xs text-muted-foreground">These contact details are currently displayed according to the existing storefront implementation.</p>
-        <div><Label>Store Email *</Label><Input type="email" value={form.store_email} onChange={e=>setForm({...form,store_email:e.target.value})} placeholder={user?.email || "store@example.com"}/></div>
+        <div><Label>Store Email *</Label><Input type="email" value={form.store_email} onChange={e=>setForm({...form,store_email:e.target.value})} placeholder="store@example.com"/></div>
 
         <div>
           <Label>Phone Number *</Label>
-          <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+1 416 555 0123" />
+          <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+1 416 555 0100" />
         </div>
         <div>
           <Label>Phone Number 2 (Optional)</Label>
-          <Input value={form.phone2} onChange={(e) => setForm({ ...form, phone2: e.target.value })} placeholder="+254 7XX XXX XXX" />
+          <Input value={form.phone2} onChange={(e) => setForm({ ...form, phone2: e.target.value })} placeholder="+1 604 555 0101" />
         </div>
         <div>
           <Label>WhatsApp Number</Label>
-          <Input value={form.whatsapp} onChange={(e) => setForm({ ...form, whatsapp: e.target.value })} placeholder="+254 7XX XXX XXX" />
+          <Input value={form.whatsapp} onChange={(e) => setForm({ ...form, whatsapp: e.target.value })} placeholder="+1 604 555 0101" />
         </div>
         <div>
           <Label>Website (Optional)</Label>
@@ -651,7 +672,12 @@ const VendorSettings = () => {
         </div>
 
         <h3 className="font-semibold border-t pt-4">Store Address (Public)</h3>
-        <div className="grid md:grid-cols-2 gap-3">{([["country","Country"],["state","Province / State"],["city","City"],["zip","Postal / ZIP Code"]] as const).map(([key,label])=><div key={key}><Label>{label} *</Label><Input value={addressValue(publicAddress,key)} onChange={e=>setPublicAddress(key,e.target.value)} placeholder={key==="country"?"Canada":label}/></div>)}</div>
+        <div className="grid gap-3 md:grid-cols-2">
+          <div><Label htmlFor="public-country">Country *</Label><Input id="public-country" list="public-country-options" autoComplete="off" value={addressValue(publicAddress,"country")} onChange={e=>setPublicAddress("country",e.target.value)} placeholder="Search for a country"/><datalist id="public-country-options">{COUNTRIES.map(country=><option key={country.code} value={country.name}/>)}</datalist></div>
+          <div><Label htmlFor="public-province">Province / State *</Label><Input id="public-province" list={canadaSelected?"public-canada-provinces":undefined} value={addressValue(publicAddress,"state")} onChange={e=>setPublicAddress("state",e.target.value)} placeholder={canadaSelected?"Search Canadian provinces":"Enter state or province"}/>{canadaSelected&&<datalist id="public-canada-provinces">{Object.keys(canadianCities).map(province=><option key={province} value={province}/>)}</datalist>}</div>
+          <div><Label htmlFor="public-city">City *</Label><Input id="public-city" list={addressCities.length?"public-city-options":undefined} value={addressValue(publicAddress,"city")} onChange={e=>setPublicAddress("city",e.target.value)} placeholder={addressCities.length?"Search or enter a city":"Enter city"}/>{addressCities.length>0&&<datalist id="public-city-options">{addressCities.map(city=><option key={city} value={city}/>)}</datalist>}</div>
+          <div><Label htmlFor="public-postal">Postal / ZIP Code *</Label><Input id="public-postal" value={addressValue(publicAddress,"zip")} onChange={e=>setPublicAddress("zip",e.target.value)} placeholder={canadaSelected?"A1A 1A1":"Postal / ZIP code"}/></div>
+        </div><p className="text-xs text-muted-foreground">Search the country, then choose a province and city. You can type a city not shown in the suggestions.</p>
         <h3 className="font-semibold border-t pt-4">Store Language & Visibility</h3>
         <div className="grid md:grid-cols-2 gap-4"><div><Label>Store Language</Label><select className="w-full h-10 border rounded-md bg-background px-3" value={form.store_language} onChange={e=>setForm({...form,store_language:e.target.value})}><option value="en">English</option><option value="fr">French</option></select></div><fieldset><legend className="text-sm font-medium mb-2">Contact Information Visibility</legend>{([["all","Show all contact details"],["email","Show email only"],["phone","Show phone number only"],["hidden","Hide all contact details"]] as const).map(([value,label])=><label key={value} className="flex items-center gap-2 text-sm mb-2"><input type="radio" name="contact-visibility" checked={form.contact_visibility===value} onChange={()=>setForm({...form,contact_visibility:value})}/>{label}</label>)}<p className="text-xs text-muted-foreground">Saved privately as a preference. Direct phone and email contact remain hidden under marketplace rules.</p></fieldset></div>
         </div>)}
