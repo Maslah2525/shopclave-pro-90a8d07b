@@ -8,6 +8,8 @@ import { toast } from "sonner";
 import { useState } from "react";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import AdminEmptyState from "@/components/admin/AdminEmptyState";
+import AdminSellerApplications from "@/pages/admin/AdminSellerApplications";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const AdminVendors = () => {
   const { user } = useAuth();
@@ -95,6 +97,10 @@ const AdminVendors = () => {
         </div>
       </AdminPageHeader>
 
+      <Tabs defaultValue="applications">
+      <TabsList className="mb-4"><TabsTrigger value="applications">Applications to approve</TabsTrigger><TabsTrigger value="vendors">All vendors</TabsTrigger></TabsList>
+      <TabsContent value="applications"><AdminSellerApplications /></TabsContent>
+      <TabsContent value="vendors">
       <div className="admin-card overflow-hidden">
         {filtered.length === 0 ? (
           <AdminEmptyState
@@ -169,6 +175,8 @@ const AdminVendors = () => {
           </div>
         )}
       </div>
+      </TabsContent>
+      </Tabs>
     </div>
   );
 };
