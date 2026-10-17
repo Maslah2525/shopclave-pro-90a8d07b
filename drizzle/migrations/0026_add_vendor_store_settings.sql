@@ -1,2 +1,0 @@
-ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS store_settings jsonb NOT NULL DEFAULT '{}'::jsonb;
-COMMENT ON COLUMN public.vendors.store_settings IS 'Seller-managed store settings sections (shipping, payouts preferences, tax, returns, policies, branding, notifications). UI-only preferences; server-side rules remain authoritative.';

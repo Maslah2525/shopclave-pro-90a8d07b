@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,25 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Label } from "@/components/ui/label";
-import { CreditCard, Loader2, ShieldCheck, AlertCircle, ExternalLink, Landmark } from "lucide-react";
+import { CreditCard, Loader2, ShieldCheck, AlertCircle, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
-import { sellerBankingGuidance, sellerBankFields } from "@/lib/sellerBankingGuidance";
-
-/** Countries offered in the payout country picker. Availability is still
- * gated server-side by seller_country_requirements — this list is only the
- * presentation of countries Barakaz intends to support. */
-const PAYOUT_COUNTRIES = [
-  { code: "CA", name: "Canada" },
-  { code: "US", name: "United States" },
-  { code: "CN", name: "China" },
-  { code: "KR", name: "South Korea" },
-];
+import { sellerBankingGuidance } from "@/lib/sellerBankingGuidance";
 
 const VendorPayments = () => {
   const { vendor } = useOutletContext<{ vendor: any }>();
   const [busy, setBusy] = useState(false);
-  const [selectedCountry, setSelectedCountry] = useState("");
 
   const { data: application, isLoading: applicationLoading, isError: applicationError } = useQuery({
     queryKey: ["vendor-seller-application", vendor?.id],
@@ -40,11 +28,6 @@ const VendorPayments = () => {
       return data;
     },
   });
-
-  // Default the picker to the seller's application country once loaded.
-  useEffect(() => {
-    if (!selectedCountry && application?.country) setSelectedCountry(application.country);
-  }, [application?.country, selectedCountry]);
 
   const { data: payout, isLoading: payoutLoading, isError: payoutError } = useQuery({
     queryKey: ["vendor-stripe-payout", application?.id],
@@ -74,14 +57,9 @@ const VendorPayments = () => {
   };
 
   const verified = payout?.verification_status === "verified" && payout?.payouts_enabled === true;
-  const loading = applicationLoading || payoutLoading;
-  const country = selectedCountry || application?.country || "";
-  // Onboarding is only possible when the picked country matches the seller's
-  // approved application country; the server re-checks this and the enabled
-  // country rules before creating any Connect account (fail closed).
-  const countryMatchesApplication = !!application?.country && country === application.country;
-  const eligible = countryMatchesApplication &&
+  const eligible = application?.country === "CA" &&
     ["draft", "more_information_required"].includes(application?.status || "");
+  const loading = applicationLoading || payoutLoading;
 
   return <div className="space-y-6 max-w-3xl">
     <div>
@@ -103,41 +81,14 @@ const VendorPayments = () => {
         {(applicationError || payoutError) && <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>Unable to load your payout status. Please refresh or contact support.</AlertDescription></Alert>}
         {!loading && !applicationError && !payoutError && !application && <Alert><AlertCircle className="h-4 w-4" /><AlertDescription>A seller application is required before connecting payouts.</AlertDescription></Alert>}
         {!loading && !applicationError && !payoutError && application && <>
-          <div className="space-y-2">
-            <Label htmlFor="payout-country">Payout country</Label>
-            <select
-              id="payout-country"
-              value={country}
-              onChange={(e) => setSelectedCountry(e.target.value)}
-              className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
-            >
-              {!country && <option value="">Select your country</option>}
-              {PAYOUT_COUNTRIES.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
-            </select>
-            <p className="text-xs text-muted-foreground">Choose the country where your payout bank account is held. The bank details below update to match.</p>
-          </div>
-
-          {country && <div className="rounded-md border p-4 space-y-3">
-            <div className="flex items-center gap-2">
-              <Landmark className="h-4 w-4 text-primary" />
-              <p className="text-sm font-medium">Bank details for {PAYOUT_COUNTRIES.find((c) => c.code === country)?.name ?? country}</p>
-            </div>
-            <ul className="list-disc pl-5 text-sm space-y-1">
-              {sellerBankFields(country).map((field) => <li key={field}>{field}</li>)}
-            </ul>
-            <p className="text-xs text-muted-foreground">{sellerBankingGuidance(country)}</p>
-          </div>}
-
           <div className="grid gap-3 sm:grid-cols-2 text-sm">
             <div className="rounded border p-3"><p className="text-xs text-muted-foreground">Application</p><p className="font-medium capitalize">{application.status.replace(/_/g, " ")}</p></div>
             <div className="rounded border p-3"><p className="text-xs text-muted-foreground">Payout verification</p><p className="font-medium capitalize">{(payout?.verification_status || "Not started").replace(/_/g, " ")}</p></div>
           </div>
-
           {verified ? <p className="flex items-center gap-2 text-sm"><ShieldCheck className="h-4 w-4 text-success" /> Your Stripe payout account is verified and enabled.</p> :
-            !countryMatchesApplication && country ? <Alert><AlertCircle className="h-4 w-4" /><AlertDescription>Your seller application is registered in {application.country}. Payout onboarding must use the same country as your application. Contact support if your business country has changed.</AlertDescription></Alert> :
             eligible ? <Button onClick={startOnboarding} disabled={busy}>{busy ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <ExternalLink className="h-4 w-4 mr-2" />} {payout ? "Continue Stripe verification" : "Connect Stripe payouts"}</Button> :
             <Alert><AlertCircle className="h-4 w-4" /><AlertDescription>Payout onboarding is not enabled for this seller country or application status. Barakaz welcomes global seller applications, but each payout country and business type must be verified with the payment provider before activation.</AlertDescription></Alert>}
-          <p className="text-xs text-muted-foreground">Stripe securely collects bank and identity details. Barakaz does not request your full banking credentials on this page. Payouts depend on verified provider country support, approval and account verification.</p>
+          <p className="text-xs text-muted-foreground">{application?.country ? sellerBankingGuidance(application.country) + " " : ""}Stripe securely collects bank and identity details. Barakaz does not request your full banking credentials on this page. Payouts depend on verified provider country support, approval and account verification.</p>
         </>}
       </CardContent>
     </Card>
