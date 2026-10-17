@@ -253,6 +253,16 @@ const AddProductPage = () => {
     } finally { setLoading(false); }
   };
 
+  if (vendor?.status !== "approved" && !isAdmin) {
+    return (
+      <div className="mx-auto max-w-md rounded-xl border bg-card p-6 text-center space-y-3">
+        <h2 className="text-lg font-semibold">Your store isn't approved yet</h2>
+        <p className="text-sm text-muted-foreground">Finish all 12 store setup steps and submit for review. You can add products once an admin approves your store.</p>
+        <Button onClick={() => navigate("/vendor/settings")}>Go to Store Settings</Button>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-4xl mx-auto">
       <h2 className="text-xl font-bold mb-4">Add New Product</h2>

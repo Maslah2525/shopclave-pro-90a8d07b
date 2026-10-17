@@ -566,8 +566,8 @@ const VendorSettings = () => {
     if (typeof security.phone === "string") setSecurityPhone(security.phone);
   }, [savedPreferences, vendor.id, vendor.store_settings]);
 
-  const saveSection = async (key: "shipping" | "business" | "tax" | "returns" | "policies" | "notifications" | "payouts" | "security") => {
-    if (saving) return;
+  const saveSection = async (key: "shipping" | "business" | "tax" | "returns" | "policies" | "notifications" | "payouts" | "security"): Promise<boolean> => {
+    if (saving) return false;
     setSaving(true);
     try {
       if (key === "business" && Object.values(businessFiles).some(Boolean)) throw new Error("Documents have not been uploaded. Use the verification workflow to upload them securely.");
@@ -583,9 +583,34 @@ const VendorSettings = () => {
         : { alerts: securityAlerts, phone: securityPhone };
       await persistPreference(key, values);
       toast.success("Settings draft saved and verified. Live payment, tax, shipping, verification and notification rules are unchanged.");
+      return true;
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Settings could not be saved.");
+      return false;
     } finally { setSaving(false); }
+  };
+  const setupMode = vendor.status !== "approved";
+  const completedSteps: string[] = Array.isArray(vendor.setup_completed_sections) ? vendor.setup_completed_sections : [];
+  const [doneSteps, setDoneSteps] = useState<string[]>(completedSteps);
+  useEffect(() => { setDoneSteps(completedSteps); }, [vendor.setup_completed_sections]); // eslint-disable-line react-hooks/exhaustive-deps
+  const stepIndex = sections.findIndex(([key]) => key === section);
+  useEffect(() => {
+    if (!setupMode || section !== "overview") return;
+    const firstOpen = sections.find(([key]) => !completedSteps.includes(key));
+    setSection((firstOpen ?? sections[sections.length - 1])[0]);
+  }, [setupMode]); // eslint-disable-line react-hooks/exhaustive-deps
+  const saveAndContinue = async () => {
+    const key = section;
+    if (key === "overview") return;
+    const ok = key === "profile" || key === "branding" ? await handleSave() : key === "team" || key === "compliance" ? true : await saveSection(key);
+    if (!ok) return;
+    const { data, error } = await supabase.rpc("mark_vendor_setup_section", { p_section: key });
+    if (error) { toast.error(error.message || "Could not save your progress."); return; }
+    setDoneSteps(data || []);
+    queryClient.invalidateQueries({ queryKey: ["vendor"] });
+    const next = sections[stepIndex + 1];
+    if (next) { setSection(next[0]); window.scrollTo({ top: 0, behavior: "smooth" }); }
+    else toast.success("All 12 steps are complete. Submit your store for review below.");
   };
   const isDirty = JSON.stringify(form) !== initialForm;
 
@@ -595,13 +620,14 @@ const VendorSettings = () => {
         <div><h2 className="text-2xl font-bold flex items-center gap-2"><Store className="h-6 w-6"/>Store Settings</h2><p className="text-sm text-muted-foreground">Manage your store and customize your selling experience.</p></div>
         <div className="flex flex-wrap gap-2 items-center max-w-full"><span className={`rounded-md border px-3 py-2 text-xs font-semibold ${vendor.status === "approved" ? "border-green-200 bg-green-50 text-green-700" : "border-slate-200 bg-slate-50 text-slate-700"}`}>{vendor.status === "approved" ? "✓ Approved Seller Account" : `Seller Account: ${vendor.status || "Unknown"}`}</span><Link to={`/store/${vendor.slug}`} target="_blank" className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm"><ExternalLink className="h-4 w-4"/>View Store</Link></div>
       </div>
-      <StoreSetupSubmitCard vendor={vendor} />
+      {setupMode && <div className="rounded-xl border bg-card p-4 shadow-sm"><p className="mb-3 text-sm font-semibold">Store setup · Step {Math.max(stepIndex,0)+1} of 12 · {doneSteps.length} completed</p><ol className="flex items-start overflow-x-auto pb-2">{sections.map(([key,label],index)=>{const done=doneSteps.includes(key);const current=key===section;return <li key={key} className="flex min-w-[64px] flex-1 flex-col items-center text-center relative">{index>0&&<span aria-hidden className={`absolute top-4 right-1/2 h-0.5 w-full ${done||current?"bg-primary":"bg-border"}`}/>}<button type="button" onClick={()=>setSection(key)} aria-current={current?"step":undefined} aria-label={`Step ${index+1}: ${label}${done?" (completed)":""}`} className={`relative z-10 flex h-8 w-8 items-center justify-center rounded-full border-2 text-xs font-bold ${current?"border-primary bg-primary text-primary-foreground":done?"border-primary bg-background text-primary":"border-border bg-background text-muted-foreground"}`}>{done&&!current?<CheckCircle2 className="h-4 w-4"/>:index+1}</button><span className={`mt-1 px-1 text-[10px] leading-tight ${current?"font-semibold text-foreground":"text-muted-foreground"}`}>{label}</span></li>;})}</ol></div>}
+      {(!setupMode || doneSteps.length >= 12) && <StoreSetupSubmitCard vendor={vendor} allStepsDone={doneSteps.length >= 12} />}
       {preferencesLoading && <p role="status" className="text-sm text-muted-foreground">Loading saved store preferences…</p>}
       {preferencesError && <div role="alert" className="rounded-md border border-destructive p-3 text-sm text-destructive">Saved preferences could not be loaded. Reload before editing; no settings have been overwritten.</div>}
-      {section === "overview" && <div className="space-y-5"><div className="rounded-xl border bg-card p-5 sm:p-6"><h3 className="text-xl font-bold">Choose a settings section</h3><p className="mt-1 text-sm text-muted-foreground">All 12 store settings sections are available below. Select one to view its controls and make changes.</p></div><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{sections.map(([key,label,description,Icon],index)=><button key={key} type="button" onClick={()=>{setSection(key);setSettingsSidebarOpen(false);}} className="group flex min-h-32 items-start gap-4 rounded-xl border border-border bg-card p-5 text-left shadow-sm transition-all duration-150 hover:-translate-y-0.5 hover:border-orange-400 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted group-hover:bg-orange-50"><Icon className="h-5 w-5 text-foreground group-hover:text-orange-700"/></span><span className="min-w-0 flex-1"><span className="block text-xs font-medium text-muted-foreground">Section {String(index+1).padStart(2,"0")}</span><span className="mt-1 block font-semibold">{label}</span><span className="mt-1 block text-xs text-muted-foreground">{description}</span></span><ChevronRight className="mt-2 h-4 w-4 shrink-0 text-muted-foreground"/></button>)}</div></div>}
-      {section !== "overview" && <button type="button" onClick={()=>setSection("overview")} className="inline-flex min-h-10 items-center gap-2 rounded-md px-2 text-sm font-semibold text-orange-700 hover:bg-orange-50 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500">← All 12 store settings sections</button>}
+      {!setupMode && section === "overview" && <div className="space-y-5"><div className="rounded-xl border bg-card p-5 sm:p-6"><h3 className="text-xl font-bold">Choose a settings section</h3><p className="mt-1 text-sm text-muted-foreground">All 12 store settings sections are available below. Select one to view its controls and make changes.</p></div><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{sections.map(([key,label,description,Icon],index)=><button key={key} type="button" onClick={()=>{setSection(key);setSettingsSidebarOpen(false);}} className="group flex min-h-32 items-start gap-4 rounded-xl border border-border bg-card p-5 text-left shadow-sm transition-all duration-150 hover:-translate-y-0.5 hover:border-orange-400 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted group-hover:bg-orange-50"><Icon className="h-5 w-5 text-foreground group-hover:text-orange-700"/></span><span className="min-w-0 flex-1"><span className="block text-xs font-medium text-muted-foreground">Section {String(index+1).padStart(2,"0")}</span><span className="mt-1 block font-semibold">{label}</span><span className="mt-1 block text-xs text-muted-foreground">{description}</span></span><ChevronRight className="mt-2 h-4 w-4 shrink-0 text-muted-foreground"/></button>)}</div></div>}
+      {!setupMode && section !== "overview" && <button type="button" onClick={()=>setSection("overview")} className="inline-flex min-h-10 items-center gap-2 rounded-md px-2 text-sm font-semibold text-orange-700 hover:bg-orange-50 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500">← All 12 store settings sections</button>}
       {section !== "overview" && <div className={`grid min-w-0 grid-cols-1 gap-4 items-start lg:gap-6 ${settingsSidebarOpen ? "lg:grid-cols-[260px_minmax(0,1fr)] xl:grid-cols-[280px_minmax(0,1fr)]" : "lg:grid-cols-[minmax(0,1fr)]"}`}>
-      <div className="lg:hidden rounded-lg border bg-card p-3 space-y-2"><Label htmlFor="mobile-settings-section">Settings section</Label><select id="mobile-settings-section" aria-label="Select store settings section" value={section} onChange={e=>setSection(e.target.value as typeof section)} className="w-full h-11 rounded-lg border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500">{sections.map(([key,label],index)=><option key={key} value={key}>{index+1}. {label}</option>)}</select><p className="text-xs text-muted-foreground">Choose a section to edit its settings.</p></div>
+      <div className={`${setupMode?"hidden":"lg:hidden"} rounded-lg border bg-card p-3 space-y-2`}><Label htmlFor="mobile-settings-section">Settings section</Label><select id="mobile-settings-section" aria-label="Select store settings section" value={section} onChange={e=>setSection(e.target.value as typeof section)} className="w-full h-11 rounded-lg border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500">{sections.map(([key,label],index)=><option key={key} value={key}>{index+1}. {label}</option>)}</select><p className="text-xs text-muted-foreground">Choose a section to edit its settings.</p></div>
       <nav id="store-settings-desktop-navigation" aria-label="Store settings sections" className={`${settingsSidebarOpen ? "lg:block" : "lg:hidden"} hidden lg:sticky lg:top-5 max-h-[calc(100vh-3rem)] overflow-y-auto overscroll-contain rounded-xl border bg-card p-2 space-y-1 shadow-sm`}>
         {sections.map(([key,label,description,Icon],index) => (
           <button key={key} type="button" aria-current={section === key ? "page" : undefined} aria-label={`${index+1}. ${label}`} onClick={() => {setSection(key);setSettingsSidebarOpen(false);}} className={`w-full flex items-center gap-3 rounded-lg border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 ${section === key ? "border-orange-500 bg-orange-50 text-orange-700 shadow-sm" : "border-transparent hover:border-border hover:bg-muted"}`}>
@@ -611,7 +637,7 @@ const VendorSettings = () => {
         ))}
       </nav>
       <div className="min-w-0 space-y-3">
-        <div className="hidden lg:flex items-center justify-between gap-3"><button type="button" aria-expanded={settingsSidebarOpen} aria-controls="store-settings-desktop-navigation" onClick={()=>setSettingsSidebarOpen(open=>!open)} className="inline-flex min-h-10 items-center gap-2 rounded-lg border bg-card px-4 py-2 text-sm font-semibold hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500">{settingsSidebarOpen ? <PanelLeftClose className="h-4 w-4"/> : <PanelLeftOpen className="h-4 w-4"/>}{settingsSidebarOpen ? "Hide settings menu" : "Show all 12 settings"}</button><span className="text-xs text-muted-foreground">The menu closes after selecting a section to give the form more room.</span></div>
+        <div className={`hidden ${setupMode?"":"lg:flex"} items-center justify-between gap-3`}><button type="button" aria-expanded={settingsSidebarOpen} aria-controls="store-settings-desktop-navigation" onClick={()=>setSettingsSidebarOpen(open=>!open)} className="inline-flex min-h-10 items-center gap-2 rounded-lg border bg-card px-4 py-2 text-sm font-semibold hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500">{settingsSidebarOpen ? <PanelLeftClose className="h-4 w-4"/> : <PanelLeftOpen className="h-4 w-4"/>}{settingsSidebarOpen ? "Hide settings menu" : "Show all 12 settings"}</button><span className="text-xs text-muted-foreground">The menu closes after selecting a section to give the form more room.</span></div>
       <div className="bg-card rounded-xl border border-border p-4 sm:p-6 lg:p-8 min-w-0 space-y-6 shadow-sm">
         <div className="flex flex-col gap-3 border-b border-border pb-5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between"><div className="flex items-center gap-3">{sections.filter(([key])=>key===section).map(([key,label,description,Icon],index)=><div key={key} className="flex min-w-0 items-center gap-3"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-orange-700"><Icon className="h-5 w-5"/></span><span><span className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Store settings</span><span className="block break-words text-lg font-bold">{label}</span><span className="block text-xs text-muted-foreground">{description}</span></span></div>)}</div><span className="whitespace-nowrap rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">Section {sections.findIndex(([key])=>key===section)+1} of 12</span></div>
         {(["shipping","payouts","business","tax","returns","policies","branding","notifications","team","security","compliance"] as const).includes(section as any)&&<div role="note" className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950"><strong>Settings status:</strong> Preferences can be saved as private drafts. They do not activate shipping destinations, change tax or payouts, approve verification, send notifications, or grant staff access. Documents must use the secure verification workflow.</div>}
@@ -883,6 +909,7 @@ const VendorSettings = () => {
           </div>
         )}
         {(section==="profile"||section==="branding") && <div className="flex flex-wrap justify-between gap-2 border-t pt-4"><Button type="button" variant="outline" onClick={() => setForm(JSON.parse(initialForm))} disabled={!isDirty || saving}><RotateCcw className="h-4 w-4 mr-2"/>Reset Changes</Button><div className="flex gap-2"><Button variant="outline" asChild><Link to={`/store/${vendor.slug}`} target="_blank"><ExternalLink className="h-4 w-4 mr-2"/>Preview Store</Link></Button><Button onClick={handleSave} disabled={saving || preferencesLoading || !!preferencesError || slugAvailability !== "available"} >{saving ? "Saving..." : "Save Settings"}</Button></div></div>}
+        {setupMode && <div className="sticky bottom-0 -mx-4 sm:-mx-6 lg:-mx-8 flex items-center justify-between gap-2 border-t bg-card px-4 sm:px-6 lg:px-8 py-3"><Button type="button" variant="outline" disabled={stepIndex<=0||saving} onClick={()=>setSection(sections[stepIndex-1][0])}>Back</Button><Button type="button" disabled={saving||preferencesLoading||!!preferencesError} onClick={()=>void saveAndContinue()}>{saving?"Saving…":stepIndex===sections.length-1?"Save & finish":"Save & continue"}<ChevronRight className="h-4 w-4 ml-1"/></Button></div>}
       </div>
       </div>
       </div>}

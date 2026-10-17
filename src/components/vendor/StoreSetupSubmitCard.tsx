@@ -7,13 +7,13 @@ import { CheckCircle2, Circle, Send } from "lucide-react";
 import { toast } from "sonner";
 import { storeSetupChecklist } from "@/lib/storeSetup";
 
-export default function StoreSetupSubmitCard({ vendor }: { vendor: any }) {
+export default function StoreSetupSubmitCard({ vendor, allStepsDone = false }: { vendor: any; allStepsDone?: boolean }) {
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(false);
   if (!vendor || vendor.status === "approved") return null;
   const items = storeSetupChecklist(vendor);
-  const ready = items.every((i) => i.done);
+  const ready = allStepsDone && items.every((i) => i.done);
   const submitted = !!vendor.submitted_for_review_at && vendor.status === "pending";
 
   const submit = async () => {
@@ -32,6 +32,7 @@ export default function StoreSetupSubmitCard({ vendor }: { vendor: any }) {
         <p className="text-xs text-muted-foreground">{submitted ? "We'll email you once your store is approved." : "Save these details below, then submit your store for review."}</p>
       </div>
       <ul className="grid gap-1.5 sm:grid-cols-2">
+        <li className="flex items-center gap-2 text-sm">{allStepsDone ? <CheckCircle2 className="h-4 w-4 text-success" /> : <Circle className="h-4 w-4 text-muted-foreground" />}All 12 setup steps</li>
         {items.map((i) => (
           <li key={i.key} className="flex items-center gap-2 text-sm">
             {i.done ? <CheckCircle2 className="h-4 w-4 text-success" /> : <Circle className="h-4 w-4 text-muted-foreground" />}
