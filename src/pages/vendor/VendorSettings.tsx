@@ -13,7 +13,8 @@ import { toast } from "sonner";
 import { Loader2, Upload, Trash2, ImageIcon, Store, Building2, Mail, Link2, CheckCircle2, Save, Truck, CreditCard, Receipt, PackageCheck, FileText, Palette, Bell, Users, Shield, ShieldCheck, ChevronRight, PanelLeftOpen, PanelLeftClose, ExternalLink, RotateCcw } from "lucide-react";
 import { convertImageToWebp } from "@/lib/imageToWebp";
 import { mergeSettings, publicStoreSettings, restoreSettings, sameSettings, settingsRecord } from "@/lib/vendorSettingsPersistence";
-import { COUNTRIES } from "@/lib/countries";
+import { COUNTRIES, addressFormat, countryByCode, countryByName } from "@/lib/countries";
+import CountrySelector from "@/components/vendor/CountrySelector";
 import type { Json } from "@/integrations/supabase/types";
 
 type ImageKind = "logo" | "banner";
@@ -419,6 +420,12 @@ const VendorSettings = () => {
   const [businessFiles, setBusinessFiles] = useState<Record<string, File | null>>({});
   const [businessCountryCode, setBusinessCountryCode] = useState("+1");
   const canadianProvinces = ["Alberta","British Columbia","Manitoba","New Brunswick","Newfoundland and Labrador","Northwest Territories","Nova Scotia","Nunavut","Ontario","Prince Edward Island","Quebec","Saskatchewan","Yukon"];
+  const usStates = ["Alabama","Alaska","Arizona","Arkansas","California","Colorado","Connecticut","Delaware","District of Columbia","Florida","Georgia","Hawaii","Idaho","Illinois","Indiana","Iowa","Kansas","Kentucky","Louisiana","Maine","Maryland","Massachusetts","Michigan","Minnesota","Mississippi","Missouri","Montana","Nebraska","Nevada","New Hampshire","New Jersey","New Mexico","New York","North Carolina","North Dakota","Ohio","Oklahoma","Oregon","Pennsylvania","Rhode Island","South Carolina","South Dakota","Tennessee","Texas","Utah","Vermont","Virginia","Washington","West Virginia","Wisconsin","Wyoming"];
+  const australianStates = ["Australian Capital Territory","New South Wales","Northern Territory","Queensland","South Australia","Tasmania","Victoria","Western Australia"];
+  const kenyanCounties = ["Baringo","Bomet","Bungoma","Busia","Elgeyo-Marakwet","Embu","Garissa","Homa Bay","Isiolo","Kajiado","Kakamega","Kericho","Kiambu","Kilifi","Kirinyaga","Kisii","Kisumu","Kitui","Kwale","Laikipia","Lamu","Machakos","Makueni","Mandera","Marsabit","Meru","Migori","Mombasa","Murang'a","Nairobi","Nakuru","Nandi","Narok","Nyamira","Nyandarua","Nyeri","Samburu","Siaya","Taita-Taveta","Tana River","Tharaka-Nithi","Trans Nzoia","Turkana","Uasin Gishu","Vihiga","Wajir","West Pokot"];
+  const businessCountryIso = countryByName(businessDraft.country)?.code || (businessDraft.country.length===2?businessDraft.country.toUpperCase():"");
+  const businessFormat = addressFormat(businessCountryIso || "");
+  const businessRegions = ({CA:canadianProvinces,US:usStates,AU:australianStates,KE:kenyanCounties} as Record<string,string[]>)[businessCountryIso];
   const { data: verifiedDocuments = [] } = useQuery({
     queryKey: ["seller-settings-documents", sellerApplication?.id],
     enabled: !!sellerApplication?.id,
@@ -785,7 +792,9 @@ const VendorSettings = () => {
               <div className="grid md:grid-cols-3 gap-3">{([
                 ["individual","Individual Seller","Selling as a person (no registered business)"],
                 ["sole_proprietor","Sole Proprietorship (Self Employed)","You own the business personally"],
-                ["company","Incorporated Company","Registered business (e.g. Ltd, Inc, Corp)"]
+                ["company","Incorporated Company","Registered business (e.g. Ltd, Inc, Corp)"],
+                ["partnership","Partnership","Two or more people own the business together"],
+                ["other","Other","Co-operative, non-profit, trust or another structure"]
               ] as const).map(([value,label,help]) => <label key={value} className="flex items-start gap-2 cursor-pointer"><input type="radio" className="mt-1 accent-orange-600" name="business-type" checked={businessDraft.type === value} onChange={() => updateBusiness("type",value)}/><span><span className="text-sm font-medium">{label}</span><span className="block text-xs text-muted-foreground">{help}</span></span></label>)}</div>
             </section>
             <section className="rounded-lg border p-3 md:p-4 space-y-3"><h4 className="font-semibold">Legal Business Information</h4><div className="grid md:grid-cols-2 gap-4">
@@ -793,16 +802,16 @@ const VendorSettings = () => {
               {businessInput("registration","Business Registration Number (Optional)",false,"Company registration or business licence number.")}
               {businessInput("tradingName","Doing Business As (Trading Name)",false,"Your store or trading name (if different).")}
               <div className="space-y-1"><Label htmlFor="business-email">Business Email <span className="text-red-600">*</span></Label><div className="relative"><Mail className="absolute left-3 top-3 h-4 w-4 text-orange-600"/><Input id="business-email" className="pl-9" type="email" value={businessDraft.email} onChange={e=>updateBusiness("email",e.target.value)}/></div><p className="text-xs text-muted-foreground">Official business email address.</p></div>
-              <div className="space-y-1"><Label htmlFor="business-phone">Business Phone <span className="text-red-600">*</span></Label><div className="flex rounded-md border border-input overflow-hidden"><select aria-label="Phone country code" className="shrink-0 bg-muted px-2 text-sm border-r" value={businessCountryCode} onChange={e=>setBusinessCountryCode(e.target.value)}><option value="+1">🇨🇦 +1</option><option value="+254">🇰🇪 +254</option><option value="+44">🇬🇧 +44</option><option value="+61">🇦🇺 +61</option></select><Input id="business-phone" className="border-0 rounded-none focus-visible:ring-0" type="tel" value={businessDraft.phone} onChange={e=>updateBusiness("phone",e.target.value)}/></div><p className="text-xs text-muted-foreground">Primary business contact number.</p></div>
+              <div className="space-y-1"><Label htmlFor="business-phone">Business Phone <span className="text-red-600">*</span></Label><div className="flex rounded-md border border-input overflow-hidden"><select aria-label="Phone country code" className="shrink-0 bg-muted px-2 text-sm border-r max-w-[6.5rem]" value={businessCountryCode} onChange={e=>setBusinessCountryCode(e.target.value)}>{[...new Set(COUNTRIES.map(c=>c.dial))].sort((a,b)=>Number(a.slice(1))-Number(b.slice(1))).map(dial=><option key={dial} value={dial}>{dial}</option>)}</select><Input id="business-phone" className="border-0 rounded-none focus-visible:ring-0" type="tel" value={businessDraft.phone} onChange={e=>updateBusiness("phone",e.target.value)}/></div><p className="text-xs text-muted-foreground">Primary business contact number.</p></div>
               <div className="space-y-1"><Label htmlFor="business-website">Business Website (Optional)</Label><div className="relative"><Link2 className="absolute left-3 top-3 h-4 w-4 text-muted-foreground"/><Input id="business-website" className="pl-9" type="url" value={businessDraft.website} onChange={e=>updateBusiness("website",e.target.value)}/></div><p className="text-xs text-muted-foreground">Your official business website.</p></div>
             </div></section>
             <section className="rounded-lg border p-3 md:p-4 space-y-3"><h4 className="font-semibold">Business Address</h4><div className="grid md:grid-cols-2 gap-4">
-              <div className="space-y-1"><Label>Country <span className="text-red-600">*</span></Label><div className="relative"><span className="absolute left-3 top-2.5">🇨🇦</span><select aria-label="Business country" className="w-full h-10 rounded-md border border-input bg-background pl-11 pr-3 text-sm" value={businessDraft.country} onChange={e=>setBusinessDraft(old=>({...old,country:e.target.value,province:""}))}>{["Canada","United States","United Kingdom","Kenya","Other"].map(country=><option key={country}>{country}</option>)}</select></div></div>
-              {businessDraft.country === "Canada" ? businessSelect("province","Province / State",["Select a province",...canadianProvinces],true) : businessInput("province","Province / State",true)}
+              <div className="space-y-1 md:col-span-2"><Label>Country <span className="text-red-600">*</span></Label><CountrySelector value={businessCountryIso} onChange={code=>{const c=countryByCode(code);if(!c)return;setBusinessDraft(old=>({...old,country:c.name,province:"",postal:""}));setBusinessCountryCode(c.dial);}}/></div>
+              {businessRegions ? businessSelect("province",businessFormat.regionLabel,[`Select ${businessFormat.regionLabel.toLowerCase()}`,...businessRegions],true) : businessInput("province",businessFormat.regionLabel,!businessFormat.regionLabel.includes("optional"))}
               {businessInput("street","Street Address",true)}
-              {businessInput("city","City",true)}
+              {businessInput("city","City / Town",true)}
               {businessInput("unit","Suite / Unit (Optional)")}
-              {businessInput("postal","Postal / ZIP Code",true)}
+              {businessInput("postal",businessFormat.postalLabel,businessFormat.postalRequired,businessFormat.postalExample?`e.g. ${businessFormat.postalExample}`:"")}
             </div></section>
             <section className="rounded-lg border p-3 md:p-4 space-y-3"><h4 className="font-semibold">Business Documents</h4>
               {verifiedDocuments.length > 0 && <div className="rounded-md bg-muted p-3"><p className="text-sm font-medium mb-2">Documents already submitted for verification</p>{verifiedDocuments.map(doc => <p key={doc.id} className="text-xs py-1">{doc.requirement_code.replace(/_/g," ")} — <strong>{doc.verification_status}</strong></p>)}<p className="text-xs text-muted-foreground mt-1">Document contents are private and are not exposed in Store Settings.</p></div>}<p className="text-xs text-muted-foreground">Choose clear and valid documents for a future verification step. JPG, PNG or PDF (maximum 10MB each).</p>
