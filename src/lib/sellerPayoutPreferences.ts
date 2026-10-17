@@ -1,6 +1,6 @@
 /** Presentation preferences only; never authorizes provider onboarding or payouts. */
-export const sellerPayoutMethod = (country: string): "bank" | "paypal" =>
-  country.trim().toUpperCase() === "CA" ? "bank" : "paypal";
+export const sellerPayoutMethod = (country: string, selected: "bank" | "paypal" = "bank"): "bank" | "paypal" =>
+  country.trim().toUpperCase() === "CA" ? selected : "paypal";
 
 export const CANADIAN_BANKS = [
   "Bank of Montreal (BMO)",

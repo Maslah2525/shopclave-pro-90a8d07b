@@ -483,8 +483,11 @@ const VendorSettings = () => {
   });
   const financialTotals = vendorFinancialItems ? vendorFinancialItems.reduce((acc,item)=>({gross:acc.gross+(item.price*item.quantity),net:acc.net+(item.vendor_payout??0),commission:acc.commission+item.commission_amount,refunds:acc.refunds+item.refunded_amount}),{gross:0,net:0,commission:0,refunds:0}) : null;
   const formatCad=(n:number)=>new Intl.NumberFormat("en-CA",{style:"currency",currency:"CAD"}).format(n);
-  const isCanadianPayout = sellerPayoutMethod(businessCountryIso) === "bank";
+  const [selectedPayoutMethod, setSelectedPayoutMethod] = useState<"bank" | "paypal">("bank");
+  const activePayoutMethod = sellerPayoutMethod(businessCountryIso, selectedPayoutMethod);
+  const isCanadianPayout = activePayoutMethod === "bank";
   const [payoutBank, setPayoutBank] = useState("");
+  const [payoutHolderName, setPayoutHolderName] = useState("");
   const [payoutPaypalEmail, setPayoutPaypalEmail] = useState("");
   const [payoutFrequency,setPayoutFrequency] = useState("Weekly");
   const [payoutToggles,setPayoutToggles] = useState({automatic:true,email:true,refunds:true});
@@ -569,6 +572,8 @@ const VendorSettings = () => {
       return restored;
     });
     const payouts = settingsRecord(savedPreferences.payouts);
+    if (payouts.method === "bank" || payouts.method === "paypal") setSelectedPayoutMethod(payouts.method);
+    if (typeof payouts.holderName === "string") setPayoutHolderName(payouts.holderName);
     if (typeof payouts.bank === "string") setPayoutBank(payouts.bank);
     if (typeof payouts.paypalEmail === "string") setPayoutPaypalEmail(payouts.paypalEmail);
     if (typeof payouts.frequency === "string") setPayoutFrequency(payouts.frequency);
@@ -592,7 +597,7 @@ const VendorSettings = () => {
         : key === "returns" ? { ...returnsDraft }
         : key === "policies" ? { content: policyDrafts, display: policyDisplay }
         : key === "notifications" ? { ...notificationDraft }
-        : key === "payouts" ? { frequency: payoutFrequency, options: payoutToggles, country: businessCountryIso, method: sellerPayoutMethod(businessCountryIso), bank: isCanadianPayout ? payoutBank : "", paypalEmail: isCanadianPayout ? "" : payoutPaypalEmail }
+        : key === "payouts" ? { frequency: payoutFrequency, options: payoutToggles, country: businessCountryIso, method: activePayoutMethod, bank: isCanadianPayout ? payoutBank : "", holderName: isCanadianPayout ? payoutHolderName : "", paypalEmail: isCanadianPayout ? "" : payoutPaypalEmail }
         : { alerts: securityAlerts, phone: securityPhone };
       await persistPreference(key, values);
       toast.success("Settings draft saved and verified. Live payment, tax, shipping, verification and notification rules are unchanged.");
@@ -777,16 +782,23 @@ const VendorSettings = () => {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">{[["💼","Total Earnings"],["💵","Available Balance"],["🕒","Pending Balance"],["🔒","Held Balance"]].map(([icon,label])=><div key={label} className="rounded-lg border p-4 bg-card"><div className="flex items-center gap-3"><span className="text-2xl">{icon}</span><div><p className="text-xs text-muted-foreground">{label}</p><p className="text-lg font-bold">{label==="Total Earnings" && financialTotals && !financialError?formatCad(financialTotals.gross):"—"}</p><p className="text-xs text-muted-foreground">{label==="Total Earnings" && financialTotals && !financialError?"CAD · Gross order items (up to 500), not settled earnings":financialLoading?"Loading…":"CAD · Stripe balance unavailable"}</p></div></div></div>)}</div>
           <div className="grid lg:grid-cols-3 gap-3">
             <section className="lg:col-span-2 rounded-lg border p-4 space-y-4"><div className="flex justify-between items-start gap-2"><div><h4 className="font-semibold">🟠 Payout Account Setup</h4><p className="text-xs text-muted-foreground">Add your bank account or payout method to receive your earnings.</p></div><span className={`text-xs rounded px-2 py-1 ${isCanadianPayout && sellerPayoutAccount?.payouts_enabled && sellerPayoutAccount.verification_status==="verified"?"bg-green-100 text-green-800":"bg-muted"}`}>{payoutAccountLoading?"Checking…":payoutAccountError?"Status unavailable":isCanadianPayout && sellerPayoutAccount?.payouts_enabled && sellerPayoutAccount.verification_status==="verified"?"✓ Verified":"Not verified"}</span></div>
+              {businessCountryIso === "CA" && <div className="grid grid-cols-2 gap-2" role="group" aria-label="Payout method">
+                <Button variant={isCanadianPayout ? "default" : "outline"} aria-pressed={isCanadianPayout} onClick={()=>setSelectedPayoutMethod("bank")}><Building2 className="mr-2 h-4 w-4"/>Bank Account</Button>
+                <Button variant={!isCanadianPayout ? "default" : "outline"} aria-pressed={!isCanadianPayout} onClick={()=>setSelectedPayoutMethod("paypal")}>PayPal</Button>
+              </div>}
               {isCanadianPayout ? <div className="space-y-4">
                 <h5 className="text-sm font-semibold">Canadian bank account</h5>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2"><Label htmlFor="payout-bank">Canadian bank</Label><select id="payout-bank" value={payoutBank} onChange={e=>setPayoutBank(e.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"><option value="">Choose your bank</option>{CANADIAN_BANKS.map(bank=><option key={bank} value={bank}>{bank}</option>)}</select></div>
                   <div className="space-y-2"><Label>Country</Label><Input value="Canada" readOnly/></div>
                 </div>
-                <p className="text-xs text-muted-foreground">Bank selection is saved for review. Enter account, transit and institution numbers securely through Stripe.</p>
-                <Button asChild><Link to="/vendor/payments">Manage Secure Bank Account <ExternalLink className="ml-2 h-4 w-4"/></Link></Button>
+                {payoutBank && <div className="space-y-3 border-t pt-4">
+                  <div className="space-y-2"><Label htmlFor="payout-holder-name">Account holder name</Label><Input id="payout-holder-name" autoComplete="name" value={payoutHolderName} onChange={e=>setPayoutHolderName(e.target.value)} placeholder="Name on your bank account"/></div>
+                  <p className="text-xs text-muted-foreground">Enter your transit, institution and account numbers in Stripe’s secure bank form.</p>
+                  <Button asChild><Link to="/vendor/payments">Enter Secure Bank Details <ExternalLink className="ml-2 h-4 w-4"/></Link></Button>
+                </div>}
               </div> : <div className="space-y-4">
-                <img src={paymentMethods.find(method=>method.name==="PayPal")?.logo} alt="PayPal" className="h-7 w-24 object-contain"/>
+                <img src={paymentMethods.find(method=>method.name==="PayPal")?.logo} alt="PayPal" className="h-10 w-36 object-contain"/>
                 <div className="space-y-2"><Label htmlFor="payout-paypal-email">PayPal email address</Label><Input id="payout-paypal-email" type="email" placeholder="Email linked to your PayPal account" value={payoutPaypalEmail} onChange={e=>setPayoutPaypalEmail(e.target.value)}/></div>
                 <p className="text-xs text-muted-foreground">Saved privately for review. PayPal payouts are not connected yet.</p>
               </div>}
@@ -795,7 +807,7 @@ const VendorSettings = () => {
               <section className="rounded-lg border p-4 space-y-3"><h4 className="font-semibold">⚙ Payout Settings</h4>{([["automatic","Automatically receive payouts"],["email","Email me when a payout is sent"],["refunds","Include order refunds in balance"]] as const).map(([key,label])=><label key={key} className="flex justify-between items-center gap-3 text-sm"><span>{label}</span><input type="checkbox" role="switch" className="accent-green-600 h-4 w-4" checked={payoutToggles[key]} onChange={e=>setPayoutToggles(v=>({...v,[key]:e.target.checked}))}/></label>)}<p className="text-xs text-amber-700">These switches are UI-only and do not alter actual payout or refund processing.</p></section></div>
           </div>
           <div className="grid lg:grid-cols-3 gap-3"><section className="lg:col-span-2 rounded-lg border p-4 space-y-3"><div className="flex justify-between items-center"><div><h4 className="font-semibold">🟠 Commission &amp; Fees</h4><p className="text-xs text-muted-foreground">Marketplace fee structure applicable to your store.</p></div><Button size="sm" variant="outline" asChild><Link to="/vendor/payments">View Details</Link></Button></div><div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-muted"><tr>{["Fee Type","Rate","Description"].map(x=><th className="p-2 text-left" key={x}>{x}</th>)}</tr></thead><tbody>{[["Marketplace Commission",vendorCommissionRates?.length?Array.from(new Set(vendorCommissionRates.map(x=>x.commission_pct))).sort((a,b)=>a-b).map(x=>`${x}%`).join(", "):"See agreement","Category-dependent commission rates"],["Payment Processing Fee","Provider dependent","Charged by payment processor"],["Refund Processing Fee","Provider dependent","Subject to applicable refund terms"]].map(row=><tr key={row[0]} className="border-b">{row.map((cell,i)=><td className="p-2" key={i}>{cell}</td>)}</tr>)}</tbody></table></div></section>
-          <section className="rounded-lg border p-4 space-y-3"><h4 className="font-semibold">Supported Payment Methods</h4><div className="grid grid-cols-3 gap-2 sm:grid-cols-5" aria-label="Customer payment options">{paymentMethods.map(method=><div key={method.name} className="flex h-10 min-w-0 items-center justify-center rounded-md border border-border bg-background px-2" title={method.name}><img src={method.logo} alt={method.name} className="h-5 w-full max-w-16 object-contain" loading="lazy"/></div>)}</div><p className="text-xs text-muted-foreground">Available customer payment methods are confirmed at checkout and may vary by order.</p></section></div>
+          <section className="rounded-lg border p-4 space-y-3"><h4 className="font-semibold">Supported Payment Methods</h4><div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-2" aria-label="Customer payment options">{paymentMethods.map(method=><div key={method.name} className="flex h-16 min-w-0 items-center justify-center rounded-md border border-border bg-background px-3" title={method.name}><img src={method.logo} alt={method.name} className="h-10 w-full max-w-32 object-contain" loading="lazy"/></div>)}</div><p className="text-xs text-muted-foreground">Available customer payment methods are confirmed at checkout and may vary by order.</p></section></div>
           <section className="rounded-lg border p-4 space-y-3"><div className="flex flex-wrap justify-between items-center gap-3"><div><h4 className="font-semibold">🟠 Payout History</h4><p className="text-xs text-muted-foreground">View all your payouts, transactions and balances.</p></div><div className="flex flex-wrap gap-2 items-end"><div><Label>From</Label><Input type="date" value={payoutDateFrom} onChange={e=>setPayoutDateFrom(e.target.value)}/></div><div><Label>To</Label><Input type="date" value={payoutDateTo} onChange={e=>setPayoutDateTo(e.target.value)}/></div><div><Label>Status</Label><select className="h-10 border rounded-md px-2 bg-background text-sm" value={payoutStatus} onChange={e=>setPayoutStatus(e.target.value)}>{["All Statuses","Paid","Pending","Failed"].map(x=><option key={x}>{x}</option>)}</select></div></div></div><div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-muted"><tr>{["Payout ID","Date","Amount","Currency","Status","Reference","Actions"].map(x=><th key={x} className="p-2 text-left">{x}</th>)}</tr></thead><tbody><tr><td colSpan={7} className="p-6 text-center text-muted-foreground">Payout records are not available in this view. <Link to="/vendor/payments" className="text-primary underline">Open your secure payout dashboard</Link> to see available transactions.</td></tr></tbody></table></div></section>
           <p className="text-xs text-amber-700">Gross sales are calculated from up to 500 vendor order items, not a reconciled Stripe balance. Stripe payout balances and history are unavailable through the existing account-status integration. Preview controls do not persist or affect live payouts.</p>
         </div>)}
