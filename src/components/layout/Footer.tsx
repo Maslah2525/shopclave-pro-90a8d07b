@@ -5,29 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/contexts/TranslationContext";
 import barakazLogo from "@/assets/barakaz-logo.webp";
 import appBadges from "@/assets/app-store-badges.webp";
-import jcbLogo from "@/assets/payment-methods/jcb.webp.asset.json";
-import bankTransferLogo from "@/assets/payment-methods/bank-transfer.webp.asset.json";
-import shopPayLogo from "@/assets/payment-methods/shop-pay.webp.asset.json";
-import afterpayLogo from "@/assets/payment-methods/afterpay.webp.asset.json";
-import klarnaLogo from "@/assets/payment-methods/klarna.webp.asset.json";
-import mastercardLogo from "@/assets/payment-methods/mastercard.webp.asset.json";
-import stripeLogo from "@/assets/payment-methods/stripe.webp.asset.json";
-import googlePayLogo from "@/assets/payment-methods/google-pay.webp.asset.json";
-import applePayLogo from "@/assets/payment-methods/apple-pay.webp.asset.json";
-import paypalLogo from "@/assets/payment-methods/paypal.webp.asset.json";
-
-const paymentMethods = [
-  { name: "Mastercard", logo: mastercardLogo.url },
-  { name: "JCB", logo: jcbLogo.url },
-  { name: "Apple Pay", logo: applePayLogo.url },
-  { name: "Google Pay", logo: googlePayLogo.url },
-  { name: "PayPal", logo: paypalLogo.url },
-  { name: "Stripe", logo: stripeLogo.url },
-  { name: "Shop Pay", logo: shopPayLogo.url },
-  { name: "Klarna", logo: klarnaLogo.url },
-  { name: "Afterpay", logo: afterpayLogo.url },
-  { name: "Bank transfer", logo: bankTransferLogo.url },
-];
+import { paymentMethods } from "@/lib/paymentMethods";
 
 const assuranceItems = [
   { icon: LockKeyhole, title: "Secure checkout", detail: "Encrypted payment processing" },
