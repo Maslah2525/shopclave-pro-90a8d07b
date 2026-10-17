@@ -14,7 +14,7 @@ export function restoreSettings<T extends object>(defaults: T, stored: unknown):
     if (Array.isArray(fallback)) {
       if (Array.isArray(value)) restored[key] = value as T[keyof T];
     } else if (fallback !== null && typeof fallback === "object") {
-      restored[key] = restoreSettings(fallback, value) as T[keyof T];
+      restored[key] = (Object.keys(fallback).length === 0 ? { ...settingsRecord(value) } : restoreSettings(fallback, value)) as T[keyof T];
     } else if (typeof value === typeof fallback || (fallback === null && (typeof value === "string" || value === null))) {
       restored[key] = value as T[keyof T];
     }

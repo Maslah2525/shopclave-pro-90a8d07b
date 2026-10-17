@@ -10,6 +10,10 @@ describe("store settings persistence", () => {
     expect(mergeSettings({ other: "keep", nested: { old: 1 } }, { nested: { next: 2 } }))
       .toEqual({ other: "keep", nested: { old: 1, next: 2 } });
   });
+  it("reloads addresses and policy dictionaries that start empty", () => {
+    expect(restoreSettings({ address: {}, policies: {} }, { address: { city: "Toronto", zip: "M5V 2T6" }, policies: { privacy: "Saved text" } }))
+      .toEqual({ address: { city: "Toronto", zip: "M5V 2T6" }, policies: { privacy: "Saved text" } });
+  });
   it("keeps private contact and financial fields out of public store settings", () => {
     const result = publicStoreSettings({}, { store_email: "private@example.test", contact_visibility: "all", primary_category_id: "cat", additional_category_ids: [], public_store_address: { city: "Toronto" }, store_language: "en", taxId: "private" }, { welcome: "Hello", color: "color", bank_account: "private" });
     expect(result.profile).not.toHaveProperty("store_email");
