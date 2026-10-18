@@ -608,7 +608,8 @@ const VendorSettings = () => {
       return false;
     } finally { setSaving(false); }
   };
-  const setupMode = vendor.status !== "approved";
+  // Guided step layout applies to every seller, including existing approved accounts.
+  const setupMode = true;
   const completedSteps: string[] = Array.isArray(vendor.setup_completed_sections) ? vendor.setup_completed_sections.filter((key: string) => key !== "tax" && key !== "compliance") : [];
   const [doneSteps, setDoneSteps] = useState<string[]>(completedSteps);
   useEffect(() => { setDoneSteps(completedSteps); }, [vendor.setup_completed_sections]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -631,7 +632,10 @@ const VendorSettings = () => {
     queryClient.invalidateQueries({ queryKey: ["vendor"] });
     const next = sections[stepIndex + 1];
     if (next) { setSection(next[0]); window.scrollTo({ top: 0, behavior: "smooth" }); }
-    else {
+    else if (vendor.status === "approved") {
+      // Existing approved sellers only save their changes — no re-submission for review.
+      toast.success("Settings saved.");
+    } else {
       setFinalSubmitting(true);
       try {
         const { data: latestVendor, error: reloadError } = await supabase.from("vendors").select("store_name,store_description,phone,logo_url").eq("id", vendor.id).single();
@@ -971,7 +975,7 @@ const VendorSettings = () => {
           </div>
         )}
         {(section==="profile"||section==="branding") && <div className="flex flex-wrap justify-between gap-2 border-t pt-4"><Button type="button" variant="outline" onClick={() => setForm(JSON.parse(initialForm))} disabled={!isDirty || saving}><RotateCcw className="h-4 w-4 mr-2"/>Reset Changes</Button><div className="flex gap-2"><Button variant="outline" asChild><Link to={`/store/${vendor.slug}`} target="_blank"><ExternalLink className="h-4 w-4 mr-2"/>Preview Store</Link></Button><Button onClick={handleSave} disabled={saving || preferencesLoading || !!preferencesError || slugAvailability !== "available"} >{saving ? "Saving..." : "Save Settings"}</Button></div></div>}
-        {setupMode && <div className="sticky bottom-0 -mx-4 sm:-mx-6 lg:-mx-8 flex items-center justify-between gap-2 border-t bg-card px-4 sm:px-6 lg:px-8 py-3"><Button type="button" variant="outline" disabled={stepIndex<=0||saving} onClick={()=>setSection(sections[stepIndex-1][0])}>Back</Button><Button type="button" disabled={saving||finalSubmitting||preferencesLoading||!!preferencesError} onClick={()=>void saveAndContinue()}>{saving||finalSubmitting?"Saving…":stepIndex===sections.length-1?"Save and Submit":"Save & continue"}<ChevronRight className="h-4 w-4 ml-1"/></Button></div>}
+        {setupMode && <div className="sticky bottom-0 -mx-4 sm:-mx-6 lg:-mx-8 flex items-center justify-between gap-2 border-t bg-card px-4 sm:px-6 lg:px-8 py-3"><Button type="button" variant="outline" disabled={stepIndex<=0||saving} onClick={()=>setSection(sections[stepIndex-1][0])}>Back</Button><Button type="button" disabled={saving||finalSubmitting||preferencesLoading||!!preferencesError} onClick={()=>void saveAndContinue()}>{saving||finalSubmitting?"Saving…":stepIndex===sections.length-1?(vendor.status==="approved"?"Save":"Save and Submit"):"Save & continue"}<ChevronRight className="h-4 w-4 ml-1"/></Button></div>}
       </div>
       </div>
       </div>}
