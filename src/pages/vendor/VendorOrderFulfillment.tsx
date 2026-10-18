@@ -132,6 +132,24 @@ const VendorOrderFulfillment = ({ view = "orders" }: { view?: "orders" | "fulfil
     onError: (e: any) => toast.error(e.message || "Failed to save note"),
   });
 
+  const updateParcel = useMutation({
+    mutationFn: async ({ id, current, next }: { id: string; current: string; next: string }) => {
+      if (!vendor?.id || !item || item.orders?.payment_status !== "paid") throw new Error("Payment must be confirmed before fulfillment");
+      const { data, error } = await supabase.from("shipments").update({ status: next })
+        .eq("id", id).eq("vendor_id", vendor.id).eq("status", current).select("id,status").maybeSingle();
+      if (error) throw error;
+      if (!data || data.status !== next) throw new Error("The parcel changed. Refresh and try again.");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["vendor-item-shipments", itemId] });
+      queryClient.invalidateQueries({ queryKey: ["vendor-fulfilment-queue"] });
+      queryClient.invalidateQueries({ queryKey: ["order-tracking"] });
+      queryClient.invalidateQueries({ queryKey: ["my-orders-detailed"] });
+      toast.success("Parcel updated");
+    },
+    onError: (e: any) => toast.error(e.message || "Could not update parcel"),
+  });
+
   const copyAddress = async (addr: any) => {
     try {
       await navigator.clipboard.writeText(shipmentAddressLines(addr).join("\n"));
@@ -147,7 +165,7 @@ const VendorOrderFulfillment = ({ view = "orders" }: { view?: "orders" | "fulfil
       <p>Unable to load this order. It may not belong to your store.</p>
       <div className="flex gap-2">
         <Button variant="outline" onClick={() => void refetch()}>Retry</Button>
-        <Button variant="ghost" asChild><Link to="/vendor/orders">Back to orders</Link></Button>
+        <Button variant="ghost" asChild><Link to={fulfilment ? "/vendor/shipments" : "/vendor/orders"}>Back to {fulfilment ? "fulfilment" : "orders"}</Link></Button>
       </div>
     </div>
   );
@@ -271,6 +289,7 @@ const VendorOrderFulfillment = ({ view = "orders" }: { view?: "orders" | "fulfil
               <div className="flex justify-between"><span className="text-muted-foreground">Shipping paid</span><span>{fmtMoney(Number(s.shipping_amount_cad || 0))}</span></div>
               {s.estimated_delivery && <div className="flex justify-between"><span className="text-muted-foreground">Est. delivery</span><span>{new Date(s.estimated_delivery).toLocaleDateString()}</span></div>}
               {s.label_url && <Button size="sm" variant="outline" className="mt-1 w-full gap-2" asChild><a href={s.label_url} target="_blank" rel="noreferrer"><Printer className="h-4 w-4" /> Print label</a></Button>}
+              {s.label_url && (s.status === "preparing" || s.status === "ready_for_pickup") && <Button size="sm" variant="outline" className="mt-1 w-full" disabled={!paymentConfirmed || updateParcel.isPending} onClick={() => updateParcel.mutate({ id: s.id, current: s.status, next: s.status === "preparing" ? "ready_for_pickup" : "collected" })}>{s.status === "preparing" ? "Mark Ready for Pickup" : "Mark Collected"}</Button>}
               {s.label_error && !s.label_url && <p className="text-xs text-destructive">Label could not be bought automatically. Contact support@barakaz.com.</p>}
               {trackingEvents.some((e) => e.shipment_id === s.id) && <div className="border-t border-border pt-3"><TrackingTimeline events={trackingEvents.filter((e) => e.shipment_id === s.id)} /></div>}
             </div>
