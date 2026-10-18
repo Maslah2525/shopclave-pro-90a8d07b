@@ -1,6 +1,7 @@
 # Seller onboarding roadmap
 
 ## Manual withdrawal requests
+- [ ] Exclude test/unverified money from balances and withdrawal eligibility; remove positively identified test funds and verify safeguards.
 - [x] Add owner-only requests with CA$20 minimum, confirmed available funds and private payment snapshots for admin review.
 - [x] Connect bank/PayPal fields, vendor request/history and admin review without requiring Stripe Connect.
 - [x] Test amount/bank rules and verify owner-only request permissions.
