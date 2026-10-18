@@ -24,7 +24,7 @@ const VendorShipments = () => {
     queryFn: async () => {
       const { data: shipments } = await supabase
         .from("shipments")
-        .select("*, orders(created_at, payment_status, shipping_address)")
+        .select("*, orders(created_at, payment_status, shipping_address), shipment_items(order_item_id)")
         .eq("vendor_id", vendor.id)
         .order("created_at", { ascending: false });
 
@@ -163,6 +163,11 @@ const VendorShipments = () => {
                       Chat with buyer
                     </Button>
                   </Link>
+                  {s.shipment_items?.map((link: { order_item_id: string }, index: number) => (
+                    <Button key={link.order_item_id} size="sm" variant="outline" asChild>
+                      <Link to={`/vendor/orders/${link.order_item_id}`}>Update item delivery{(s.shipment_items?.length ?? 0) > 1 ? ` ${index + 1}` : ""}</Link>
+                    </Button>
+                  ))}
                 </div>
 
                 {sEvents.length > 0 && (
