@@ -216,7 +216,7 @@ const TRUST_ITEMS = [
     icon: MessageCircle,
     title: "Customer support",
     detail: "Help when needed",
-    intro: "Our Canada-based support team can help with orders, deliveries, returns, payments, and seller questions.",
+    intro: "Our customer support team can help with orders, deliveries, returns, payments, and seller questions.",
     illustration: "support",
     points: [
       { icon: Mail, title: "Email support", text: "Contact support@barakaz.com for customer assistance." },
