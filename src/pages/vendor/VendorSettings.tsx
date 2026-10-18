@@ -468,7 +468,7 @@ const VendorSettings = () => {
   const [additionalZones,setAdditionalZones] = useState<string[]>([]);
   const [zoneDrafts,setZoneDrafts] = useState<Record<string,string>>({"Domestic (Canada)":"All Provinces & Territories","United States":"All States","International":""});
   const [methodEditor,setMethodEditor] = useState<string|null>(null);
-  const [methodDrafts,setMethodDrafts] = useState<Record<string,{price:string,time:string,tracking:string,applies:string}>>({"Standard Shipping":{price:"12.50",time:"3 – 7 business days",tracking:"Enabled",applies:"All zones"},"Express Shipping":{price:"19.99",time:"1 – 3 business days",tracking:"Enabled",applies:"All zones"}});
+  const [methodDrafts,setMethodDrafts] = useState<Record<string,{price:string,time:string,tracking:string,applies:string}>>({"Standard Shipping":{price:"Live carrier rate",time:"Carrier estimate",tracking:"Enabled",applies:"Canada"},"Express Shipping":{price:"Live carrier rate",time:"Carrier estimate",tracking:"Enabled",applies:"Canada"}});
 
   const {data: sellerPayoutAccount, isLoading: payoutAccountLoading, isError: payoutAccountError} = useQuery({
     queryKey:["settings-stripe-payout",sellerApplication?.id],
