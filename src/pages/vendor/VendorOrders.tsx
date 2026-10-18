@@ -6,31 +6,35 @@ import { Truck, MessageCircle, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
+import { shipmentAddressLines } from "@/lib/orderPresentation";
 
 const orderStatusFlow = ["pending", "processing", "shipped", "delivered"];
 
 const formatAddress = (addr: any) => {
-  if (!addr) return "";
-  const cityCountry = [addr.city, addr.country].filter(Boolean).join(", ");
-  return [addr.fullName, addr.phone, addr.addressLine, cityCountry]
-    .filter(Boolean)
-    .join("\n");
+  return shipmentAddressLines(addr).join("\n");
 };
 
 const VendorOrders = () => {
   const { vendor } = useOutletContext<{ vendor: any }>();
   const queryClient = useQueryClient();
 
-  const { data: orderItems } = useQuery({
+  const { data: orderItems, isLoading, isError, refetch } = useQuery({
     queryKey: ["vendor-orders", vendor?.id],
     queryFn: async () => {
+      if (!vendor?.id) return [];
       const { data, error } = await supabase
         .from("order_items")
-        .select("*, orders(status, created_at, shipping_address, total, payment_method, payment_status), products(name)")
+        .select("*, products(name, slug)")
         .eq("vendor_id", vendor.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data || [];
+      if (!data?.length) return [];
+      const { data: deliveries, error: deliveryError } = await supabase.rpc("get_vendor_order_delivery_details", {
+        p_vendor_id: vendor.id,
+        p_order_ids: [...new Set(data.map((item) => item.order_id))],
+      });
+      if (deliveryError) throw deliveryError;
+      return data.map((item) => ({ ...item, orders: deliveries?.find((order) => order.id === item.order_id) ?? null }));
     },
     enabled: !!vendor,
   });
@@ -39,10 +43,14 @@ const VendorOrders = () => {
     mutationFn: async ({ id, status, productName, orderId }: { id: string; status: string; productName?: string; orderId?: string }) => {
       // Recheck payment and ownership immediately before advancing fulfillment.
       const { data: current, error: lookupError } = await supabase.from("order_items")
-        .select("id,status,vendor_id,orders(payment_status)")
+        .select("id,status,vendor_id,order_id")
         .eq("id", id).eq("vendor_id", vendor.id).single();
       if (lookupError || !current) throw new Error("Order item not found");
-      if ((current.orders as any)?.payment_status !== "paid") throw new Error("Payment must be confirmed before fulfillment");
+      const { data: delivery, error: paymentError } = await supabase.rpc("get_vendor_order_delivery_details", {
+        p_vendor_id: vendor.id, p_order_ids: [current.order_id],
+      });
+      if (paymentError) throw paymentError;
+      if (delivery?.[0]?.payment_status !== "paid") throw new Error("Payment must be confirmed before fulfillment");
       const next = orderStatusFlow[orderStatusFlow.indexOf(current.status) + 1];
       if (!next || next !== status) throw new Error("Invalid fulfillment status transition");
       // Customer notification is created by the database when the status changes.
@@ -83,7 +91,9 @@ const VendorOrders = () => {
         countLabel="orders"
       />
 
-      {!orderItems?.length ? (
+      {isLoading ? <p className="text-sm text-muted-foreground">Loading orders…</p> : isError ? (
+        <div role="alert" className="space-y-3"><p>Unable to load orders. Please try again.</p><Button variant="outline" onClick={() => void refetch()}>Retry</Button></div>
+      ) : !orderItems?.length ? (
         <div className="admin-card">
           <AdminEmptyState
             icon={Truck}
@@ -115,11 +125,10 @@ const VendorOrders = () => {
                     const order = item.orders as any;
                     const next = order?.payment_status === "paid" && idx >= 0 && idx < orderStatusFlow.length - 1 ? orderStatusFlow[idx + 1] : null;
                     const addr = order?.shipping_address as any;
-                    const cityCountry = [addr?.city, addr?.country].filter(Boolean).join(", ");
                     return (
                       <tr key={item.id}>
                         <td className="font-medium">
-                          <div>{(item.products as any)?.name || "—"}</div>
+                          {item.products?.slug ? <Link className="text-primary hover:underline break-words" to={`/product/${item.products.slug}`}>{item.products.name}</Link> : <div>{item.products?.name || "Product unavailable"}</div>}
                           {(item.variant_options as any)?.label && (
                             <span className="inline-block mt-1 text-[11px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
                               {(item.variant_options as any).label}
@@ -128,18 +137,15 @@ const VendorOrders = () => {
                         </td>
                         <td className="text-xs align-top">
                           <div className="space-y-0.5 leading-snug">
-                            <div className="font-medium text-foreground">{addr?.fullName || "—"}</div>
-                            {addr?.phone && <div className="text-muted-foreground">{addr.phone}</div>}
-                            {addr?.addressLine && <div className="text-muted-foreground">{addr.addressLine}</div>}
-                            {cityCountry && <div className="text-muted-foreground">{cityCountry}</div>}
+                            <p className="whitespace-pre-line break-words text-foreground">{formatAddress(addr) || "Delivery address unavailable"}</p>
                             {addr && (
-                              <button
+                              <Button variant="ghost" size="sm"
                                 type="button"
                                 onClick={() => copyAddress(addr)}
                                 className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline mt-1"
                               >
                                 <Copy className="h-3 w-3" /> Copy address
-                              </button>
+                              </Button>
                             )}
                           </div>
                         </td>
@@ -189,15 +195,14 @@ const VendorOrders = () => {
           <div className="md:hidden space-y-3">
             {orderItems.map((item: any) => {
               const idx = orderStatusFlow.indexOf(item.status);
-              const next = idx < orderStatusFlow.length - 1 ? orderStatusFlow[idx + 1] : null;
               const order = item.orders as any;
+              const next = order?.payment_status === "paid" && idx >= 0 && idx < orderStatusFlow.length - 1 ? orderStatusFlow[idx + 1] : null;
               const addr = order?.shipping_address as any;
-              const cityCountry = [addr?.city, addr?.country].filter(Boolean).join(", ");
               return (
                 <div key={item.id} className="admin-card p-4 space-y-3">
                   <div className="flex justify-between items-start gap-2">
                     <div className="min-w-0 flex-1">
-                      <p className="font-medium text-sm line-clamp-1">{(item.products as any)?.name || "—"}</p>
+                      {item.products?.slug ? <Link className="font-medium text-sm text-primary hover:underline break-words" to={`/product/${item.products.slug}`}>{item.products.name}</Link> : <p className="font-medium text-sm">{item.products?.name || "Product unavailable"}</p>}
                       {(item.variant_options as any)?.label && (
                         <span className="inline-block mt-1 text-[11px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
                           {(item.variant_options as any).label}
@@ -213,19 +218,16 @@ const VendorOrders = () => {
                         <span className="font-semibold uppercase tracking-wide text-[10px] text-muted-foreground">
                           Deliver to
                         </span>
-                        <button
+                        <Button variant="ghost" size="sm"
                           type="button"
                           onClick={() => copyAddress(addr)}
                           className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline"
                         >
                           <Copy className="h-3 w-3" /> Copy
-                        </button>
+                        </Button>
                       </div>
                       <div className="space-y-0.5 leading-snug">
-                        {addr.fullName && <div className="font-medium text-foreground">{addr.fullName}</div>}
-                        {addr.phone && <div className="text-muted-foreground">📞 {addr.phone}</div>}
-                        {addr.addressLine && <div className="text-muted-foreground">{addr.addressLine}</div>}
-                        {cityCountry && <div className="text-muted-foreground">{cityCountry}</div>}
+                        <p className="whitespace-pre-line break-words text-foreground">{formatAddress(addr) || "Delivery address unavailable"}</p>
                       </div>
                     </div>
                   )}

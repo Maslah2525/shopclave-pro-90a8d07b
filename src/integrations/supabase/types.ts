@@ -3496,6 +3496,15 @@ export type Database = {
         Returns: string
       }
       get_vendor_follower_count: { Args: { v_id: string }; Returns: number }
+      get_vendor_order_delivery_details: {
+        Args: { p_order_ids: string[]; p_vendor_id: string }
+        Returns: {
+          created_at: string
+          id: string
+          payment_status: string
+          shipping_address: Json
+        }[]
+      }
       get_vendor_payment_details: {
         Args: { _vendor_ids: string[] }
         Returns: {
