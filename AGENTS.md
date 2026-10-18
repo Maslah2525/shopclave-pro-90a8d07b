@@ -1,5 +1,6 @@
 # Architecture decisions
 - Seller and customer fulfillment views share one six-stage progress component; item delivery stays distinct from carrier parcel tracking and uses the paid-gated item transition flow.
+- Orders detail and Fulfilment detail reuse one view with explicit presentation modes; the paid Fulfilment queue links to shipping actions while Orders retains sales records, avoiding duplicated delivery logic.
 - Order address rendering uses the saved checkout fields, and tracking parcel contents use shipment_items links rather than seller grouping, so split parcels show their actual products and quantities.
 - Seller order delivery/payment reads use an owner-scoped RPC instead of nested orders queries, because buyer-only order RLS must not expose unrelated seller lines or payment identifiers.
 - Footer and seller settings share one payment-artwork catalog; country-based payout preferences remain private drafts and never enable providers.
