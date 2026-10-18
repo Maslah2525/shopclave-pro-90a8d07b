@@ -225,6 +225,13 @@
       "when": 1792287085776,
       "tag": "0031_manual_vendor_withdrawal_requests",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1792354686743,
+      "tag": "0032_vendor_order_item_notes",
+      "breakpoints": true
     }
   ]
 }
