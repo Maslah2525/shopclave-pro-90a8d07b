@@ -4,15 +4,21 @@ import { useOutletContext, Link } from "react-router-dom";
 import { DollarSign, TrendingUp, Wallet, Clock, ArrowDownToLine, AlertCircle } from "lucide-react";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
+import WithdrawalRequests from "@/components/vendor/WithdrawalRequests";
 
 const VendorEarnings = () => {
   const { vendor } = useOutletContext<{ vendor: any }>();
   const { data: orderItems, isError: ordersError, isLoading: ordersLoading } = useQuery({
     queryKey: ["vendor-orders", vendor?.id],
     queryFn: async () => {
-      const { data, error } = await supabase.from("order_items").select("*, products(name), orders!inner(payment_status)").eq("vendor_id", vendor.id).eq("orders.payment_status", "paid");
+      const { data, error } = await supabase.from("order_items").select("*, products(name)").eq("vendor_id", vendor.id);
       if (error) throw error;
-      return data || [];
+      const ids = [...new Set((data || []).map(item => item.order_id))];
+      if (!ids.length) return [];
+      const paid = await supabase.rpc("get_vendor_order_delivery_details", { p_vendor_id: vendor.id, p_order_ids: ids });
+      if (paid.error) throw paid.error;
+      const paidIds = new Set(paid.data.filter(order => order.payment_status === "paid").map(order => order.id));
+      return (data || []).filter(item => paidIds.has(item.order_id));
     },
     enabled: !!vendor,
   });
@@ -91,13 +97,7 @@ const VendorEarnings = () => {
       </div>
 
       <p className="text-xs text-muted-foreground">Figures include confirmed paid orders only. Available balance is an estimate based on recorded commissions and withdrawal requests; final settlement and eligibility are subject to reconciliation.</p>
-      {/* Payout destinations are collected only by the verified payment provider. */}
-      <div className="admin-card p-6 space-y-2">
-        <h3 className="font-semibold">Secure payouts</h3>
-        <p className="text-sm text-muted-foreground">Bank and identity information must be submitted through the payment provider’s secure onboarding flow. Barakaz does not collect account numbers, routing numbers, IBANs or SWIFT details in withdrawal requests.</p>
-        <p className="text-sm"><Link to="/vendor/payments" className="text-primary underline">Open payment settings to view your provider verification status</Link>.</p>
-        <p className="text-xs text-muted-foreground">Balances displayed here are estimates, not a guarantee that funds are available for withdrawal. Provider-confirmed settlement and account eligibility govern payouts.</p>
-      </div>
+      <WithdrawalRequests vendorId={vendor.id} />
       {/* Top Products */}
       {topProducts.length > 0 && (
         <div className="space-y-3">
