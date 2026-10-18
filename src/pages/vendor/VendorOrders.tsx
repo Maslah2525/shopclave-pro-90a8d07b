@@ -75,12 +75,6 @@ const VendorOrders = () => {
     }
   };
 
-  const statusColor = (s: string) => {
-    if (s === "delivered") return "bg-success/10 text-success";
-    if (s === "shipped") return "bg-primary/10 text-primary";
-    if (s === "processing") return "bg-warning/10 text-warning";
-    return "bg-muted text-muted-foreground";
-  };
   const payColor = (s: string) =>
     s === "paid" ? "bg-success/10 text-success" : "bg-warning/10 text-warning";
 
@@ -105,163 +99,65 @@ const VendorOrders = () => {
         </div>
       ) : (
         <>
-          {/* Desktop */}
-          <div className="hidden md:block admin-card overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="admin-table">
-                <thead>
-                  <tr>
-                    <th>Product</th>
-                    <th className="min-w-[260px]">Deliver to</th>
-                    <th>Qty</th>
-                    <th>Total</th>
-                    <th>Payment</th>
-                    <th className="min-w-[340px]">Fulfilment progress</th>
-                    <th>Date</th>
-                    <th>Next step</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {orderItems.map((item: any) => {
-                    const idx = orderStatusFlow.indexOf(item.status);
-                    const order = item.orders as any;
-                    const next = order?.payment_status === "paid" && idx >= 0 && idx < orderStatusFlow.length - 1 ? orderStatusFlow[idx + 1] : null;
-                    const addr = order?.shipping_address as any;
-                    return (
-                      <tr key={item.id}>
-                        <td className="font-medium">
-                          {item.products?.slug ? <Link className="text-primary hover:underline break-words" to={`/product/${item.products.slug}`}>{item.products.name}</Link> : <div>{item.products?.name || "Product unavailable"}</div>}
-                          {(item.variant_options as any)?.label && (
-                            <span className="inline-block mt-1 text-[11px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
-                              {(item.variant_options as any).label}
-                            </span>
-                          )}
-                        </td>
-                        <td className="text-xs align-top">
-                          <div className="space-y-0.5 leading-snug">
-                            <p className="whitespace-pre-line break-words text-foreground">{formatAddress(addr) || "Delivery address unavailable"}</p>
-                            {addr && (
-                              <Button variant="ghost" size="sm"
-                                type="button"
-                                onClick={() => copyAddress(addr)}
-                                className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline mt-1"
-                              >
-                                <Copy className="h-3 w-3" /> Copy address
-                              </Button>
-                            )}
-                          </div>
-                        </td>
-                        <td>{item.quantity}</td>
-                        <td className="font-semibold">${(Number(item.price) * item.quantity).toLocaleString()}</td>
-                        <td>
-                          <span className={`status-pill ${payColor(order?.payment_status)}`}>
-                            {order?.payment_status || "—"}
-                          </span>
-                        </td>
-                        <td>
-                          <FulfillmentProgress status={item.status} compact />
-                        </td>
-                        <td className="text-xs text-muted-foreground">
-                          {order?.created_at ? new Date(order.created_at).toLocaleDateString() : "—"}
-                        </td>
-                        <td>
-                          <div className="flex flex-col gap-2 min-w-[175px]">
-                            {next ? (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="w-full font-semibold"
-                                disabled={updateStatus.isPending}
-                                onClick={() => updateStatus.mutate({ id: item.id, status: next, productName: (item.products as any)?.name, orderId: item.order_id })}
-                              >
-                                Move to {fulfillmentStageLabel(next)}
-                              </Button>
-                            ) : (
-                              <div className="text-xs text-muted-foreground text-center">{order?.payment_status !== "paid" ? "Awaiting payment" : "Fulfilment complete"}</div>
-                            )}
-                            <Link to={`/orders/${item.order_id}/chat`}>
-                              <Button size="sm" variant="ghost" className="h-7 text-xs w-full gap-1">
-                                <MessageCircle className="h-3 w-3" /> Chat
-                              </Button>
-                            </Link>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Mobile */}
-          <div className="md:hidden space-y-3">
+          <div className="space-y-6">
             {orderItems.map((item: any) => {
-              const idx = orderStatusFlow.indexOf(item.status);
               const order = item.orders as any;
+              const idx = orderStatusFlow.indexOf(item.status);
               const next = order?.payment_status === "paid" && idx >= 0 && idx < orderStatusFlow.length - 1 ? orderStatusFlow[idx + 1] : null;
               const addr = order?.shipping_address as any;
+              const total = Number(item.price) * item.quantity;
               return (
-                <div key={item.id} className="admin-card p-4 space-y-3">
-                  <div className="flex justify-between items-start gap-2">
-                    <div className="min-w-0 flex-1">
-                      {item.products?.slug ? <Link className="font-medium text-sm text-primary hover:underline break-words" to={`/product/${item.products.slug}`}>{item.products.name}</Link> : <p className="font-medium text-sm">{item.products?.name || "Product unavailable"}</p>}
-                      {(item.variant_options as any)?.label && (
-                        <span className="inline-block mt-1 text-[11px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
-                          {(item.variant_options as any).label}
-                        </span>
-                      )}
-                    </div>
-                    <span className={`status-pill ${statusColor(item.status)}`}>{fulfillmentStageLabel(item.status)}</span>
-                  </div>
-
-                  {addr && (
-                    <div className="rounded-md border border-border bg-muted/30 p-2.5 text-xs space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="font-semibold uppercase tracking-wide text-[10px] text-muted-foreground">
-                          Deliver to
-                        </span>
-                        <Button variant="ghost" size="sm"
-                          type="button"
-                          onClick={() => copyAddress(addr)}
-                          className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline"
-                        >
-                          <Copy className="h-3 w-3" /> Copy
-                        </Button>
+                <article key={item.id} className="admin-card overflow-hidden">
+                  <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border p-4 md:p-6">
+                    <div className="space-y-1">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <h2 className="text-xl font-bold">Order #{String(item.order_id).slice(0, 8).toUpperCase()}</h2>
+                        <span className={`status-pill ${payColor(order?.payment_status)}`}>Payment: {order?.payment_status || "Pending"}</span>
                       </div>
-                      <div className="space-y-0.5 leading-snug">
-                        <p className="whitespace-pre-line break-words text-foreground">{formatAddress(addr) || "Delivery address unavailable"}</p>
-                      </div>
+                      <p className="text-xs text-muted-foreground">{order?.created_at ? `Placed on ${new Date(order.created_at).toLocaleString()}` : "Order date unavailable"}</p>
                     </div>
-                  )}
-
-                  <FulfillmentProgress status={item.status} />
-                  <div className="flex justify-between text-xs">
-                    <span className="text-muted-foreground">
-                      Qty: {item.quantity}
-                      {order?.created_at && ` · ${new Date(order.created_at).toLocaleDateString()}`}
-                    </span>
-                    <span className="font-semibold">${(Number(item.price) * item.quantity).toLocaleString()}</span>
-                  </div>
-                  <div className="space-y-2 border-t border-border pt-3">
-                    <span className={`status-pill ${payColor(order?.payment_status)}`}>{order?.payment_status || "—"}</span>
                     {next ? (
-                      <Button
-                        size="lg"
-                        className="w-full font-semibold"
-                        disabled={updateStatus.isPending}
-                        onClick={() => updateStatus.mutate({ id: item.id, status: next, orderId: item.order_id })}
-                      >
+                      <Button className="font-semibold" disabled={updateStatus.isPending} onClick={() => updateStatus.mutate({ id: item.id, status: next, orderId: item.order_id })}>
                         Move to {fulfillmentStageLabel(next)}
                       </Button>
-                    ) : <p className="text-xs text-muted-foreground">{order?.payment_status !== "paid" ? "Awaiting payment confirmation before fulfilment." : "Fulfilment complete."}</p>}
-                    <Link to={`/orders/${item.order_id}/chat`} className="block">
-                      <Button size="sm" variant="outline" className="w-full gap-2">
-                        <MessageCircle className="h-4 w-4" /> Chat with buyer
-                      </Button>
-                    </Link>
+                    ) : <span className="text-sm text-muted-foreground">{order?.payment_status !== "paid" ? "Awaiting payment confirmation" : "Fulfilment complete"}</span>}
                   </div>
-                </div>
+
+                  <div className="border-b border-border px-4 py-6 md:px-8">
+                    <FulfillmentProgress status={item.status} />
+                  </div>
+
+                  <div className="grid gap-4 p-4 md:grid-cols-12 md:p-6">
+                    <section className="rounded-lg border border-border p-4 md:col-span-4">
+                      <h3 className="mb-3 font-semibold">Customer information</h3>
+                      <p className="mb-2 text-xs font-medium text-muted-foreground">Shipping address</p>
+                      <p className="whitespace-pre-line break-words text-sm">{formatAddress(addr) || "Delivery address unavailable"}</p>
+                      {addr && <Button size="sm" variant="outline" className="mt-3 gap-2" onClick={() => copyAddress(addr)}><Copy className="h-3.5 w-3.5" /> Copy address</Button>}
+                    </section>
+                    <section className="rounded-lg border border-border p-4 md:col-span-5">
+                      <h3 className="mb-3 font-semibold">Products (1)</h3>
+                      <div className="flex flex-wrap items-start justify-between gap-3 text-sm">
+                        <div className="space-y-1">
+                          {item.products?.slug ? <Link className="font-semibold text-primary hover:underline" to={`/product/${item.products.slug}`}>{item.products.name}</Link> : <p className="font-semibold">{item.products?.name || "Product unavailable"}</p>}
+                          {(item.variant_options as any)?.label && <p className="text-xs text-muted-foreground">{(item.variant_options as any).label}</p>}
+                          <p className="text-xs text-muted-foreground">Quantity: {item.quantity}</p>
+                        </div>
+                        <span className="font-semibold">${total.toFixed(2)} CAD</span>
+                      </div>
+                    </section>
+                    <section className="rounded-lg border border-border p-4 md:col-span-3">
+                      <h3 className="mb-3 font-semibold">Order summary</h3>
+                      <div className="flex justify-between gap-2 text-sm"><span>Item total</span><span className="font-semibold">${total.toFixed(2)} CAD</span></div>
+                      <div className="mt-3 flex justify-between gap-2 border-t border-border pt-3 text-sm"><span>Payment</span><span className={`status-pill ${payColor(order?.payment_status)}`}>{order?.payment_status || "Pending"}</span></div>
+                    </section>
+                    <section className="rounded-lg border border-border p-4 md:col-span-12">
+                      <h3 className="mb-3 font-semibold">Customer actions</h3>
+                      <Link to={`/orders/${item.order_id}/chat`}>
+                        <Button size="sm" variant="outline" className="gap-2"><MessageCircle className="h-4 w-4" /> Message customer</Button>
+                      </Link>
+                    </section>
+                  </div>
+                </article>
               );
             })}
           </div>
