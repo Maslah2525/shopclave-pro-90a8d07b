@@ -21,13 +21,20 @@ const VendorOrders = () => {
   const { data: orderItems, isLoading, isError, refetch } = useQuery({
     queryKey: ["vendor-orders", vendor?.id],
     queryFn: async () => {
+      if (!vendor?.id) return [];
       const { data, error } = await supabase
         .from("order_items")
-        .select("*, orders(status, created_at, shipping_address, total, payment_method, payment_status), products(name, slug)")
+        .select("*, products(name, slug)")
         .eq("vendor_id", vendor.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data || [];
+      if (!data?.length) return [];
+      const { data: deliveries, error: deliveryError } = await supabase.rpc("get_vendor_order_delivery_details", {
+        p_vendor_id: vendor.id,
+        p_order_ids: [...new Set(data.map((item) => item.order_id))],
+      });
+      if (deliveryError) throw deliveryError;
+      return data.map((item) => ({ ...item, orders: deliveries?.find((order) => order.id === item.order_id) ?? null }));
     },
     enabled: !!vendor,
   });
@@ -36,10 +43,14 @@ const VendorOrders = () => {
     mutationFn: async ({ id, status, productName, orderId }: { id: string; status: string; productName?: string; orderId?: string }) => {
       // Recheck payment and ownership immediately before advancing fulfillment.
       const { data: current, error: lookupError } = await supabase.from("order_items")
-        .select("id,status,vendor_id,orders(payment_status)")
+        .select("id,status,vendor_id,order_id")
         .eq("id", id).eq("vendor_id", vendor.id).single();
       if (lookupError || !current) throw new Error("Order item not found");
-      if ((current.orders as any)?.payment_status !== "paid") throw new Error("Payment must be confirmed before fulfillment");
+      const { data: delivery, error: paymentError } = await supabase.rpc("get_vendor_order_delivery_details", {
+        p_vendor_id: vendor.id, p_order_ids: [current.order_id],
+      });
+      if (paymentError) throw paymentError;
+      if (delivery?.[0]?.payment_status !== "paid") throw new Error("Payment must be confirmed before fulfillment");
       const next = orderStatusFlow[orderStatusFlow.indexOf(current.status) + 1];
       if (!next || next !== status) throw new Error("Invalid fulfillment status transition");
       // Customer notification is created by the database when the status changes.
@@ -184,8 +195,8 @@ const VendorOrders = () => {
           <div className="md:hidden space-y-3">
             {orderItems.map((item: any) => {
               const idx = orderStatusFlow.indexOf(item.status);
-              const next = idx < orderStatusFlow.length - 1 ? orderStatusFlow[idx + 1] : null;
               const order = item.orders as any;
+              const next = order?.payment_status === "paid" && idx >= 0 && idx < orderStatusFlow.length - 1 ? orderStatusFlow[idx + 1] : null;
               const addr = order?.shipping_address as any;
               return (
                 <div key={item.id} className="admin-card p-4 space-y-3">
