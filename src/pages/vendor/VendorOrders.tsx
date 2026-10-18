@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
 import { shipmentAddressLines } from "@/lib/orderPresentation";
-import FulfillmentProgress from "@/components/shipping/FulfillmentProgress";
+import FulfillmentProgress, { fulfillmentStageLabel } from "@/components/shipping/FulfillmentProgress";
 
 const orderStatusFlow = ["pending", "processing", "shipped", "delivered"];
 
@@ -60,6 +60,7 @@ const VendorOrders = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["vendor-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["order-tracking"] });
       toast.success("Status updated");
     },
     onError: (e: any) => toast.error(e.message || "Failed to update status"),
@@ -115,9 +116,9 @@ const VendorOrders = () => {
                     <th>Qty</th>
                     <th>Total</th>
                     <th>Payment</th>
-                    <th>Status</th>
+                    <th className="min-w-[340px]">Fulfilment progress</th>
                     <th>Date</th>
-                    <th>Action</th>
+                    <th>Next step</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -164,18 +165,19 @@ const VendorOrders = () => {
                           {order?.created_at ? new Date(order.created_at).toLocaleDateString() : "—"}
                         </td>
                         <td>
-                          <div className="flex flex-col gap-1 min-w-[140px]">
+                          <div className="flex flex-col gap-2 min-w-[175px]">
                             {next ? (
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="h-7 text-xs"
+                                className="w-full font-semibold"
+                                disabled={updateStatus.isPending}
                                 onClick={() => updateStatus.mutate({ id: item.id, status: next, productName: (item.products as any)?.name, orderId: item.order_id })}
                               >
-                                Mark {next}
+                                Move to {fulfillmentStageLabel(next)}
                               </Button>
                             ) : (
-                              <div className="text-xs text-muted-foreground text-center">Completed</div>
+                              <div className="text-xs text-muted-foreground text-center">{order?.payment_status !== "paid" ? "Awaiting payment" : "Fulfilment complete"}</div>
                             )}
                             <Link to={`/orders/${item.order_id}/chat`}>
                               <Button size="sm" variant="ghost" className="h-7 text-xs w-full gap-1">
@@ -210,7 +212,7 @@ const VendorOrders = () => {
                         </span>
                       )}
                     </div>
-                    <span className={`status-pill ${statusColor(item.status)}`}>{item.status}</span>
+                    <span className={`status-pill ${statusColor(item.status)}`}>{fulfillmentStageLabel(item.status)}</span>
                   </div>
 
                   {addr && (
@@ -241,25 +243,23 @@ const VendorOrders = () => {
                     </span>
                     <span className="font-semibold">${(Number(item.price) * item.quantity).toLocaleString()}</span>
                   </div>
-                  <div className="flex justify-between items-center gap-2">
+                  <div className="space-y-2 border-t border-border pt-3">
                     <span className={`status-pill ${payColor(order?.payment_status)}`}>{order?.payment_status || "—"}</span>
-                    <div className="flex gap-1">
-                      <Link to={`/orders/${item.order_id}/chat`}>
-                        <Button size="sm" variant="ghost" className="h-7 text-xs gap-1">
-                          <MessageCircle className="h-3 w-3" /> Chat
-                        </Button>
-                      </Link>
-                      {next && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 text-xs"
-                          onClick={() => updateStatus.mutate({ id: item.id, status: next, productName: (item.products as any)?.name, orderId: item.order_id })}
-                        >
-                          Mark {next}
-                        </Button>
-                      )}
-                    </div>
+                    {next ? (
+                      <Button
+                        size="lg"
+                        className="w-full font-semibold"
+                        disabled={updateStatus.isPending}
+                        onClick={() => updateStatus.mutate({ id: item.id, status: next, orderId: item.order_id })}
+                      >
+                        Move to {fulfillmentStageLabel(next)}
+                      </Button>
+                    ) : <p className="text-xs text-muted-foreground">{order?.payment_status !== "paid" ? "Awaiting payment confirmation before fulfilment." : "Fulfilment complete."}</p>}
+                    <Link to={`/orders/${item.order_id}/chat`} className="block">
+                      <Button size="sm" variant="outline" className="w-full gap-2">
+                        <MessageCircle className="h-4 w-4" /> Chat with buyer
+                      </Button>
+                    </Link>
                   </div>
                 </div>
               );
