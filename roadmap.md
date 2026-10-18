@@ -56,3 +56,8 @@
 ## Homepage product sections
 - [x] Give sponsored products the same price, ratings, sold count, delivery, stock, seller, wishlist, and cart presentation as other product cards.
 - [x] Move Featured Products “View all” to the bottom beside “Load more.”
+
+## Order visibility and tracking
+- [ ] Add seller product links and full saved shipment addresses.
+- [ ] Verify customer tracking access and parcel item associations.
+- [ ] Run focused tests and check order screens.
