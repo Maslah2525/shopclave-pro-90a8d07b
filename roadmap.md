@@ -1,5 +1,10 @@
 # Seller onboarding roadmap
 
+## Manual withdrawal requests
+- [ ] Add owner-only requests with CA$20 minimum, confirmed available funds and private payment snapshots for admin review.
+- [ ] Connect bank/PayPal fields, vendor request/history and admin review without requiring Stripe Connect.
+- [ ] Test rules, permissions and signed-in request/readback when an authorized seller session is available.
+
 ## Store settings persistence
 - [x] Step four: Canada offers Bank or PayPal; bank selection reveals account-holder entry and secure bank-details link, PayPal reveals email; larger footer logos and preference tests pass.
 - [ ] Verify step-four save/reload in a seller session — requesting user has no matching account available for automatic sign-in.
