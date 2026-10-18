@@ -64,6 +64,8 @@
 - [x] Move Featured Products “View all” to the bottom beside “Load more.”
 
 ## Order visibility and tracking
+- [ ] Separate Orders records from the paid Fulfilment queue and move shipping actions into Fulfilment without redesigning the pages.
+- [ ] Verify the reorganized navigation and existing delivery safeguards; signed-in checks require an authorized seller session.
 - [x] Show Delivered action after shipping (disabled with explanation until paid), link parcel pages to item delivery, and share six accurate stages across seller/customer views; 13 tests pass and preview builds clean.
 - [ ] Verify delivery marking and customer readback while signed in — automatic sign-in found no account matching the requesting user; requires preview sign-in. No real orders were changed.
 - [x] Add seller product links and full saved shipment addresses with owner-only delivery lookup.
