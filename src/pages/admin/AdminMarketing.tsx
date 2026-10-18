@@ -927,27 +927,48 @@ const PromotionsTab = () => {
     },
   });
 
+  const selectedProductSlug = parseDestination(form.link_url).mode === "product"
+    ? parseDestination(form.link_url).slug : "";
+
   const save = useMutation({
     mutationFn: async () => {
-      if (!form.image_url) throw new Error("Image is required");
-      if (!form.title.trim()) throw new Error("Title is required");
+      if (!selectedProductSlug) throw new Error("Choose a product to promote.");
+      const { data: product, error: productError } = await supabase.from("products")
+        .select("id,name,slug,status").eq("slug", selectedProductSlug).eq("status", "active").maybeSingle();
+      if (productError) throw productError;
+      if (!product) throw new Error("The selected product is no longer active. Choose another product.");
+      const { data: images, error: imagesError } = await supabase.from("product_images")
+        .select("url").eq("product_id", product.id).order("position", { ascending: true }).limit(1);
+      if (imagesError) throw imagesError;
+      const imageUrl = images?.[0]?.url;
+      if (!imageUrl) throw new Error("This product has no main image. Add an image to the product before promoting it.");
+      const payload = {
+        placement: form.placement,
+        kind: PLACEMENTS[form.placement].kind,
+        title: product.name,
+        subtitle: "",
+        image_url: imageUrl,
+        link_url: `/product/${product.slug}`,
+        display_order: form.display_order,
+        is_active: form.is_active,
+      };
       if (editing) {
-        const { error } = await supabase.from("promotions").update(form).eq("id", editing.id);
+        const { error } = await supabase.from("promotions").update(payload).eq("id", editing.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("promotions").insert(form);
+        const { error } = await supabase.from("promotions").insert(payload);
         if (error) throw error;
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-promotions"] });
       queryClient.invalidateQueries({ queryKey: ["public-promotions"] });
-      toast.success("Saved");
+      toast.success("Promotion saved using the product's existing image and name.");
       setOpen(false);
       setEditing(null);
       setForm(emptyPromo);
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const remove = useMutation({
@@ -994,10 +1015,9 @@ const PromotionsTab = () => {
   const handlePlacementChange = (v: string) => {
     const meta = PLACEMENTS[v];
     if (!meta) return;
-    setForm((prev: any) => ({ ...prev, placement: v, kind: meta.kind, image_url: "" }));
+    setForm((prev: any) => ({ ...prev, placement: v, kind: meta.kind }));
   };
 
-  const currentSpec = PLACEMENTS[form.placement]?.spec || SPECS.brand;
 
   // Group promos by placement for the list view
   const grouped = useMemo(() => {
@@ -1073,60 +1093,41 @@ const PromotionsTab = () => {
       })}
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>{editing ? "Edit promotion" : "New promotion"}</DialogTitle>
             <DialogDescription>
-              Choose where this promotion appears on the homepage, then upload an image at the exact required size.
+              Choose the homepage section and an existing product. Its name, main image and link are used automatically.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
+            <div className="space-y-2">
               <Label>Display section *</Label>
               <Select value={form.placement} onValueChange={handlePlacementChange}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Choose a section…" /></SelectTrigger>
                 <SelectContent>
                   {Object.entries(PLACEMENTS).map(([key, meta]) => (
-                    <SelectItem key={key} value={key}>
-                      <div className="flex flex-col items-start">
-                        <span className="font-medium">{meta.label}</span>
-                        <span className="text-[11px] text-muted-foreground">{meta.description}</span>
-                      </div>
-                    </SelectItem>
+                    <SelectItem key={key} value={key}>{meta.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground mt-1">
-                Where this promo appears on the homepage. Image size requirement updates automatically.
-              </p>
             </div>
-
-            <ImageField
-              label="Image *"
-              value={form.image_url}
-              spec={currentSpec}
-              prefix={`promotions/${form.kind}`}
-              onChange={(url) => setForm({ ...form, image_url: url })}
-            />
-            <div>
-              <Label>Title *</Label>
-              <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
-            </div>
-            <div>
-              <Label>Subtitle (optional)</Label>
-              <Input value={form.subtitle} onChange={(e) => setForm({ ...form, subtitle: e.target.value })} placeholder="Up to 50% off" />
-            </div>
-            <DestinationPicker
-              value={form.link_url}
-              onChange={(url) => setForm((prev: any) => ({ ...prev, link_url: url }))}
-            />
-            <div className="flex items-center gap-2">
-              <Switch checked={form.is_active} onCheckedChange={(c) => setForm({ ...form, is_active: c })} />
-              <Label>Active</Label>
+            <div className="space-y-2">
+              <Label>Product *</Label>
+              <SearchableCombobox
+                table="products"
+                selectColumns="id,name,slug"
+                searchColumn="name"
+                selectedSlug={selectedProductSlug}
+                placeholder="Search and choose a product…"
+                extraFilter={(q) => q.eq("status", "active")}
+                onSelect={({ slug }) => setForm((prev: any) => ({ ...prev, link_url: `/product/${slug}` }))}
+              />
+              <p className="text-xs text-muted-foreground">Product name, main image and destination are taken from the catalogue.</p>
             </div>
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-              <Button onClick={() => save.mutate()} disabled={save.isPending}>
+              <Button onClick={() => save.mutate()} disabled={save.isPending || !selectedProductSlug}>
                 {save.isPending ? "Saving…" : "Save promotion"}
               </Button>
             </div>
