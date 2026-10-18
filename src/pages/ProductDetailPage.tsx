@@ -391,7 +391,7 @@ const ProductDetailPage = () => {
     return (Object.keys(SHIP_LABELS) as ShipKey[]).filter((k) => opts[k].enabled).map((k) => {
       const [lo, hi] = opts[k].days.split("-").map(Number);
       return { service: SHIP_LABELS[k] as any, label: k === "pickup" ? "Local pickup" : `${SHIP_LABELS[k].replace(" Shipping", "")} delivery`,
-        price: opts[k].price > 0 ? `CA$${opts[k].price.toFixed(2)}` : "Free", lo, hi };
+        price: k === "pickup" ? "Free" : "Live rate at checkout", lo, hi };
     }).map((option) => ({
       ...option,
       arrival: formatDeliveryWindow(estimateDeliveryWindow({
