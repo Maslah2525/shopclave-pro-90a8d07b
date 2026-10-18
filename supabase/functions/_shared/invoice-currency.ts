@@ -195,12 +195,16 @@ export function invoiceCurrencyPresentation(
 
 /** Display-only rates; a failure leaves the invoice in its original currency. */
 export async function getInvoiceCadRates(): Promise<Record<string, number> | null> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
   try {
-    const response = await fetch("https://open.er-api.com/v6/latest/CAD", { signal: AbortSignal.timeout(5000) });
+    const response = await fetch("https://open.er-api.com/v6/latest/CAD", { signal: controller.signal });
     if (!response.ok) return null;
     const data = await response.json();
     return data?.base_code === "CAD" && data?.rates && typeof data.rates === "object" ? data.rates : null;
   } catch {
     return null;
+  } finally {
+    clearTimeout(timeout);
   }
 }
