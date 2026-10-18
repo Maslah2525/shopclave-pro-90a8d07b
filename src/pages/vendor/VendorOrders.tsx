@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
 import { shipmentAddressLines } from "@/lib/orderPresentation";
+import FulfillmentProgress from "@/components/shipping/FulfillmentProgress";
 
 const orderStatusFlow = ["pending", "processing", "shipped", "delivered"];
 
@@ -157,7 +158,7 @@ const VendorOrders = () => {
                           </span>
                         </td>
                         <td>
-                          <span className={`status-pill ${statusColor(item.status)}`}>{item.status}</span>
+                          <FulfillmentProgress status={item.status} compact />
                         </td>
                         <td className="text-xs text-muted-foreground">
                           {order?.created_at ? new Date(order.created_at).toLocaleDateString() : "—"}
@@ -232,6 +233,7 @@ const VendorOrders = () => {
                     </div>
                   )}
 
+                  <FulfillmentProgress status={item.status} />
                   <div className="flex justify-between text-xs">
                     <span className="text-muted-foreground">
                       Qty: {item.quantity}
