@@ -9,6 +9,12 @@
 export const ITEM_FLOW = ["pending", "processing", "shipped", "delivered"] as const;
 export type ItemStatus = (typeof ITEM_FLOW)[number] | "cancelled";
 
+/** Keep the next action visible even when payment has not yet been confirmed. */
+export function nextVendorItemStatus(status: string): ItemStatus | null {
+  const index = ITEM_FLOW.findIndex((step) => step === status);
+  return index >= 0 ? ITEM_FLOW[index + 1] ?? null : null;
+}
+
 export function aggregateOrderStatus(items: { status: string }[]): ItemStatus {
   const live = items.filter((i) => i.status !== "cancelled");
   if (items.length && !live.length) return "cancelled";
