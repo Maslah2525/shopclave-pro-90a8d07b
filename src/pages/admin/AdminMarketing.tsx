@@ -938,7 +938,7 @@ const PromotionsTab = () => {
       if (productError) throw productError;
       if (!product) throw new Error("The selected product is no longer active. Choose another product.");
       const { data: images, error: imagesError } = await supabase.from("product_images")
-        .select("url").eq("product_id", product.id).is("variant_id", null).order("position", { ascending: true }).limit(1);
+        .select("url").eq("product_id", product.id).order("position", { ascending: true }).limit(1);
       if (imagesError) throw imagesError;
       const imageUrl = images?.[0]?.url;
       if (!imageUrl) throw new Error("This product has no main image. Add an image to the product before promoting it.");
