@@ -3583,6 +3583,10 @@ export type Database = {
         Returns: string
       }
       order_has_open_dispute: { Args: { _order_id: string }; Returns: boolean }
+      order_item_has_live_payment: {
+        Args: { p_item_id: string }
+        Returns: boolean
+      }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
         Returns: {
