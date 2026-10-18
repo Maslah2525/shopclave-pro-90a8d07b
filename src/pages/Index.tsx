@@ -8,8 +8,6 @@ import BestDealsSection from "@/components/marketplace/BestDealsSection";
 import CategoryCard from "@/components/marketplace/CategoryCard";
 import ProductCard from "@/components/marketplace/ProductCard";
 import { useQuery } from "@tanstack/react-query";
-import { useState, useEffect, useRef } from "react";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "react-router-dom";
@@ -54,27 +52,6 @@ const DEMO_PRODUCTS = Array.from({ length: 8 }).map((_, i) => ({
 
 const Index = () => {
   const { t } = useTranslation();
-  const [visibleCount, setVisibleCount] = useState(10);
-  const isMobile = useIsMobile();
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!isMobile) return;
-    const el = sentinelRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) {
-          setVisibleCount((c) => c + 10);
-        }
-      },
-      { rootMargin: "400px 0px" }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [isMobile, visibleCount]);
-
-
   const { data: featuredData, isLoading } = useQuery({
     queryKey: ["featured-products"],
     queryFn: async () => {
@@ -185,25 +162,11 @@ const Index = () => {
           ) : (
             <>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
-                {displayProducts.slice(0, visibleCount).map((product) => (
+                {displayProducts.slice(0, 10).map((product) => (
                   <ProductCard key={product.id} {...product} />
                 ))}
               </div>
               <div className="mt-6 flex items-center justify-center gap-2">
-                {!isFirstRunDemo && displayProducts.length > visibleCount && (
-                  isMobile ? (
-                    <div ref={sentinelRef} className="h-10 w-4" aria-hidden />
-                  ) : (
-                    <Button
-                      variant="outline"
-                      size="lg"
-                      onClick={() => setVisibleCount((c) => c + 10)}
-                      className="text-primary border-primary/30 hover:bg-primary/5"
-                    >
-                      {t("home.loadMore")}
-                    </Button>
-                  )
-                )}
                 <Button asChild variant="ghost" size="lg" className="gap-1 text-primary">
                   <Link to="/search">
                     {t("home.viewAll")} <ArrowRight className="h-4 w-4" />
