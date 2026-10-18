@@ -202,6 +202,9 @@ const AccountPage = () => {
                           {order.status}
                         </span>
                       </div>
+                      <Link to={`/orders/${order.id}/tracking`}>
+                        <Button size="sm" variant="outline" className="gap-1.5"><Truck className="h-3.5 w-3.5" /> Track order</Button>
+                      </Link>
                       <Link to={`/orders/${order.id}/chat`}>
                         <Button size="sm" variant="outline" className="gap-1.5">
                           <MessageCircle className="h-3.5 w-3.5" /> Chat

@@ -7,6 +7,7 @@ import { Loader2, Package, Truck } from "lucide-react";
 import TrackingTimeline, { SHIPMENT_STATUS_LABELS } from "@/components/shipping/TrackingTimeline";
 import { useLocale } from "@/hooks/useLocale";
 import { hasShipped } from "@/lib/orderTracking";
+import { parcelOrderItems } from "@/lib/orderPresentation";
 
 const OrderTrackingPage = () => {
   const { orderId } = useParams();
@@ -17,17 +18,18 @@ const OrderTrackingPage = () => {
     enabled: !!orderId,
     refetchInterval: 60000,
     queryFn: async () => {
+      if (!orderId) throw new Error("Order ID is required");
       const [orderResult, shipmentResult, itemResult] = await Promise.all([
-        supabase.from("orders").select("*").eq("id", orderId!).maybeSingle(),
+        supabase.from("orders").select("*").eq("id", orderId).maybeSingle(),
         supabase
           .from("shipments")
-          .select("*, vendors(store_name)")
-          .eq("order_id", orderId!)
+          .select("*, vendors(store_name), shipment_items(order_item_id, quantity)")
+          .eq("order_id", orderId)
           .order("created_at", { ascending: true }),
         supabase
           .from("order_items")
-          .select("id, quantity, price, vendor_id, products(name)")
-          .eq("order_id", orderId!),
+          .select("id, quantity, price, status, vendor_id, products(name, slug)")
+          .eq("order_id", orderId),
       ]);
 
       if (orderResult.error) throw orderResult.error;
@@ -93,6 +95,14 @@ const OrderTrackingPage = () => {
           <div className="rounded-lg border border-border p-4 text-sm text-muted-foreground">Payment is not yet confirmed for this order. Shipping progress is not guaranteed until payment is confirmed.</div>
         )}
 
+        <section className="space-y-3" aria-label="Ordered products">
+          <h2 className="font-semibold">Ordered products</h2>
+          {items.map((item) => <div key={item.id} className="flex flex-wrap justify-between gap-2 border-b border-border pb-3 text-sm">
+            <span>{item.quantity} × {item.products?.slug ? <Link className="text-primary hover:underline" to={`/product/${item.products.slug}`}>{item.products.name}</Link> : item.products?.name || "Item"}</span>
+            <span className="text-muted-foreground">{item.status.replace(/_/g, " ")}</span>
+          </div>)}
+        </section>
+
         {shipments.length === 0 && (
           <div className="rounded-lg border border-border p-6 text-sm text-muted-foreground">
             <Package className="h-5 w-5 mb-2 text-muted-foreground" />
@@ -103,7 +113,7 @@ const OrderTrackingPage = () => {
 
         {shipments.map((s: any, idx: number) => {
           const sEvents = events.filter((e: any) => e.shipment_id === s.id);
-          const sItems = items.filter((i: any) => i.vendor_id === s.vendor_id);
+           const sItems = parcelOrderItems(items, s.shipment_items || []);
           return (
             <div key={s.id} className="rounded-lg border border-border p-4 space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
