@@ -20,7 +20,7 @@ describe("customer invoice country currencies", () => {
 });
 
 async function dispatch(country: string, stage: "paid" | "received" = "paid", paymentStatus = "paid") {
-  const invoke = vi.fn(async () => ({ error: null }));
+  const invoke = vi.fn(async (_name: string, _options: { body: { templateData: Record<string, unknown> } }) => ({ error: null }));
   const rows: Record<string, unknown> = {
     orders: { id: "order-12345678", created_at: "2026-10-18", currency: "CAD", total: 115,
       shipping_total: 10, tax_amount: 5, payment_status: paymentStatus, payment_method: "card",
@@ -42,12 +42,12 @@ async function dispatch(country: string, stage: "paid" | "received" = "paid", pa
 describe("paid customer email invoice dispatch", () => {
   it("Canadian invoice retains CAD line items, tax, delivery and actual charge", async () => {
     const invoke = await dispatch("Canada");
-    expect(invoke.mock.calls[0][1].body.templateData).toMatchObject({ currency: "CAD", subtotal: 100, deliveryFee: 10, tax: 5, total: 115, chargedNote: { currency: "CAD", amount: 115 } });
+    expect(invoke.mock.calls[0]?.[1].body.templateData).toMatchObject({ currency: "CAD", subtotal: 100, deliveryFee: 10, tax: 5, total: 115, chargedNote: { currency: "CAD", amount: 115 } });
   });
   it("US invoice converts all amounts consistently without changing actual CAD charge", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => ({ rates: { USD: 0.75 } }) })));
     const invoke = await dispatch("United States");
-    expect(invoke.mock.calls[0][1].body.templateData).toMatchObject({ currency: "USD", isCurrencyEquivalent: true,
+    expect(invoke.mock.calls[0]?.[1].body.templateData).toMatchObject({ currency: "USD", isCurrencyEquivalent: true,
       items: [{ unitPrice: 37.5, quantity: 2, lineTotal: 75 }], subtotal: 75, deliveryFee: 7.5, tax: 3.75, total: 86.25,
       chargedNote: { currency: "CAD", amount: 115 } });
   });

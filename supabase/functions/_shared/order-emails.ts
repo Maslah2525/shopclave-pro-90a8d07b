@@ -4,8 +4,7 @@
 // - "paid": only call after a provider-verified, signed webhook marked the order paid.
 // Idempotency keys are stable so webhook replays never duplicate emails.
 // deno-lint-ignore-file no-explicit-any
-import { invoiceCurrencyForCountry, invoiceCurrencyPresentation } from "./invoice-currency.ts";
-import { getCadRates } from "./paystack.ts";
+import { getInvoiceCadRates, invoiceCurrencyForCountry, invoiceCurrencyPresentation } from "./invoice-currency.ts";
 
 type Admin = any;
 
@@ -69,7 +68,7 @@ export async function sendOrderEmails(
   if (recipient) {
     const targetCurrency = invoiceCurrencyForCountry(addr.country);
     const rates = stage === "paid" && currency === "CAD" && targetCurrency && targetCurrency !== currency
-      ? await getCadRates() : null;
+      ? await getInvoiceCadRates() : null;
     const presentation = stage === "paid"
       ? invoiceCurrencyPresentation(addr.country, currency, rates)
       : { currency, rate: 1, isEquivalent: false };
