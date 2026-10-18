@@ -1,5 +1,9 @@
 # Seller onboarding roadmap
 
+## Vendor dashboard profile and product overview
+- [ ] Recognize saved private payout preferences in the profile reminder.
+- [ ] Replace Unlimited listing statistics with product counts and verify tests and dashboard rendering.
+
 ## Manual withdrawal requests
 - [x] Exclude test/unverified money from balances and withdrawal eligibility; reverse CA$169.71 confirmed test credits, reject unsupported CA$20 request, and verify CA$0/CA$0.55 live balances, permissions and 12 passing tests.
 - [x] Add owner-only requests with CA$20 minimum, confirmed available funds and private payment snapshots for admin review.
