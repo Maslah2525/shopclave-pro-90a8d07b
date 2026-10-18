@@ -608,7 +608,8 @@ const VendorSettings = () => {
       return false;
     } finally { setSaving(false); }
   };
-  const setupMode = vendor.status !== "approved";
+  // Guided step layout applies to every seller, including existing approved accounts.
+  const setupMode = true;
   const completedSteps: string[] = Array.isArray(vendor.setup_completed_sections) ? vendor.setup_completed_sections.filter((key: string) => key !== "tax" && key !== "compliance") : [];
   const [doneSteps, setDoneSteps] = useState<string[]>(completedSteps);
   useEffect(() => { setDoneSteps(completedSteps); }, [vendor.setup_completed_sections]); // eslint-disable-line react-hooks/exhaustive-deps
