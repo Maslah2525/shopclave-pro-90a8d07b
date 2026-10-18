@@ -626,6 +626,7 @@ export type Database = {
           variant_id: string | null
           variant_options: Json | null
           vendor_id: string | null
+          vendor_notes: string | null
           vendor_payout: number | null
         }
         Insert: {
@@ -657,6 +658,7 @@ export type Database = {
           variant_id?: string | null
           variant_options?: Json | null
           vendor_id?: string | null
+          vendor_notes?: string | null
           vendor_payout?: number | null
         }
         Update: {
@@ -688,6 +690,7 @@ export type Database = {
           variant_id?: string | null
           variant_options?: Json | null
           vendor_id?: string | null
+          vendor_notes?: string | null
           vendor_payout?: number | null
         }
         Relationships: [
