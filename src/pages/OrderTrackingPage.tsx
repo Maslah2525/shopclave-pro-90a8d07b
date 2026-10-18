@@ -8,6 +8,7 @@ import TrackingTimeline, { SHIPMENT_STATUS_LABELS } from "@/components/shipping/
 import { useLocale } from "@/hooks/useLocale";
 import { hasShipped } from "@/lib/orderTracking";
 import { parcelOrderItems } from "@/lib/orderPresentation";
+import FulfillmentProgress from "@/components/shipping/FulfillmentProgress";
 
 const OrderTrackingPage = () => {
   const { orderId } = useParams();
@@ -99,9 +100,11 @@ const OrderTrackingPage = () => {
           <h2 className="font-semibold">Ordered products</h2>
           {items.map((item) => <div key={item.id} className="flex flex-wrap justify-between gap-2 border-b border-border pb-3 text-sm">
             <span>{item.quantity} × {item.products?.slug ? <Link className="text-primary hover:underline" to={`/product/${item.products.slug}`}>{item.products.name}</Link> : item.products?.name || "Item"}</span>
-            <span className="text-muted-foreground">{item.status.replace(/_/g, " ")}</span>
+            <FulfillmentProgress status={item.status} compact />
           </div>)}
         </section>
+
+        <p className="text-xs text-muted-foreground">Order preparation stages are updated by the seller. Carrier tracking below is shown only when shipment information is available.</p>
 
         {shipments.length === 0 && (
           <div className="rounded-lg border border-border p-6 text-sm text-muted-foreground">
