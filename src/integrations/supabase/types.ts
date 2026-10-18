@@ -3240,10 +3240,12 @@ export type Database = {
         Row: {
           admin_notes: string | null
           amount: number
+          currency: string
           id: string
           payment_details: Json | null
           payment_method: string
           processed_at: string | null
+          request_key: string | null
           requested_at: string
           status: string
           vendor_id: string
@@ -3251,10 +3253,12 @@ export type Database = {
         Insert: {
           admin_notes?: string | null
           amount: number
+          currency?: string
           id?: string
           payment_details?: Json | null
           payment_method?: string
           processed_at?: string | null
+          request_key?: string | null
           requested_at?: string
           status?: string
           vendor_id: string
@@ -3262,10 +3266,12 @@ export type Database = {
         Update: {
           admin_notes?: string | null
           amount?: number
+          currency?: string
           id?: string
           payment_details?: Json | null
           payment_method?: string
           processed_at?: string | null
+          request_key?: string | null
           requested_at?: string
           status?: string
           vendor_id?: string
@@ -3645,6 +3651,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      request_vendor_withdrawal: {
+        Args: { p_amount: number; p_request_key: string; p_vendor_id: string }
+        Returns: string
+      }
       review_seller_application: {
         Args: { p_application_id: string; p_decision: string; p_reason: string }
         Returns: {
@@ -3765,6 +3775,10 @@ export type Database = {
         }
       }
       submit_vendor_for_review: { Args: never; Returns: string }
+      vendor_withdrawal_summary: {
+        Args: { p_vendor_id: string }
+        Returns: Json
+      }
     }
     Enums: {
       app_role: "admin" | "vendor" | "customer"

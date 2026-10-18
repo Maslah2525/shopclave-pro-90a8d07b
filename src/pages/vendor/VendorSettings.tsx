@@ -19,6 +19,8 @@ import CountrySelector from "@/components/vendor/CountrySelector";
 import { paymentMethods } from "@/lib/paymentMethods";
 import { CANADIAN_BANKS, sellerPayoutMethod } from "@/lib/sellerPayoutPreferences";
 import type { Json } from "@/integrations/supabase/types";
+import WithdrawalRequests from "@/components/vendor/WithdrawalRequests";
+import { canadianBankSchema } from "@/lib/withdrawalRules";
 
 type ImageKind = "logo" | "banner";
 
@@ -234,6 +236,7 @@ const VendorSettings = () => {
   const [initialForm, setInitialForm] = useState(JSON.stringify(form));
   const [settingsSidebarOpen, setSettingsSidebarOpen] = useState(false);
   const [section, setSection] = useState<"profile" | "branding" | "shipping" | "payouts" | "business" | "security" | "compliance" | "tax" | "returns" | "policies" | "notifications" | "team" | "overview">("overview");
+  useEffect(() => { if (new URLSearchParams(window.location.search).get("section") === "payouts") setSection("payouts"); }, []);
 
   useEffect(() => {
     const nextForm = {
@@ -489,6 +492,9 @@ const VendorSettings = () => {
   const isCanadianPayout = activePayoutMethod === "bank";
   const [payoutBank, setPayoutBank] = useState("");
   const [payoutHolderName, setPayoutHolderName] = useState("");
+  const [payoutTransitNumber, setPayoutTransitNumber] = useState("");
+  const [payoutInstitutionNumber, setPayoutInstitutionNumber] = useState("");
+  const [payoutAccountNumber, setPayoutAccountNumber] = useState("");
   const [payoutPaypalEmail, setPayoutPaypalEmail] = useState("");
   const [payoutFrequency,setPayoutFrequency] = useState("Weekly");
   const [payoutToggles,setPayoutToggles] = useState({automatic:true,email:true,refunds:true});
@@ -575,6 +581,9 @@ const VendorSettings = () => {
     const payouts = settingsRecord(savedPreferences.payouts);
     if (payouts.method === "bank" || payouts.method === "paypal") setSelectedPayoutMethod(payouts.method);
     if (typeof payouts.holderName === "string") setPayoutHolderName(payouts.holderName);
+    if (typeof payouts.transitNumber === "string") setPayoutTransitNumber(payouts.transitNumber);
+    if (typeof payouts.institutionNumber === "string") setPayoutInstitutionNumber(payouts.institutionNumber);
+    if (typeof payouts.accountNumber === "string") setPayoutAccountNumber(payouts.accountNumber);
     if (typeof payouts.bank === "string") setPayoutBank(payouts.bank);
     if (typeof payouts.paypalEmail === "string") setPayoutPaypalEmail(payouts.paypalEmail);
     if (typeof payouts.frequency === "string") setPayoutFrequency(payouts.frequency);
@@ -592,13 +601,14 @@ const VendorSettings = () => {
       if (key === "tax" && taxDocument) throw new Error("This document has not been uploaded. Use the verification workflow for private documents.");
       if (key === "notifications" && [notificationDraft.email, notificationDraft.cc].some(email => email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) throw new Error("Enter valid notification email addresses.");
       if (key === "payouts" && !isCanadianPayout && payoutPaypalEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payoutPaypalEmail)) throw new Error("Enter a valid PayPal email address.");
+      if (key === "payouts" && isCanadianPayout && !canadianBankSchema.safeParse({ bank: payoutBank, holderName: payoutHolderName, transitNumber: payoutTransitNumber, institutionNumber: payoutInstitutionNumber, accountNumber: payoutAccountNumber }).success) throw new Error("Enter the bank, account holder, 5-digit transit, 3-digit institution and account number.");
       const values: Record<string, unknown> = key === "shipping" ? { options: shippingPreview, zones: shippingZonePreview, additionalZones, regions: zoneDrafts, methods: methodDrafts }
         : key === "business" ? { ...businessDraft }
         : key === "tax" ? { registration: taxDraft, calculation: taxCalculation, exemptions: taxExemptions }
         : key === "returns" ? { ...returnsDraft }
         : key === "policies" ? { content: policyDrafts, display: policyDisplay }
         : key === "notifications" ? { ...notificationDraft }
-        : key === "payouts" ? { frequency: payoutFrequency, options: payoutToggles, country: businessCountryIso, method: activePayoutMethod, bank: isCanadianPayout ? payoutBank : "", holderName: isCanadianPayout ? payoutHolderName : "", paypalEmail: isCanadianPayout ? "" : payoutPaypalEmail }
+        : key === "payouts" ? { frequency: payoutFrequency, options: payoutToggles, country: businessCountryIso, method: activePayoutMethod, bank: isCanadianPayout ? payoutBank : "", holderName: isCanadianPayout ? payoutHolderName : "", transitNumber: isCanadianPayout ? payoutTransitNumber : "", institutionNumber: isCanadianPayout ? payoutInstitutionNumber : "", accountNumber: isCanadianPayout ? payoutAccountNumber : "", paypalEmail: isCanadianPayout ? "" : payoutPaypalEmail }
         : { alerts: securityAlerts, phone: securityPhone };
       await persistPreference(key, values);
       toast.success("Settings draft saved and verified. Live payment, tax, shipping, verification and notification rules are unchanged.");
@@ -810,7 +820,7 @@ const VendorSettings = () => {
           <div className="flex flex-wrap justify-between items-start gap-3"><div className="flex gap-3 items-start"><CreditCard className="h-9 w-9 text-violet-600"/><div><h3 className="text-xl md:text-2xl font-bold">4. Payments &amp; Payouts</h3><p className="text-sm text-muted-foreground">Manage how you receive payments, set up your payout method and view your earnings.</p></div></div><Button size="sm" variant="outline" asChild><Link to="/vendor/payments">ⓘ Learn more</Link></Button></div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">{[["💼","Total Earnings"],["💵","Available Balance"],["🕒","Pending Balance"],["🔒","Held Balance"]].map(([icon,label])=><div key={label} className="rounded-lg border p-4 bg-card"><div className="flex items-center gap-3"><span className="text-2xl">{icon}</span><div><p className="text-xs text-muted-foreground">{label}</p><p className="text-lg font-bold">{label==="Total Earnings" && financialTotals && !financialError?formatCad(financialTotals.gross):"—"}</p><p className="text-xs text-muted-foreground">{label==="Total Earnings" && financialTotals && !financialError?"CAD · Gross order items (up to 500), not settled earnings":financialLoading?"Loading…":"CAD · Stripe balance unavailable"}</p></div></div></div>)}</div>
           <div className="grid lg:grid-cols-3 gap-3">
-            <section className="lg:col-span-2 rounded-lg border p-4 space-y-4"><div className="flex justify-between items-start gap-2"><div><h4 className="font-semibold">🟠 Payout Account Setup</h4><p className="text-xs text-muted-foreground">Add your bank account or payout method to receive your earnings.</p></div><span className={`text-xs rounded px-2 py-1 ${isCanadianPayout && sellerPayoutAccount?.payouts_enabled && sellerPayoutAccount.verification_status==="verified"?"bg-green-100 text-green-800":"bg-muted"}`}>{payoutAccountLoading?"Checking…":payoutAccountError?"Status unavailable":isCanadianPayout && sellerPayoutAccount?.payouts_enabled && sellerPayoutAccount.verification_status==="verified"?"✓ Verified":"Not verified"}</span></div>
+            <section className="lg:col-span-2 rounded-lg border p-4 space-y-4"><div><h4 className="font-semibold">Payout Account Setup</h4><p className="text-xs text-muted-foreground">Save your payment details for withdrawal requests.</p></div>
               {businessCountryIso === "CA" && <div className="grid grid-cols-2 gap-2" role="group" aria-label="Payout method">
                 <Button variant={isCanadianPayout ? "default" : "outline"} aria-pressed={isCanadianPayout} onClick={()=>setSelectedPayoutMethod("bank")}><Building2 className="mr-2 h-4 w-4"/>Bank Account</Button>
                 <Button variant={!isCanadianPayout ? "default" : "outline"} aria-pressed={!isCanadianPayout} onClick={()=>setSelectedPayoutMethod("paypal")}>PayPal</Button>
@@ -823,22 +833,21 @@ const VendorSettings = () => {
                 </div>
                 {payoutBank && <div className="space-y-3 border-t pt-4">
                   <div className="space-y-2"><Label htmlFor="payout-holder-name">Account holder name</Label><Input id="payout-holder-name" autoComplete="name" value={payoutHolderName} onChange={e=>setPayoutHolderName(e.target.value)} placeholder="Name on your bank account"/></div>
-                  <p className="text-xs text-muted-foreground">Enter your transit, institution and account numbers in Stripe’s secure bank form.</p>
-                  <Button asChild><Link to="/vendor/payments">Enter Secure Bank Details <ExternalLink className="ml-2 h-4 w-4"/></Link></Button>
+                  <div className="grid gap-3 sm:grid-cols-2"><div className="space-y-2"><Label htmlFor="payout-transit">Transit number</Label><Input id="payout-transit" inputMode="numeric" maxLength={5} value={payoutTransitNumber} onChange={e=>setPayoutTransitNumber(e.target.value)} /></div><div className="space-y-2"><Label htmlFor="payout-institution">Institution number</Label><Input id="payout-institution" inputMode="numeric" maxLength={3} value={payoutInstitutionNumber} onChange={e=>setPayoutInstitutionNumber(e.target.value)} /></div><div className="space-y-2 sm:col-span-2"><Label htmlFor="payout-account">Account number</Label><Input id="payout-account" type="password" autoComplete="off" inputMode="numeric" maxLength={12} value={payoutAccountNumber} onChange={e=>setPayoutAccountNumber(e.target.value)} /></div></div>
+                  <p className="text-xs text-muted-foreground">Saved privately and included with withdrawal requests for admin review. No Stripe connection required.</p>
                 </div>}
               </div> : <div className="space-y-4">
                 <img src={paymentMethods.find(method=>method.name==="PayPal")?.logo} alt="PayPal" className="h-10 w-36 object-contain"/>
                 <div className="space-y-2"><Label htmlFor="payout-paypal-email">PayPal email address</Label><Input id="payout-paypal-email" type="email" placeholder="Email linked to your PayPal account" value={payoutPaypalEmail} onChange={e=>setPayoutPaypalEmail(e.target.value)}/></div>
-                <p className="text-xs text-muted-foreground">Saved privately for review. PayPal payouts are not connected yet.</p>
+                <p className="text-xs text-muted-foreground">Included privately with your withdrawal request for admin review.</p>
               </div>}
             </section>
-            <div className="space-y-3"><section className="rounded-lg border p-4 space-y-3"><h4 className="font-semibold">🗓 Payout Schedule</h4><p className="text-xs text-muted-foreground">Choose how often you want to receive payouts.</p>{["Weekly","Bi-weekly","Monthly"].map(t=><label key={t} className="flex items-center gap-2 text-sm"><input type="radio" name="payout-frequency" checked={payoutFrequency===t} onChange={()=>setPayoutFrequency(t)}/>{t}{t==="Weekly"?" (Recommended)":""}</label>)}<p className="text-xs text-amber-700">Preview only. Your actual payout schedule is managed by Stripe.</p><Button disabled={saving || preferencesLoading || !!preferencesError} onClick={()=>void saveSection("payouts")}>Save Payout Preferences</Button></section>
+            <div className="space-y-3"><section className="rounded-lg border p-4 space-y-3"><h4 className="font-semibold">Payment details</h4><p className="text-xs text-muted-foreground">Save before requesting a withdrawal. Payments are reviewed by the admin.</p><Button disabled={saving || preferencesLoading || !!preferencesError} onClick={()=>void saveSection("payouts")}>Save Payment Details</Button></section>
               <section className="rounded-lg border p-4 space-y-3"><h4 className="font-semibold">⚙ Payout Settings</h4>{([["automatic","Automatically receive payouts"],["email","Email me when a payout is sent"],["refunds","Include order refunds in balance"]] as const).map(([key,label])=><label key={key} className="flex justify-between items-center gap-3 text-sm"><span>{label}</span><input type="checkbox" role="switch" className="accent-green-600 h-4 w-4" checked={payoutToggles[key]} onChange={e=>setPayoutToggles(v=>({...v,[key]:e.target.checked}))}/></label>)}<p className="text-xs text-amber-700">These switches are UI-only and do not alter actual payout or refund processing.</p></section></div>
           </div>
           <div className="grid lg:grid-cols-3 gap-3"><section className="lg:col-span-2 rounded-lg border p-4 space-y-3"><div className="flex justify-between items-center"><div><h4 className="font-semibold">🟠 Commission &amp; Fees</h4><p className="text-xs text-muted-foreground">Marketplace fee structure applicable to your store.</p></div><Button size="sm" variant="outline" asChild><Link to="/vendor/payments">View Details</Link></Button></div><div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-muted"><tr>{["Fee Type","Rate","Description"].map(x=><th className="p-2 text-left" key={x}>{x}</th>)}</tr></thead><tbody>{[["Marketplace Commission",vendorCommissionRates?.length?Array.from(new Set(vendorCommissionRates.map(x=>x.commission_pct))).sort((a,b)=>a-b).map(x=>`${x}%`).join(", "):"See agreement","Category-dependent commission rates"],["Payment Processing Fee","Provider dependent","Charged by payment processor"],["Refund Processing Fee","Provider dependent","Subject to applicable refund terms"]].map(row=><tr key={row[0]} className="border-b">{row.map((cell,i)=><td className="p-2" key={i}>{cell}</td>)}</tr>)}</tbody></table></div></section>
           <section className="rounded-lg border p-4 space-y-3"><h4 className="font-semibold">Supported Payment Methods</h4><div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-2" aria-label="Customer payment options">{paymentMethods.map(method=><div key={method.name} className="flex h-16 min-w-0 items-center justify-center rounded-md border border-border bg-background px-3" title={method.name}><img src={method.logo} alt={method.name} className="h-10 w-full max-w-32 object-contain" loading="lazy"/></div>)}</div><p className="text-xs text-muted-foreground">Available customer payment methods are confirmed at checkout and may vary by order.</p></section></div>
-          <section className="rounded-lg border p-4 space-y-3"><div className="flex flex-wrap justify-between items-center gap-3"><div><h4 className="font-semibold">🟠 Payout History</h4><p className="text-xs text-muted-foreground">View all your payouts, transactions and balances.</p></div><div className="flex flex-wrap gap-2 items-end"><div><Label>From</Label><Input type="date" value={payoutDateFrom} onChange={e=>setPayoutDateFrom(e.target.value)}/></div><div><Label>To</Label><Input type="date" value={payoutDateTo} onChange={e=>setPayoutDateTo(e.target.value)}/></div><div><Label>Status</Label><select className="h-10 border rounded-md px-2 bg-background text-sm" value={payoutStatus} onChange={e=>setPayoutStatus(e.target.value)}>{["All Statuses","Paid","Pending","Failed"].map(x=><option key={x}>{x}</option>)}</select></div></div></div><div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-muted"><tr>{["Payout ID","Date","Amount","Currency","Status","Reference","Actions"].map(x=><th key={x} className="p-2 text-left">{x}</th>)}</tr></thead><tbody><tr><td colSpan={7} className="p-6 text-center text-muted-foreground">Payout records are not available in this view. <Link to="/vendor/payments" className="text-primary underline">Open your secure payout dashboard</Link> to see available transactions.</td></tr></tbody></table></div></section>
-          <p className="text-xs text-amber-700">Gross sales are calculated from up to 500 vendor order items, not a reconciled Stripe balance. Stripe payout balances and history are unavailable through the existing account-status integration. Preview controls do not persist or affect live payouts.</p>
+          <WithdrawalRequests vendorId={vendor.id} />
         </div>)}
         {section === "business" && (
           <div className="space-y-6">

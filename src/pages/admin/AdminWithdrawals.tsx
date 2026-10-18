@@ -44,7 +44,7 @@ const AdminWithdrawals = () => {
 
   const updateStatus = useMutation({
     mutationFn: async ({ id, status, notes }: { id: string; status: string; notes?: string }) => {
-      if (status === "completed") throw new Error("Payout completion requires verified Stripe settlement and cannot be marked manually.");
+      if (status === "completed") throw new Error("Payment completion requires independently reconciled settlement evidence.");
       const updates: any = { status };
       if (notes) updates.admin_notes = notes;
       if (status === "completed" || status === "rejected") updates.processed_at = new Date().toISOString();
@@ -77,7 +77,7 @@ const AdminWithdrawals = () => {
 
   return (
     <div>
-      <AdminPageHeader title="Withdrawal Requests" subtitle="Review vendor payout requests. Completion requires verified Stripe settlement." count={withdrawals?.length || 0} countLabel="requests" />
+      <AdminPageHeader title="Withdrawal Requests" subtitle="Review requests and their bank or PayPal details." count={withdrawals?.length || 0} countLabel="requests" />
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-5">
         <StatTile icon={Clock} label="Pending" value={`$${totals.pending.toLocaleString()}`} accent="bg-warning/10 text-warning" />
@@ -111,10 +111,10 @@ const AdminWithdrawals = () => {
                 {withdrawals.map((w: any) => (
                   <tr key={w.id}>
                     <td className="font-medium">{(w.vendors as any)?.store_name || "—"}</td>
-                    <td className="font-bold text-foreground">${Number(w.amount).toLocaleString()}</td>
+                    <td className="font-bold text-foreground">{w.currency || "CAD"} {Number(w.amount).toFixed(2)}</td>
                     <td className="capitalize text-sm">{w.payment_method?.replace("_", " ")}</td>
-                    <td className="text-xs font-mono max-w-[180px] truncate text-muted-foreground">
-                      {w.payment_details ? JSON.stringify(w.payment_details) : "—"}
+                    <td className="text-xs text-muted-foreground">
+                      {w.payment_details ? <details><summary className="cursor-pointer text-primary">View payment details</summary><dl className="space-y-1 py-2">{Object.entries(w.payment_details).map(([key,value])=><div key={key}><dt className="font-medium">{({country:"Country",bank:"Bank",holderName:"Account holder",transitNumber:"Transit",institutionNumber:"Institution",accountNumber:"Account number",paypalEmail:"PayPal email"} as Record<string,string>)[key] || key}</dt><dd className="break-all">{String(value)}</dd></div>)}</dl></details> : "—"}
                     </td>
                     <td><span className={`status-pill capitalize ${statusPill[w.status] || ""}`}>{w.status}</span></td>
                     <td className="text-muted-foreground text-xs">{new Date(w.requested_at).toLocaleDateString()}</td>
@@ -140,7 +140,7 @@ const AdminWithdrawals = () => {
                         </div>
                       )}
                       {w.status === "approved" && (
-                        <span className="text-xs text-muted-foreground block text-right">Awaiting verified Stripe settlement</span>
+                        <span className="text-xs text-muted-foreground block text-right">Approved · awaiting payment reconciliation</span>
                       )}
                       {(w.status === "completed" || w.status === "rejected") && (
                         <span className="text-xs text-muted-foreground block text-right">{w.admin_notes || "—"}</span>
