@@ -3,16 +3,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useOutletContext, useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MessageCircle, Copy, Printer, FileText, RotateCcw, User, Mail, Phone, MapPin, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { shipmentAddressLines } from "@/lib/orderPresentation";
 import { cn } from "@/lib/utils";
 import FulfillmentProgress from "@/components/shipping/FulfillmentProgress";
 import { canVendorTransition, nextVendorItemStatus } from "@/lib/orderStatus";
-const CARRIERS = ["Canada Post", "Purolator", "UPS", "FedEx", "DHL", "Other"];
 
 const fmtMoney = (n: number) => `$${n.toFixed(2)} CAD`;
 const payColor = (s: string) => (s === "paid" ? "bg-success/10 text-success" : "bg-warning/10 text-warning");
@@ -21,7 +18,6 @@ const VendorOrderFulfillment = () => {
   const { vendor } = useOutletContext<{ vendor: any }>();
   const { itemId } = useParams<{ itemId: string }>();
   const queryClient = useQueryClient();
-  const [tracking, setTracking] = useState({ carrier: "", number: "" });
   const [note, setNote] = useState("");
 
   const { data: item, isLoading, isError, refetch } = useQuery({
@@ -78,7 +74,6 @@ const VendorOrderFulfillment = () => {
   useEffect(() => {
     if (item) {
       setNote((item as any).vendor_notes || "");
-      setTracking({ carrier: (item as any).carrier || "", number: (item as any).tracking_number || "" });
     }
   }, [item?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -107,19 +102,6 @@ const VendorOrderFulfillment = () => {
       toast.success("Status updated");
     },
     onError: (e: any) => toast.error(e.message || "Failed to update status"),
-  });
-
-  const saveTracking = useMutation({
-    mutationFn: async () => {
-      if (!itemId || !vendor?.id) throw new Error("Order item is required");
-      if (!tracking.carrier) throw new Error("Choose a carrier");
-      const { error } = await supabase.from("order_items")
-        .update({ carrier: tracking.carrier, tracking_number: tracking.number.trim() || null })
-        .eq("id", itemId).eq("vendor_id", vendor.id);
-      if (error) throw error;
-    },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["vendor-order-item", itemId] }); toast.success("Tracking saved"); },
-    onError: (e: any) => toast.error(e.message || "Failed to save tracking"),
   });
 
   const saveNote = useMutation({
