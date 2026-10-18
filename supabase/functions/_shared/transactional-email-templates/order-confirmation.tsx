@@ -49,14 +49,14 @@ interface OrderConfirmationProps {
   paymentStatusLabel?: string
   stage?: 'received' | 'paid'
   currency?: string
+  isCurrencyEquivalent?: boolean
   chargedNote?: { amount: number; currency: string } | null
   trackUrl?: string
 }
 
-const CURRENT = { currency: 'CAD' }
-const money = (n: number, currency = CURRENT.currency) => {
+const formatMoney = (n: number, currency: string) => {
   try {
-    return new Intl.NumberFormat('en-CA', { style: 'currency', currency }).format(n || 0)
+    return new Intl.NumberFormat('en-CA', { style: 'currency', currency, currencyDisplay: 'code' }).format(n || 0)
   } catch {
     return `${currency} ${(n || 0).toFixed(2)}`
   }
@@ -78,8 +78,11 @@ const OrderConfirmationEmail = ({
   paymentStatusLabel,
   stage = 'received',
   currency = 'CAD',
+  isCurrencyEquivalent = false,
   chargedNote = null,
-}: OrderConfirmationProps) => { CURRENT.currency = currency; const paid = stage === 'paid'; return (
+}: OrderConfirmationProps) => {
+  const money = (n: number, code = currency) => formatMoney(n, code)
+  const paid = stage === 'paid'; return (
   <Html lang="en" dir="ltr">
     <Head />
     <Preview>
@@ -123,6 +126,14 @@ const OrderConfirmationEmail = ({
             <Text style={metaLine}>
               <strong>Payment status:</strong> {paymentStatusLabel ?? (paid ? 'Paid' : 'Awaiting payment')}
             </Text>
+            <Text style={metaLine}>
+              <strong>Invoice currency:</strong> {currency}
+            </Text>
+            {isCurrencyEquivalent && (
+              <Text style={metaLine}>
+                Amounts below are local-currency equivalents at the exchange rate used for this email. The actual charge is shown separately; rounding may apply.
+              </Text>
+            )}
             {chargedNote && (
               <Text style={metaLine}>
                 <strong>Charged:</strong> {money(chargedNote.amount, chargedNote.currency)}
