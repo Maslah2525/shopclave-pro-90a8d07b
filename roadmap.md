@@ -1,8 +1,9 @@
 # Seller onboarding roadmap
 
 ## Vendor dashboard profile and product overview
-- [ ] Recognize saved private payout preferences in the profile reminder.
-- [ ] Replace Unlimited listing statistics with product counts and verify tests and dashboard rendering.
+- [x] Recognize saved private payout preferences in the profile reminder and refresh the shared cache after saves.
+- [x] Replace Unlimited listing statistics with total, active, inactive/draft and out-of-stock counts; 15 focused tests pass and preview builds clean.
+- [ ] Verify the dashboard and reminder in a signed-in seller session — requesting user has no matching auth account for automatic sign-in; signed-out access redirects to sign-in without browser errors.
 
 ## Manual withdrawal requests
 - [x] Exclude test/unverified money from balances and withdrawal eligibility; reverse CA$169.71 confirmed test credits, reject unsupported CA$20 request, and verify CA$0/CA$0.55 live balances, permissions and 12 passing tests.
