@@ -232,6 +232,20 @@
       "when": 1792354686743,
       "tag": "0032_vendor_order_item_notes",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1792364180288,
+      "tag": "0033_verified_live_withdrawal_balances",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1792364254544,
+      "tag": "0034_secure_live_withdrawal_review_execution",
+      "breakpoints": true
     }
   ]
 }

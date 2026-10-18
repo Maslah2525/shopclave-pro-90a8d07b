@@ -13,4 +13,4 @@
 - Product colour thumbnails and galleries resolve images across every variant sharing that colour, including legacy variant image fields, while purchase selection remains explicit.
 - New customer-facing raster uploads are normalized through the shared WebP optimizer; evidence documents and existing uploads remain byte-preserved.
 - Store settings drafts and private preferences use owner-only vendor_settings_preferences; only allowlisted storefront fields are copied to vendors.store_settings, and preferences never override payment, tax, verification, staff authorization, or shipping quotes.
-- Manual withdrawal requests snapshot allowlisted private payment preferences in an owner-scoped, idempotent RPC; available CAD ledger credits minus open requests govern eligibility, and admin approval never initiates or proves payment settlement.
+- Manual withdrawals and earnings use owner-scoped verified-live payment evidence matched to order/session/amount/currency; unverified positive ledger credits cannot fund requests, negative debits and reservations remain deducted, and admin approval never proves settlement.

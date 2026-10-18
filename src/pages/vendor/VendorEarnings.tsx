@@ -15,9 +15,9 @@ const VendorEarnings = () => {
       if (error) throw error;
       const ids = [...new Set((data || []).map(item => item.order_id))];
       if (!ids.length) return [];
-      const paid = await supabase.rpc("get_vendor_order_delivery_details", { p_vendor_id: vendor.id, p_order_ids: ids });
+      const paid = await supabase.rpc("vendor_withdrawal_summary", { p_vendor_id: vendor.id });
       if (paid.error) throw paid.error;
-      const paidIds = new Set(paid.data.filter(order => order.payment_status === "paid").map(order => order.id));
+      const paidIds = new Set((paid.data as { live_order_ids?: string[] }).live_order_ids ?? []);
       return (data || []).filter(item => paidIds.has(item.order_id));
     },
     enabled: !!vendor,
@@ -43,7 +43,12 @@ const VendorEarnings = () => {
   const withdrawnOrPending = withdrawals
     ?.filter((w: any) => w.status === "completed" || w.status === "pending" || w.status === "approved")
     .reduce((s: number, w: any) => s + Number(w.amount), 0) || 0;
-  const availableBalance = netEarnings - withdrawnOrPending;
+  const { data: balance, isError: balanceError, isLoading: balanceLoading } = useQuery({ queryKey: ["withdrawal-summary", vendor?.id], enabled: !!vendor?.id, refetchInterval: 30000, queryFn: async () => {
+    const { data, error } = await supabase.rpc("vendor_withdrawal_summary", { p_vendor_id: vendor.id });
+    if (error) throw error;
+    return data as { available: number };
+  }});
+  const availableBalance = balance?.available ?? 0;
   const balancesReady = !ordersLoading && !withdrawalsLoading && !ordersError && !withdrawalsError;
 
   const topProducts = (() => {
@@ -69,7 +74,7 @@ const VendorEarnings = () => {
     { label: "Gross Revenue", value: `$${totalRevenue.toLocaleString()}`, icon: DollarSign, accent: "text-foreground", iconBg: "bg-muted text-muted-foreground" },
     { label: `Platform Fee (${vendor?.commission_rate}%)`, value: `- $${totalCommission.toLocaleString()}`, icon: TrendingUp, accent: "text-destructive", iconBg: "bg-destructive/10 text-destructive" },
     { label: "Net Earnings", value: `$${netEarnings.toLocaleString()}`, icon: Wallet, accent: "text-success", iconBg: "bg-success/10 text-success" },
-    { label: "Estimated remainder", value: `CA$${Math.max(0, availableBalance).toLocaleString()}`, icon: Clock, accent: "text-primary", iconBg: "bg-primary/10 text-primary" },
+    { label: "Available balance", value: balanceError || balanceLoading ? "—" : `CA$${Math.max(0, availableBalance).toLocaleString()}`, icon: Clock, accent: "text-primary", iconBg: "bg-primary/10 text-primary" },
   ];
 
   return (
@@ -96,7 +101,7 @@ const VendorEarnings = () => {
         ))}
       </div>
 
-      <p className="text-xs text-muted-foreground">Figures include confirmed paid orders only. Available balance is an estimate based on recorded commissions and withdrawal requests; final settlement and eligibility are subject to reconciliation.</p>
+      <p className="text-xs text-muted-foreground">Verified live payments only. Test payments and unverified credits are excluded.</p>
       <WithdrawalRequests vendorId={vendor.id} />
       {/* Top Products */}
       {topProducts.length > 0 && (
