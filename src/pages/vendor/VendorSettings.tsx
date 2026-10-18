@@ -303,6 +303,7 @@ const VendorSettings = () => {
     if (error) throw error;
     if (!sameSettings(settings, data?.settings)) throw new Error("The saved settings could not be verified. Reload and try again.");
     savedPreferenceRef.current[key] = settings;
+    queryClient.setQueryData(["vendor-settings-preferences", vendor.id], { ...savedPreferenceRef.current });
   };
 
   const profilePreferences = () => ({ store_email: form.store_email.trim(), primary_category_id: form.primary_category_id, additional_category_ids: form.additional_category_ids, public_store_address: form.public_store_address, store_language: form.store_language, contact_visibility: form.contact_visibility });

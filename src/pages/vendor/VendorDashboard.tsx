@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useOutletContext, Link } from "react-router-dom";
-import { Eye, MousePointer, Package, Users, AlertTriangle, ArrowUpCircle, Clock, CheckCircle2, Check, GraduationCap, ChevronRight, PlayCircle } from "lucide-react";
+import { Eye, MousePointer, Package, PackageCheck, PackageX, CirclePause, Users, AlertTriangle, ArrowUpCircle, Clock, CheckCircle2, Check, GraduationCap, ChevronRight, PlayCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,6 +16,7 @@ import StoreQRDialog from "@/components/vendor/StoreQRDialog";
 import { SITE_URL } from "@/components/seo/SEO";
 import { QrCode, ExternalLink } from "lucide-react";
 import VendorProfileChecklist from "@/components/vendor/VendorProfileChecklist";
+import { vendorProductSummary } from "@/lib/vendorProductSummary";
 
 const VendorDashboard = () => {
   const { vendor } = useOutletContext<{ vendor: any }>();
@@ -28,10 +29,11 @@ const VendorDashboard = () => {
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const { data: products } = useQuery({
+  const { data: products, isLoading: productsLoading, error: productsError, refetch: refetchProducts } = useQuery({
     queryKey: ["vendor-products", vendor?.id],
     queryFn: async () => {
-      const { data } = await supabase.from("products").select("*").eq("vendor_id", vendor.id);
+      const { data, error } = await supabase.from("products").select("*").eq("vendor_id", vendor.id);
+      if (error) throw error;
       return data || [];
     },
     enabled: !!vendor,
@@ -107,8 +109,7 @@ const VendorDashboard = () => {
 
   const totalViews = analytics?.filter((a: any) => a.event_type === "view").length || 0;
   const totalClicks = analytics?.filter((a: any) => ["call_click", "whatsapp_click", "website_click"].includes(a.event_type)).length || 0;
-  const activeListings = products?.filter((p: any) => p.status === "active").length || 0;
-  const maxListings = subscription?.max_listings ?? 5;
+  const productSummary = vendorProductSummary(products ?? []);
 
   const isExpiring = subscription?.expires_at && new Date(subscription.expires_at).getTime() - Date.now() < 7 * 24 * 60 * 60 * 1000;
 
@@ -153,8 +154,13 @@ const VendorDashboard = () => {
   const stats = [
     { label: "Product Views", value: totalViews, icon: Eye, color: "text-primary" },
     { label: "Contact Clicks", value: totalClicks, icon: MousePointer, color: "text-success" },
-    { label: "Active Listings", value: isAdmin ? "Unlimited" : `${activeListings} / ${maxListings}`, icon: Package, color: "text-warning" },
     { label: "Followers", value: followerCount, icon: Users, color: "text-primary" },
+  ];
+  const productStats = [
+    { label: "Total products", value: productSummary.total, icon: Package, color: "text-primary", note: "Your full catalogue" },
+    { label: "Active products", value: productSummary.active, icon: PackageCheck, color: "text-success", note: "Live product listings" },
+    { label: "Inactive products", value: productSummary.inactive, icon: CirclePause, color: "text-warning", note: `${productSummary.drafts} drafts included` },
+    { label: "Out of stock", value: productSummary.outOfStock, icon: PackageX, color: "text-destructive", note: "Zero available units" },
   ];
 
   return (
@@ -183,19 +189,29 @@ const VendorDashboard = () => {
       {isExpiring && !pendingPayment && (
         <div className="admin-card flex items-center gap-2.5 p-3 text-sm border-warning/30 bg-warning/5">
           <AlertTriangle className="h-4 w-4 text-warning shrink-0" />
-          <span>Your subscription expires on {new Date(subscription!.expires_at!).toLocaleDateString()}. Upgrade or renew below.</span>
+          <span>Your subscription expires on {subscription?.expires_at ? new Date(subscription.expires_at).toLocaleDateString() : "—"}. Upgrade or renew below.</span>
         </div>
       )}
 
-      {/* Subscription info */}
-      <div className="admin-card p-4">
-        <p className="text-sm text-muted-foreground">
-          Plan: <span className="font-semibold text-foreground capitalize">{isAdmin ? "Admin (Unlimited)" : (subscription?.plan_name || "Free")}</span>
-          {!isAdmin && subscription?.expires_at && (
-            <> · Expires: <span className="font-medium text-foreground">{new Date(subscription.expires_at).toLocaleDateString()}</span></>
-          )}
-        </p>
-      </div>
+      <section className="space-y-3" aria-label="Product overview">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="admin-section-label">Product overview</h2>
+          <Button asChild variant="ghost" size="sm" className="gap-1 text-xs"><Link to="/vendor/products">Manage products <ChevronRight className="h-3.5 w-3.5" /></Link></Button>
+        </div>
+        {productsError ? (
+          <div role="alert" className="flex flex-wrap items-center gap-3 text-sm"><p>Your product counts could not be loaded.</p><Button variant="outline" size="sm" onClick={() => void refetchProducts()}>Try again</Button></div>
+        ) : (
+          <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+            {productStats.map(stat => (
+              <div key={stat.label} className="admin-card p-4 min-w-0">
+                <div className="flex items-center justify-between gap-2"><p className="text-xs font-medium text-muted-foreground">{stat.label}</p><stat.icon className={`h-5 w-5 shrink-0 ${stat.color}`} /></div>
+                <p className="mt-3 text-3xl font-bold tabular-nums" aria-busy={productsLoading}>{productsLoading ? "—" : stat.value.toLocaleString()}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{productsLoading ? "Loading products…" : stat.note}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       {/* Store QR card */}
       {vendor?.slug && (
@@ -224,7 +240,7 @@ const VendorDashboard = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {stats.map((stat) => (
           <div key={stat.label} className="admin-card admin-card-hover p-4">
             <div className="flex items-center gap-2 mb-2">
@@ -298,8 +314,8 @@ const VendorDashboard = () => {
                   {products.slice(0, 10).map((p: any, idx: number) => (
                     <tr key={p.id}>
                       <td className="text-muted-foreground">{idx + 1}</td>
-                      <td className="font-medium">{p.name}</td>
-                      <td className="font-semibold">${Number(p.price).toLocaleString()}</td>
+                       <td className="font-medium"><Link className="hover:underline text-primary" to={`/vendor/products/edit/${p.id}`}>{p.name}</Link></td>
+                       <td className="font-semibold">CA${Number(p.price).toLocaleString()}</td>
                       <td>
                         <span className={`status-pill ${p.status === "active" ? "bg-success/10 text-success" : "bg-warning/10 text-warning"}`}>
                           {p.status}
