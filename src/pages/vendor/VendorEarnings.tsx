@@ -39,7 +39,7 @@ const VendorEarnings = () => {
 
   const totalRevenue = orderItems?.reduce((sum: number, i: any) => sum + Number(i.price) * i.quantity, 0) || 0;
   const totalCommission = orderItems?.reduce((sum: number, i: any) => sum + Number(i.commission_amount), 0) || 0;
-  const netEarnings = totalRevenue - totalCommission;
+  const netEarnings = orderItems?.reduce((sum: number, item: any) => sum + Number(item.vendor_payout || 0), 0) || 0;
   const withdrawnOrPending = withdrawals
     ?.filter((w: any) => w.status === "completed" || w.status === "pending" || w.status === "approved")
     .reduce((s: number, w: any) => s + Number(w.amount), 0) || 0;
@@ -69,7 +69,7 @@ const VendorEarnings = () => {
     { label: "Gross Revenue", value: `$${totalRevenue.toLocaleString()}`, icon: DollarSign, accent: "text-foreground", iconBg: "bg-muted text-muted-foreground" },
     { label: `Platform Fee (${vendor?.commission_rate}%)`, value: `- $${totalCommission.toLocaleString()}`, icon: TrendingUp, accent: "text-destructive", iconBg: "bg-destructive/10 text-destructive" },
     { label: "Net Earnings", value: `$${netEarnings.toLocaleString()}`, icon: Wallet, accent: "text-success", iconBg: "bg-success/10 text-success" },
-    { label: "Available Balance", value: `$${Math.max(0, availableBalance).toLocaleString()}`, icon: Clock, accent: "text-primary", iconBg: "bg-primary/10 text-primary" },
+    { label: "Estimated remainder", value: `CA$${Math.max(0, availableBalance).toLocaleString()}`, icon: Clock, accent: "text-primary", iconBg: "bg-primary/10 text-primary" },
   ];
 
   return (
