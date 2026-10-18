@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import MarketplaceLayout from "@/components/layout/MarketplaceLayout";
 import CustomerReturnRequest from "@/components/account/CustomerReturnRequest";
+import FulfillmentProgress from "@/components/shipping/FulfillmentProgress";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -39,19 +40,6 @@ const STATUS_STYLES: Record<string, string> = {
   pending: "bg-warning/10 text-warning",
 };
 
-const TIMELINE = [
-  { key: "pending", label: "Placed", Icon: Clock },
-  { key: "processing", label: "Processing", Icon: Package },
-  { key: "shipped", label: "Shipped", Icon: Truck },
-  { key: "delivered", label: "Delivered", Icon: PackageCheck },
-];
-
-const stepIndex = (status: string) => {
-  const idx = TIMELINE.findIndex((t) => t.key === status);
-  return idx >= 0 ? idx : 0;
-};
-
-
 const AccountPage = () => {
   const { user, userRoles, signOut } = useAuth();
   const navigate = useNavigate();
@@ -65,13 +53,15 @@ const AccountPage = () => {
   const { data: orders, isLoading: ordersLoading, isError: ordersError, refetch: retryOrders } = useQuery({
     queryKey: ["my-orders-detailed", user?.id],
     enabled: !!user,
+    refetchInterval: 30000,
     queryFn: async () => {
+      if (!user) throw new Error("Sign in to view orders");
       const { data, error } = await supabase
         .from("orders")
         .select(
-          `*, order_items(*, products(name, vendor_id, vendors(store_name), product_images(url, position)))`
+          `*, shipments(status, shipment_items(order_item_id)), order_items(*, products(name, vendor_id, vendors(store_name), product_images(url, position)))`
         )
-        .eq("user_id", user!.id)
+        .eq("user_id", user.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
@@ -171,7 +161,6 @@ const AccountPage = () => {
               );
               const deliveryFee = Number(order.shipping_amount_cad ?? Math.max(0, Number(order.total) - subtotal));
               const addr = order.shipping_address || {};
-              const currentStep = stepIndex(order.status);
               const orderReturns = (returnRequests || []).filter((request) => request.order_id === order.id);
               const showTimeline = !["cancelled", "refunded", "returned"].includes(order.status) && order.payment_status === "paid";
 
@@ -237,40 +226,11 @@ const AccountPage = () => {
                         <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
                           Status
                         </h3>
-                        <div className="flex items-center justify-between gap-1">
-                          {TIMELINE.map((step, idx) => {
-                            const reached = idx <= currentStep;
-                            const Icon = step.Icon;
-                            return (
-                              <div
-                                key={step.key}
-                                className="flex-1 flex flex-col items-center"
-                              >
-                                <div
-                                  className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                                    reached
-                                      ? "bg-primary text-primary-foreground"
-                                      : "bg-muted text-muted-foreground"
-                                  }`}
-                                >
-                                  {reached && idx < currentStep ? (
-                                    <CheckCircle2 className="h-4 w-4" />
-                                  ) : (
-                                    <Icon className="h-4 w-4" />
-                                  )}
-                                </div>
-                                <span
-                                  className={`text-[10px] sm:text-xs mt-1 ${
-                                    reached
-                                      ? "text-foreground font-medium"
-                                      : "text-muted-foreground"
-                                  }`}
-                                >
-                                  {step.label}
-                                </span>
-                              </div>
-                            );
-                          })}
+                        <div className="space-y-5">
+                          {items.map((it: any) => <div key={it.id} className="space-y-2">
+                            <p className="text-sm font-medium">{it.products?.name || "Item"}</p>
+                            <FulfillmentProgress status={it.status} compact shipmentStatuses={(order.shipments || []).filter((s) => s.shipment_items.some((link) => link.order_item_id === it.id)).map((s) => s.status)} />
+                          </div>)}
                         </div>
                       </div>}
 

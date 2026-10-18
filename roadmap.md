@@ -64,6 +64,8 @@
 - [x] Move Featured Products “View all” to the bottom beside “Load more.”
 
 ## Order visibility and tracking
+- [x] Show Delivered action after shipping (disabled with explanation until paid), link parcel pages to item delivery, and share six accurate stages across seller/customer views; 13 tests pass and preview builds clean.
+- [ ] Verify delivery marking and customer readback while signed in — automatic sign-in found no account matching the requesting user; requires preview sign-in. No real orders were changed.
 - [x] Add seller product links and full saved shipment addresses with owner-only delivery lookup.
 - [x] Add visible customer Track order controls and correct parcel associations through shipment_items.
 - [x] Run focused address/parcel and shipping tests; preview builds clean and signed-out tracking reveals no order.

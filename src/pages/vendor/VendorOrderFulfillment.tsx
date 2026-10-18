@@ -6,29 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MessageCircle, Copy, Check, Package, Home, Printer, FileText, RotateCcw, User, Mail, Phone, MapPin, ArrowLeft, Truck } from "lucide-react";
+import { MessageCircle, Copy, Printer, FileText, RotateCcw, User, Mail, Phone, MapPin, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { shipmentAddressLines } from "@/lib/orderPresentation";
 import { cn } from "@/lib/utils";
-
-const orderStatusFlow = ["pending", "processing", "shipped", "delivered"];
+import FulfillmentProgress from "@/components/shipping/FulfillmentProgress";
+import { canVendorTransition, nextVendorItemStatus } from "@/lib/orderStatus";
 const CARRIERS = ["Canada Post", "Purolator", "UPS", "FedEx", "DHL", "Other"];
-
-const STAGES = [
-  { key: "received", label: "Order Received", caption: "Order placed" },
-  { key: "processing", label: "Processing", caption: "Preparing the item" },
-  { key: "ready", label: "Ready to Ship", caption: "Prepare and ship the item" },
-  { key: "shipped", label: "Shipped", caption: "Add tracking number" },
-  { key: "out_for_delivery", label: "Out for Delivery", caption: "In transit to customer" },
-  { key: "delivered", label: "Delivered", caption: "Customer received item" },
-];
-
-const stageIndexFor = (status: string) =>
-  status === "pending" ? 0
-  : status === "processing" ? 1
-  : status === "shipped" ? 3
-  : status === "delivered" ? 5
-  : 0;
 
 const fmtMoney = (n: number) => `$${n.toFixed(2)} CAD`;
 const payColor = (s: string) => (s === "paid" ? "bg-success/10 text-success" : "bg-warning/10 text-warning");
@@ -42,11 +26,13 @@ const VendorOrderFulfillment = () => {
 
   const { data: item, isLoading, isError, refetch } = useQuery({
     queryKey: ["vendor-order-item", itemId],
+    refetchInterval: 30000,
     queryFn: async () => {
+      if (!itemId || !vendor?.id) throw new Error("Order item is required");
       const { data, error } = await supabase
         .from("order_items")
         .select("*, products(name, slug, product_images(url, position))")
-        .eq("id", itemId!)
+        .eq("id", itemId)
         .eq("vendor_id", vendor.id)
         .single();
       if (error) throw error;
@@ -60,13 +46,28 @@ const VendorOrderFulfillment = () => {
     enabled: !!vendor?.id && !!itemId,
   });
 
+  const { data: linkedShipments = [] } = useQuery({
+    queryKey: ["vendor-item-shipments", itemId],
+    enabled: !!itemId && !!vendor?.id,
+    refetchInterval: 30000,
+    queryFn: async () => {
+      if (!itemId || !vendor?.id) throw new Error("Order item is required");
+      const { data, error } = await supabase.from("shipments")
+        .select("status, shipment_items!inner(order_item_id)")
+        .eq("vendor_id", vendor.id).eq("shipment_items.order_item_id", itemId);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
   const { data: returnRequest } = useQuery({
     queryKey: ["vendor-order-return", itemId],
     queryFn: async () => {
+      if (!itemId) throw new Error("Order item is required");
       const { data, error } = await supabase
         .from("return_requests")
         .select("id, status")
-        .eq("order_item_id", itemId!)
+        .eq("order_item_id", itemId)
         .maybeSingle();
       if (error) throw error;
       return data;
@@ -83,24 +84,26 @@ const VendorOrderFulfillment = () => {
 
   const updateStatus = useMutation({
     mutationFn: async ({ status }: { status: string }) => {
+      if (!itemId || !vendor?.id) throw new Error("Order item is required");
       const { data: current, error: lookupError } = await supabase.from("order_items")
         .select("id,status,vendor_id,order_id")
-        .eq("id", itemId!).eq("vendor_id", vendor.id).single();
+        .eq("id", itemId).eq("vendor_id", vendor.id).single();
       if (lookupError || !current) throw new Error("Order item not found");
       const { data: delivery, error: paymentError } = await supabase.rpc("get_vendor_order_delivery_details", {
         p_vendor_id: vendor.id, p_order_ids: [current.order_id],
       });
       if (paymentError) throw paymentError;
       if (delivery?.[0]?.payment_status !== "paid") throw new Error("Payment must be confirmed before fulfillment");
-      const next = orderStatusFlow[orderStatusFlow.indexOf(current.status) + 1];
-      if (!next || next !== status) throw new Error("Invalid fulfillment status transition");
-      const { error } = await supabase.from("order_items").update({ status }).eq("id", itemId!).eq("vendor_id", vendor.id).eq("status", current.status);
+      if (!canVendorTransition(current.status, status, delivery?.[0]?.payment_status ?? "")) throw new Error("Invalid fulfillment status transition");
+      const { data: updated, error } = await supabase.from("order_items").update({ status }).eq("id", itemId).eq("vendor_id", vendor.id).eq("status", current.status).select("id,status").maybeSingle();
       if (error) throw error;
+      if (!updated || updated.status !== status) throw new Error("The order changed. Refresh and try again.");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["vendor-order-item", itemId] });
       queryClient.invalidateQueries({ queryKey: ["vendor-orders"] });
       queryClient.invalidateQueries({ queryKey: ["order-tracking"] });
+      queryClient.invalidateQueries({ queryKey: ["my-orders-detailed"] });
       toast.success("Status updated");
     },
     onError: (e: any) => toast.error(e.message || "Failed to update status"),
@@ -108,10 +111,11 @@ const VendorOrderFulfillment = () => {
 
   const saveTracking = useMutation({
     mutationFn: async () => {
+      if (!itemId || !vendor?.id) throw new Error("Order item is required");
       if (!tracking.carrier) throw new Error("Choose a carrier");
       const { error } = await supabase.from("order_items")
         .update({ carrier: tracking.carrier, tracking_number: tracking.number.trim() || null })
-        .eq("id", itemId!).eq("vendor_id", vendor.id);
+        .eq("id", itemId).eq("vendor_id", vendor.id);
       if (error) throw error;
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["vendor-order-item", itemId] }); toast.success("Tracking saved"); },
@@ -120,9 +124,10 @@ const VendorOrderFulfillment = () => {
 
   const saveNote = useMutation({
     mutationFn: async () => {
+      if (!itemId || !vendor?.id) throw new Error("Order item is required");
       const { error } = await supabase.from("order_items")
         .update({ vendor_notes: note.trim() || null })
-        .eq("id", itemId!).eq("vendor_id", vendor.id);
+        .eq("id", itemId).eq("vendor_id", vendor.id);
       if (error) throw error;
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["vendor-order-item", itemId] }); toast.success("Note saved"); },
@@ -155,9 +160,8 @@ const VendorOrderFulfillment = () => {
   const itemTotal = Number(item.price) * item.quantity;
   const shipping = Number(item.shipping_amount || 0);
   const tax = Number(item.tax_amount || 0);
-  const idx = orderStatusFlow.indexOf(item.status);
-  const nextStatus = order?.payment_status === "paid" && idx >= 0 && idx < orderStatusFlow.length - 1 ? orderStatusFlow[idx + 1] : null;
-  const activeStage = stageIndexFor(item.status);
+  const nextStatus = nextVendorItemStatus(item.status);
+  const paymentConfirmed = order?.payment_status === "paid";
   const product = item.products as any;
   const image = product?.product_images?.slice().sort((a: any, b: any) => (a.position ?? 0) - (b.position ?? 0))[0]?.url;
   const variant = (item.variant_options as any)?.label as string | undefined;
@@ -194,41 +198,19 @@ const VendorOrderFulfillment = () => {
             </Button>
           )}
           {nextStatus ? (
-            <Button size="sm" className="font-semibold" disabled={updateStatus.isPending} onClick={() => updateStatus.mutate({ status: nextStatus })}>
+            <Button size="sm" className="font-semibold" disabled={updateStatus.isPending || !paymentConfirmed} onClick={() => updateStatus.mutate({ status: nextStatus })}>
               Mark as {nextStatus === "processing" ? "Processing" : nextStatus === "shipped" ? "Shipped" : "Delivered"}
             </Button>
           ) : (
-            <span className="text-xs text-muted-foreground">{order?.payment_status !== "paid" ? "Awaiting payment confirmation" : "Fulfilment complete"}</span>
+            <span className="text-xs text-muted-foreground">{item.status === "delivered" ? "Fulfilment complete" : item.status === "cancelled" ? "Order cancelled" : "No action available for this status"}</span>
           )}
+          {nextStatus && !paymentConfirmed && <p className="w-full text-xs text-muted-foreground">Payment must be confirmed before you can update delivery.</p>}
         </div>
       </div>
 
       {/* Timeline */}
-      <div className="admin-card overflow-x-auto p-4 md:p-6">
-        <div className="flex min-w-[640px] items-start">
-          {STAGES.map((stage, i) => {
-            const done = i < activeStage;
-            const current = i === activeStage;
-            return (
-              <div key={stage.key} className="relative flex-1 text-center">
-                {i > 0 && <div className={cn("absolute left-0 right-1/2 top-5 h-0.5 -translate-y-1/2", i <= activeStage ? "bg-primary" : "bg-border")} />}
-                {i < STAGES.length - 1 && <div className={cn("absolute left-1/2 right-0 top-5 h-0.5 -translate-y-1/2", i < activeStage ? "bg-primary" : "bg-border")} />}
-                <div className={cn(
-                  "relative z-10 mx-auto flex h-10 w-10 items-center justify-center rounded-full border-2",
-                  done && "border-primary bg-primary text-primary-foreground",
-                  current && "border-primary bg-background text-primary",
-                  !done && !current && "border-border bg-muted text-muted-foreground",
-                )}>
-                  {done ? <Check className="h-5 w-5" /> : i === 5 ? <Home className="h-5 w-5" /> : i >= 3 ? <Truck className="h-5 w-5" /> : <Package className="h-5 w-5" />}
-                </div>
-                <p className={cn("mt-2 text-xs font-semibold", current || done ? "text-foreground" : "text-muted-foreground")}>{stage.label}</p>
-                <p className="text-[11px] text-muted-foreground">
-                  {i === 0 && order?.created_at ? new Date(order.created_at).toLocaleDateString() : stage.caption}
-                </p>
-              </div>
-            );
-          })}
-        </div>
+      <div className="border-y border-border py-4 md:py-6">
+        <FulfillmentProgress status={item.status} shipmentStatuses={linkedShipments.map((s) => s.status)} />
       </div>
 
       {/* Main grid */}

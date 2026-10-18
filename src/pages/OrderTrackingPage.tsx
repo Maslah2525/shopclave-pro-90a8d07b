@@ -100,7 +100,7 @@ const OrderTrackingPage = () => {
           <h2 className="font-semibold">Ordered products</h2>
           {items.map((item) => <div key={item.id} className="flex flex-wrap justify-between gap-2 border-b border-border pb-3 text-sm">
             <span>{item.quantity} × {item.products?.slug ? <Link className="text-primary hover:underline" to={`/product/${item.products.slug}`}>{item.products.name}</Link> : item.products?.name || "Item"}</span>
-            <FulfillmentProgress status={item.status} compact />
+            <FulfillmentProgress status={item.status} compact shipmentStatuses={shipments.filter((s) => s.shipment_items?.some((link) => link.order_item_id === item.id)).map((s) => s.status)} />
           </div>)}
         </section>
 
