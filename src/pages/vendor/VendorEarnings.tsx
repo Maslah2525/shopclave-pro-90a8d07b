@@ -133,49 +133,6 @@ const VendorEarnings = () => {
           </div>
         </div>
       )}
-
-      {/* Withdrawal History */}
-      <div className="space-y-3">
-        <h3 className="admin-section-label">Withdrawal History</h3>
-        {!withdrawals || withdrawals.length === 0 ? (
-          <div className="admin-card">
-            <AdminEmptyState
-              icon={ArrowDownToLine}
-              title="No withdrawals yet"
-              description="Requested payouts will appear here with status updates from the admin team."
-            />
-          </div>
-        ) : (
-          <div className="admin-card overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="admin-table min-w-[500px]">
-                <thead>
-                  <tr>
-                    <th>Amount</th>
-                    <th>Method</th>
-                    <th>Status</th>
-                    <th>Date</th>
-                    <th>Notes</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {withdrawals.map((w: any) => (
-                    <tr key={w.id}>
-                      <td className="font-bold">${Number(w.amount).toLocaleString()}</td>
-                      <td className="capitalize">{w.payment_method?.replace("_", " ")}</td>
-                      <td>
-                        <span className={`status-pill ${statusColors[w.status] || ""}`}>{w.status}</span>
-                      </td>
-                      <td className="text-muted-foreground text-xs">{new Date(w.requested_at).toLocaleDateString()}</td>
-                      <td className="text-xs text-muted-foreground">{w.admin_notes || "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-      </div>
     </div>
   );
 };
