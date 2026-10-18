@@ -3,16 +3,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useOutletContext, useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MessageCircle, Copy, Printer, FileText, RotateCcw, User, Mail, Phone, MapPin, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { shipmentAddressLines } from "@/lib/orderPresentation";
 import { cn } from "@/lib/utils";
 import FulfillmentProgress from "@/components/shipping/FulfillmentProgress";
 import { canVendorTransition, nextVendorItemStatus } from "@/lib/orderStatus";
-const CARRIERS = ["Canada Post", "Purolator", "UPS", "FedEx", "DHL", "Other"];
 
 const fmtMoney = (n: number) => `$${n.toFixed(2)} CAD`;
 const payColor = (s: string) => (s === "paid" ? "bg-success/10 text-success" : "bg-warning/10 text-warning");
@@ -21,7 +18,6 @@ const VendorOrderFulfillment = () => {
   const { vendor } = useOutletContext<{ vendor: any }>();
   const { itemId } = useParams<{ itemId: string }>();
   const queryClient = useQueryClient();
-  const [tracking, setTracking] = useState({ carrier: "", number: "" });
   const [note, setNote] = useState("");
 
   const { data: item, isLoading, isError, refetch } = useQuery({
@@ -53,7 +49,7 @@ const VendorOrderFulfillment = () => {
     queryFn: async () => {
       if (!itemId || !vendor?.id) throw new Error("Order item is required");
       const { data, error } = await supabase.from("shipments")
-        .select("status, shipment_items!inner(order_item_id)")
+        .select("id, status, carrier, service, tracking_number, tracking_url, label_url, label_error, label_purchased_at, estimated_delivery, shipping_amount_cad, shipment_items!inner(order_item_id)")
         .eq("vendor_id", vendor.id).eq("shipment_items.order_item_id", itemId);
       if (error) throw error;
       return data ?? [];
@@ -78,7 +74,6 @@ const VendorOrderFulfillment = () => {
   useEffect(() => {
     if (item) {
       setNote((item as any).vendor_notes || "");
-      setTracking({ carrier: (item as any).carrier || "", number: (item as any).tracking_number || "" });
     }
   }, [item?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -107,19 +102,6 @@ const VendorOrderFulfillment = () => {
       toast.success("Status updated");
     },
     onError: (e: any) => toast.error(e.message || "Failed to update status"),
-  });
-
-  const saveTracking = useMutation({
-    mutationFn: async () => {
-      if (!itemId || !vendor?.id) throw new Error("Order item is required");
-      if (!tracking.carrier) throw new Error("Choose a carrier");
-      const { error } = await supabase.from("order_items")
-        .update({ carrier: tracking.carrier, tracking_number: tracking.number.trim() || null })
-        .eq("id", itemId).eq("vendor_id", vendor.id);
-      if (error) throw error;
-    },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["vendor-order-item", itemId] }); toast.success("Tracking saved"); },
-    onError: (e: any) => toast.error(e.message || "Failed to save tracking"),
   });
 
   const saveNote = useMutation({
@@ -257,16 +239,22 @@ const VendorOrderFulfillment = () => {
 
       {/* Bottom row */}
       <div className="grid gap-4 md:grid-cols-3">
-        <section className="admin-card space-y-3 p-4">
+        <section className="admin-card space-y-3 p-4 text-sm">
           <h3 className="font-semibold">Shipping & Tracking</h3>
-          <div className="grid grid-cols-2 gap-2">
-            <Select value={tracking.carrier} onValueChange={(v) => setTracking((t) => ({ ...t, carrier: v }))}>
-              <SelectTrigger><SelectValue placeholder="Carrier" /></SelectTrigger>
-              <SelectContent>{CARRIERS.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-            </Select>
-            <Input placeholder="Tracking number" value={tracking.number} onChange={(e) => setTracking((t) => ({ ...t, number: e.target.value }))} />
-          </div>
-          <Button size="sm" onClick={() => saveTracking.mutate()} disabled={saveTracking.isPending}>Save</Button>
+          {linkedShipments.length === 0 ? (
+            <p className="text-muted-foreground">{paymentConfirmed ? "Shipping label is being prepared automatically." : "Your shipping label is bought automatically once payment is confirmed."}</p>
+          ) : linkedShipments.map((s: any) => (
+            <div key={s.id} className="space-y-1 rounded-md border border-border p-3">
+              <div className="flex justify-between"><span className="text-muted-foreground">Carrier</span><span>{[s.carrier, s.service].filter(Boolean).join(" · ") || "Awaiting label"}</span></div>
+              <div className="flex justify-between gap-2"><span className="text-muted-foreground">Tracking</span>
+                {s.tracking_number ? (s.tracking_url ? <a className="break-all text-primary hover:underline" href={s.tracking_url} target="_blank" rel="noreferrer">{s.tracking_number}</a> : <span className="break-all">{s.tracking_number}</span>) : <span>Awaiting label</span>}
+              </div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Shipping paid</span><span>{fmtMoney(Number(s.shipping_amount_cad || 0))}</span></div>
+              {s.estimated_delivery && <div className="flex justify-between"><span className="text-muted-foreground">Est. delivery</span><span>{new Date(s.estimated_delivery).toLocaleDateString()}</span></div>}
+              {s.label_url && <Button size="sm" variant="outline" className="mt-1 w-full gap-2" asChild><a href={s.label_url} target="_blank" rel="noreferrer"><Printer className="h-4 w-4" /> Print label</a></Button>}
+              {s.label_error && !s.label_url && <p className="text-xs text-destructive">Label could not be bought automatically. Contact support@barakaz.com.</p>}
+            </div>
+          ))}
         </section>
 
         <section className="admin-card space-y-3 p-4">
