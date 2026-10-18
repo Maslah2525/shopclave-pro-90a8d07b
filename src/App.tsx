@@ -188,6 +188,7 @@ const App = () => (
                   <Route path="orders" element={<VendorOrders />} />
                   <Route path="orders/:itemId" element={<VendorOrderFulfillment />} />
                   <Route path="shipments" element={<VendorShipments />} />
+                  <Route path="shipments/:itemId" element={<VendorOrderFulfillment view="fulfilment" />} />
                   <Route path="earnings" element={<VendorEarnings />} />
                   <Route path="payments" element={<VendorPayments />} />
                   <Route path="notifications" element={<VendorNotifications />} />

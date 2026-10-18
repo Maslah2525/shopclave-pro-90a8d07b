@@ -4,17 +4,19 @@ import { supabase } from "@/integrations/supabase/client";
 import { useOutletContext, useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { MessageCircle, Copy, Printer, FileText, RotateCcw, User, Mail, Phone, MapPin, ArrowLeft } from "lucide-react";
+import { MessageCircle, Copy, Printer, FileText, RotateCcw, User, Mail, Phone, MapPin, ArrowLeft, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { shipmentAddressLines } from "@/lib/orderPresentation";
 import { cn } from "@/lib/utils";
 import FulfillmentProgress from "@/components/shipping/FulfillmentProgress";
 import { canVendorTransition, nextVendorItemStatus } from "@/lib/orderStatus";
+import TrackingTimeline from "@/components/shipping/TrackingTimeline";
 
 const fmtMoney = (n: number) => `$${n.toFixed(2)} CAD`;
 const payColor = (s: string) => (s === "paid" ? "bg-success/10 text-success" : "bg-warning/10 text-warning");
 
-const VendorOrderFulfillment = () => {
+const VendorOrderFulfillment = ({ view = "orders" }: { view?: "orders" | "fulfilment" }) => {
+  const fulfilment = view === "fulfilment";
   const { vendor } = useOutletContext<{ vendor: any }>();
   const { itemId } = useParams<{ itemId: string }>();
   const queryClient = useQueryClient();
@@ -71,6 +73,19 @@ const VendorOrderFulfillment = () => {
     enabled: !!itemId,
   });
 
+  const { data: trackingEvents = [] } = useQuery({
+    queryKey: ["vendor-item-tracking-events", itemId, linkedShipments.map((s) => s.id)],
+    enabled: fulfilment && linkedShipments.length > 0,
+    refetchInterval: 30000,
+    queryFn: async () => {
+      const ids = linkedShipments.map((s) => s.id);
+      if (!ids.length) return [];
+      const { data, error } = await supabase.from("tracking_events").select("*").in("shipment_id", ids);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
   useEffect(() => {
     if (item) {
       setNote((item as any).vendor_notes || "");
@@ -97,6 +112,7 @@ const VendorOrderFulfillment = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["vendor-order-item", itemId] });
       queryClient.invalidateQueries({ queryKey: ["vendor-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["vendor-fulfilment-queue"] });
       queryClient.invalidateQueries({ queryKey: ["order-tracking"] });
       queryClient.invalidateQueries({ queryKey: ["my-orders-detailed"] });
       toast.success("Status updated");
@@ -116,6 +132,24 @@ const VendorOrderFulfillment = () => {
     onError: (e: any) => toast.error(e.message || "Failed to save note"),
   });
 
+  const updateParcel = useMutation({
+    mutationFn: async ({ id, current, next }: { id: string; current: string; next: string }) => {
+      if (!vendor?.id || !item || item.orders?.payment_status !== "paid") throw new Error("Payment must be confirmed before fulfillment");
+      const { data, error } = await supabase.from("shipments").update({ status: next })
+        .eq("id", id).eq("vendor_id", vendor.id).eq("status", current).select("id,status").maybeSingle();
+      if (error) throw error;
+      if (!data || data.status !== next) throw new Error("The parcel changed. Refresh and try again.");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["vendor-item-shipments", itemId] });
+      queryClient.invalidateQueries({ queryKey: ["vendor-fulfilment-queue"] });
+      queryClient.invalidateQueries({ queryKey: ["order-tracking"] });
+      queryClient.invalidateQueries({ queryKey: ["my-orders-detailed"] });
+      toast.success("Parcel updated");
+    },
+    onError: (e: any) => toast.error(e.message || "Could not update parcel"),
+  });
+
   const copyAddress = async (addr: any) => {
     try {
       await navigator.clipboard.writeText(shipmentAddressLines(addr).join("\n"));
@@ -131,7 +165,7 @@ const VendorOrderFulfillment = () => {
       <p>Unable to load this order. It may not belong to your store.</p>
       <div className="flex gap-2">
         <Button variant="outline" onClick={() => void refetch()}>Retry</Button>
-        <Button variant="ghost" asChild><Link to="/vendor/orders">Back to orders</Link></Button>
+        <Button variant="ghost" asChild><Link to={fulfilment ? "/vendor/shipments" : "/vendor/orders"}>Back to {fulfilment ? "fulfilment" : "orders"}</Link></Button>
       </div>
     </div>
   );
@@ -150,8 +184,8 @@ const VendorOrderFulfillment = () => {
 
   return (
     <div className="space-y-4">
-      <Link to="/vendor/orders" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="h-4 w-4" /> Orders
+      <Link to={fulfilment ? "/vendor/shipments" : "/vendor/orders"} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+        <ArrowLeft className="h-4 w-4" /> {fulfilment ? "Fulfilment" : "Orders"}
       </Link>
 
       {/* Header */}
@@ -167,14 +201,15 @@ const VendorOrderFulfillment = () => {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {fulfilment ? <>
           <Button variant="outline" size="sm" className="gap-2" onClick={() => window.print()}>
             <FileText className="h-4 w-4" /> Print Packing Slip
           </Button>
-          {item.label_url ? (
-            <Button variant="outline" size="sm" className="gap-2" asChild>
-              <a href={item.label_url} target="_blank" rel="noreferrer"><Printer className="h-4 w-4" /> Print Shipping Label</a>
+          {linkedShipments.some((s) => s.label_url) ? linkedShipments.filter((s) => s.label_url).map((s, index) => (
+            <Button key={s.id} variant="outline" size="sm" className="gap-2" asChild>
+              <a href={s.label_url ?? undefined} target="_blank" rel="noreferrer"><Printer className="h-4 w-4" /> Print Shipping Label{linkedShipments.length > 1 ? ` ${index + 1}` : ""}</a>
             </Button>
-          ) : (
+          )) : (
             <Button variant="outline" size="sm" className="gap-2" disabled title="Label available after shipment is booked">
               <Printer className="h-4 w-4" /> Print Shipping Label
             </Button>
@@ -187,13 +222,14 @@ const VendorOrderFulfillment = () => {
             <span className="text-xs text-muted-foreground">{item.status === "delivered" ? "Fulfilment complete" : item.status === "cancelled" ? "Order cancelled" : "No action available for this status"}</span>
           )}
           {nextStatus && !paymentConfirmed && <p className="w-full text-xs text-muted-foreground">Payment must be confirmed before you can update delivery.</p>}
+          </> : <Button variant="outline" size="sm" className="gap-2" asChild><Link to={`/vendor/shipments/${item.id}`}><Truck className="h-4 w-4" /> Open Fulfilment</Link></Button>}
         </div>
       </div>
 
       {/* Timeline */}
-      <div className="border-y border-border py-4 md:py-6">
+      {fulfilment && <div className="border-y border-border py-4 md:py-6">
         <FulfillmentProgress status={item.status} shipmentStatuses={linkedShipments.map((s) => s.status)} />
-      </div>
+      </div>}
 
       {/* Main grid */}
       <div className="grid gap-4 md:grid-cols-3">
@@ -205,7 +241,7 @@ const VendorOrderFulfillment = () => {
           <div>
             <p className="mb-1 flex items-center gap-2 text-xs font-medium text-muted-foreground"><MapPin className="h-4 w-4" /> Shipping Address</p>
             <p className="whitespace-pre-line break-words text-sm">{addressLines.filter((l) => l !== addr?.fullName && l !== addr?.phone).join("\n") || "Delivery address unavailable"}</p>
-            {addr && <Button size="sm" variant="outline" className="mt-2 gap-2" onClick={() => copyAddress(addr)}><Copy className="h-3.5 w-3.5" /> Copy address</Button>}
+            {fulfilment && addr && <Button size="sm" variant="outline" className="mt-2 gap-2" onClick={() => copyAddress(addr)}><Copy className="h-3.5 w-3.5" /> Copy address</Button>}
           </div>
         </section>
 
@@ -240,7 +276,8 @@ const VendorOrderFulfillment = () => {
       {/* Bottom row */}
       <div className="grid gap-4 md:grid-cols-3">
         <section className="admin-card space-y-3 p-4 text-sm">
-          <h3 className="font-semibold">Shipping & Tracking</h3>
+          <h3 className="font-semibold">{fulfilment ? "Shipping & Tracking" : "Fulfilment"}</h3>
+          {fulfilment ? <>
           {linkedShipments.length === 0 ? (
             <p className="text-muted-foreground">{paymentConfirmed ? "Shipping label is being prepared automatically." : "Your shipping label is bought automatically once payment is confirmed."}</p>
           ) : linkedShipments.map((s: any) => (
@@ -252,9 +289,16 @@ const VendorOrderFulfillment = () => {
               <div className="flex justify-between"><span className="text-muted-foreground">Shipping paid</span><span>{fmtMoney(Number(s.shipping_amount_cad || 0))}</span></div>
               {s.estimated_delivery && <div className="flex justify-between"><span className="text-muted-foreground">Est. delivery</span><span>{new Date(s.estimated_delivery).toLocaleDateString()}</span></div>}
               {s.label_url && <Button size="sm" variant="outline" className="mt-1 w-full gap-2" asChild><a href={s.label_url} target="_blank" rel="noreferrer"><Printer className="h-4 w-4" /> Print label</a></Button>}
+              {s.label_url && (s.status === "preparing" || s.status === "ready_for_pickup") && <Button size="sm" variant="outline" className="mt-1 w-full" disabled={!paymentConfirmed || updateParcel.isPending} onClick={() => updateParcel.mutate({ id: s.id, current: s.status, next: s.status === "preparing" ? "ready_for_pickup" : "collected" })}>{s.status === "preparing" ? "Mark Ready for Pickup" : "Mark Collected"}</Button>}
               {s.label_error && !s.label_url && <p className="text-xs text-destructive">Label could not be bought automatically. Contact support@barakaz.com.</p>}
+              {trackingEvents.some((e) => e.shipment_id === s.id) && <div className="border-t border-border pt-3"><TrackingTimeline events={trackingEvents.filter((e) => e.shipment_id === s.id)} /></div>}
             </div>
           ))}
+          </> : <>
+            <p className="capitalize text-muted-foreground">{item.status.replace(/_/g, " ")}</p>
+            {!paymentConfirmed && <p className="text-muted-foreground">Awaiting payment confirmation.</p>}
+            <Button size="sm" variant="outline" className="gap-2" asChild><Link to={`/vendor/shipments/${item.id}`}><Truck className="h-4 w-4" /> Open Fulfilment</Link></Button>
+          </>}
         </section>
 
         <section className="admin-card space-y-3 p-4">

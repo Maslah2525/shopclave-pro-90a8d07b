@@ -45,7 +45,7 @@ const VendorOrders = () => {
     <div className="space-y-5">
       <AdminPageHeader
         title="Orders"
-        subtitle="Select an order to open its fulfilment page."
+        subtitle="Order records and payments."
         count={orderItems?.length || 0}
         countLabel="orders"
       />
@@ -57,7 +57,7 @@ const VendorOrders = () => {
           <AdminEmptyState
             icon={Truck}
             title="No orders yet"
-            description="Once customers place orders for your products, they'll appear here for fulfilment."
+            description="Customer orders will appear here."
           />
         </div>
       ) : (
