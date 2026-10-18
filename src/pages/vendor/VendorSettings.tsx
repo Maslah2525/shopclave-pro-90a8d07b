@@ -632,7 +632,10 @@ const VendorSettings = () => {
     queryClient.invalidateQueries({ queryKey: ["vendor"] });
     const next = sections[stepIndex + 1];
     if (next) { setSection(next[0]); window.scrollTo({ top: 0, behavior: "smooth" }); }
-    else {
+    else if (vendor.status === "approved") {
+      // Existing approved sellers only save their changes — no re-submission for review.
+      toast.success("Settings saved.");
+    } else {
       setFinalSubmitting(true);
       try {
         const { data: latestVendor, error: reloadError } = await supabase.from("vendors").select("store_name,store_description,phone,logo_url").eq("id", vendor.id).single();
