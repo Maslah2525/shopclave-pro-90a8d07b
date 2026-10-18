@@ -103,7 +103,7 @@ const VendorOrderFulfillment = () => {
       queryClient.invalidateQueries({ queryKey: ["vendor-order-item", itemId] });
       queryClient.invalidateQueries({ queryKey: ["vendor-orders"] });
       queryClient.invalidateQueries({ queryKey: ["order-tracking"] });
-      queryClient.invalidateQueries({ queryKey: ["account-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["my-orders-detailed"] });
       toast.success("Status updated");
     },
     onError: (e: any) => toast.error(e.message || "Failed to update status"),
