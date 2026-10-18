@@ -74,6 +74,7 @@ import VendorDashboard from "./pages/vendor/VendorDashboard";
 import VendorProducts from "./pages/vendor/VendorProducts";
 import AddProductPage from "./pages/vendor/AddProductPage";
 import VendorOrders from "./pages/vendor/VendorOrders";
+import VendorOrderFulfillment from "./pages/vendor/VendorOrderFulfillment";
 import VendorShipments from "./pages/vendor/VendorShipments";
 import VendorEarnings from "./pages/vendor/VendorEarnings";
 import VendorPayments from "./pages/vendor/VendorPayments";
@@ -185,6 +186,7 @@ const App = () => (
                   <Route path="products/new" element={<AddProductPage />} />
                   <Route path="products/edit/:id" element={<EditProductPage />} />
                   <Route path="orders" element={<VendorOrders />} />
+                  <Route path="orders/:itemId" element={<VendorOrderFulfillment />} />
                   <Route path="shipments" element={<VendorShipments />} />
                   <Route path="earnings" element={<VendorEarnings />} />
                   <Route path="payments" element={<VendorPayments />} />
