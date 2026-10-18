@@ -1,8 +1,9 @@
 # Seller onboarding roadmap
 
 ## Customer paid-order email currency
-- [ ] Display country-based currency consistently across customer email totals while preserving actual charged amounts and seller CAD accounting.
-- [ ] Run invoice currency and existing email timing tests; deployment awaits explicit authorization.
+- [x] Display country-based currency consistently across customer email totals while preserving actual charged amounts and seller CAD accounting.
+- [x] Run invoice currency and existing email timing tests.
+- [ ] Deploy email changes and verify a real paid email — awaits explicit deployment authorization; no emails or charges were initiated.
 
 ## Vendor dashboard profile and product overview
 - [x] Recognize saved private payout preferences in the profile reminder and refresh the shared cache after saves.

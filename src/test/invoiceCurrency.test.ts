@@ -45,7 +45,7 @@ describe("paid customer email invoice dispatch", () => {
     expect(invoke.mock.calls[0]?.[1].body.templateData).toMatchObject({ currency: "CAD", subtotal: 100, deliveryFee: 10, tax: 5, total: 115, chargedNote: { currency: "CAD", amount: 115 } });
   });
   it("US invoice converts all amounts consistently without changing actual CAD charge", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => ({ rates: { USD: 0.75 } }) })));
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => ({ base_code: "CAD", rates: { USD: 0.75 } }) })));
     const invoke = await dispatch("United States");
     expect(invoke.mock.calls[0]?.[1].body.templateData).toMatchObject({ currency: "USD", isCurrencyEquivalent: true,
       items: [{ unitPrice: 37.5, quantity: 2, lineTotal: 75 }], subtotal: 75, deliveryFee: 7.5, tax: 3.75, total: 86.25,
