@@ -214,7 +214,7 @@ const TRUST_ITEMS = [
   },
   {
     icon: MessageCircle,
-    title: "Canadian support",
+    title: "Customer support",
     detail: "Help when needed",
     intro: "Our Canada-based support team can help with orders, deliveries, returns, payments, and seller questions.",
     illustration: "support",
