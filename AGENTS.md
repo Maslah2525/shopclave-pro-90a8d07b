@@ -1,4 +1,5 @@
 # Architecture decisions
+- Customer paid-order emails resolve currency from the saved checkout country and convert every amount together; equivalents are labeled separately from the persisted provider charge, with CAD seller accounting unchanged and per-render currency formatters preventing cross-recipient leakage.
 - Seller and customer fulfillment views share one six-stage progress component; item delivery stays distinct from carrier parcel tracking and uses the paid-gated item transition flow.
 - Orders detail and Fulfilment detail reuse one view with explicit presentation modes; the paid Fulfilment queue links to shipping actions while Orders retains sales records, avoiding duplicated delivery logic.
 - Order address rendering uses the saved checkout fields, and tracking parcel contents use shipment_items links rather than seller grouping, so split parcels show their actual products and quantities.

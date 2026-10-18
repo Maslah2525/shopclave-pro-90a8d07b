@@ -4,6 +4,9 @@
 // - "paid": only call after a provider-verified, signed webhook marked the order paid.
 // Idempotency keys are stable so webhook replays never duplicate emails.
 // deno-lint-ignore-file no-explicit-any
+import { invoiceCurrencyForCountry, invoiceCurrencyPresentation } from "./invoice-currency.ts";
+import { getCadRates } from "./paystack.ts";
+
 type Admin = any;
 
 const PAYMENT_LABELS: Record<string, string> = {
@@ -54,11 +57,6 @@ export async function sendOrderEmails(
   const addr = (order.shipping_address || {}) as Record<string, any>;
   const paymentMethodLabel = PAYMENT_LABELS[order.payment_method] ?? order.payment_method ?? "—";
   const paymentStatusLabel = order.payment_status === "paid" ? "Paid" : "Awaiting payment";
-  const chargedNote =
-    stage === "paid" && order.charged_amount != null && order.charged_currency &&
-      String(order.charged_currency).toUpperCase() !== currency
-      ? { amount: Number(order.charged_amount), currency: String(order.charged_currency).toUpperCase() }
-      : null;
 
   // Customer email
   let recipient: string | null = (addr.email && String(addr.email).trim()) || null;
@@ -69,9 +67,37 @@ export async function sendOrderEmails(
     } catch (e) { console.error("user lookup failed", e); }
   }
   if (recipient) {
-    const emailItems = items.map(toEmailItem);
+    const targetCurrency = invoiceCurrencyForCountry(addr.country);
+    const rates = stage === "paid" && currency === "CAD" && targetCurrency && targetCurrency !== currency
+      ? await getCadRates() : null;
+    const presentation = stage === "paid"
+      ? invoiceCurrencyPresentation(addr.country, currency, rates)
+      : { currency, rate: 1, isEquivalent: false };
+    const digits = new Intl.NumberFormat("en", { style: "currency", currency: presentation.currency })
+      .resolvedOptions().maximumFractionDigits ?? 2;
+    const factor = 10 ** digits;
+    const convert = (amount: number) => Math.round(amount * presentation.rate * factor) / factor;
+    const emailItems = items.map(toEmailItem).map((item: any) => {
+      const unitPrice = convert(item.unitPrice);
+      return { ...item, unitPrice, lineTotal: Math.round(unitPrice * item.quantity * factor) / factor };
+    });
     const subtotal = emailItems.reduce((s: number, i: any) => s + i.lineTotal, 0);
-    const deliveryFee = Number(order.shipping_total || 0);
+    const deliveryFee = convert(Number(order.shipping_total || 0));
+    const taxComponents = ((order.tax_breakdown as any)?.components || []).map((c: any) => ({
+      component: c.component,
+      ratePercent: Number(c.ratePpm) / 10000,
+      amount: convert(Number(c.taxCents) / 100),
+    }));
+    const tax = taxComponents.length
+      ? taxComponents.reduce((sum: number, c: any) => sum + c.amount, 0)
+      : convert(Number(order.tax_amount || 0));
+    // Converted figures are equivalents, never a claim that the provider charged
+    // this currency. Preserve the persisted charge separately, including CAD.
+    const chargedAmount = Number(order.charged_amount);
+    const chargedCurrency = String(order.charged_currency || "").toUpperCase();
+    const chargedNote = stage === "paid" && order.charged_amount != null &&
+      Number.isFinite(chargedAmount) && chargedAmount >= 0 && /^[A-Z]{3}$/.test(chargedCurrency)
+      ? { amount: chargedAmount, currency: chargedCurrency } : null;
     const { error } = await admin.functions.invoke("send-transactional-email", {
       body: {
         templateName: "order-confirmation",
@@ -79,21 +105,18 @@ export async function sendOrderEmails(
         idempotencyKey: `order-${stage}-${order.id}`,
         templateData: {
           stage,
-          currency,
+          currency: presentation.currency,
+          isCurrencyEquivalent: presentation.isEquivalent,
           customerName: addr.fullName,
           orderShortId: shortId,
           orderDate,
           items: emailItems,
           subtotal,
           deliveryFee,
-          tax: Number(order.tax_amount || 0),
+          tax,
           taxProvince: order.tax_province ?? null,
-          taxComponents: ((order.tax_breakdown as any)?.components || []).map((c: any) => ({
-            component: c.component,
-            ratePercent: Number(c.ratePpm) / 10000,
-            amount: Number(c.taxCents) / 100,
-          })),
-          total: subtotal + deliveryFee + Number(order.tax_amount || 0),
+          taxComponents,
+          total: Math.round((subtotal + deliveryFee + tax) * factor) / factor,
           shippingAddress: addr,
           paymentMethodLabel,
           paymentStatusLabel,
