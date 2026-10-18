@@ -1,0 +1,32 @@
+name: Auto merge validated pull requests
+
+on:
+  workflow_run:
+    workflows: ["Code quality and build"]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  merge:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Merge matching validated pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          # Only merge an open PR whose current head is the exact SHA that passed CI.
+          gh api "repos/$REPO/commits/$HEAD_SHA/pulls" --jq '.[] | select(.state == "open" and .base.ref == "main" and .head.repo.full_name == "'"$REPO"'" and .head.sha == "'"$HEAD_SHA"'") | .number' |
+          while read -r number; do
+            [ -n "$number" ] || continue
+            gh pr merge "$number" --repo "$REPO" --squash --delete-branch
+          done
