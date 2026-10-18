@@ -64,6 +64,7 @@
 - [x] Move Featured Products “View all” to the bottom beside “Load more.”
 
 ## Order visibility and tracking
+- [ ] Restore delivery action and share accurate stages between seller and customer; test and verify the flow.
 - [x] Add seller product links and full saved shipment addresses with owner-only delivery lookup.
 - [x] Add visible customer Track order controls and correct parcel associations through shipment_items.
 - [x] Run focused address/parcel and shipping tests; preview builds clean and signed-out tracking reveals no order.
