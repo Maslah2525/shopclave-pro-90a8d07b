@@ -271,42 +271,34 @@ Deno.serve(async (req) => {
         console.error("SHIPPO_API_TOKEN is not configured — live rates unavailable");
       }
 
-      // Customer-facing shipping is a fixed CAD fee PER VENDOR. Carrier selection is
-      // deliberately deferred to fulfillment: do not persist a Shippo rate_id here,
-      // since a carrier quote must never be silently purchased without vendor choice.
-      // Limit this tariff to Canadian domestic shipments until international pricing is approved.
+      // 100% live carrier pricing: the customer pays the exact Shippo rate (converted to CAD).
+      // International checkout remains blocked until customs/duties integrations are verified.
       if (originISO !== "CA" || destISO !== "CA") {
-        pushBlocked("flat_rate_unavailable", "Standard and Express flat-rate shipping are currently available only for shipments within Canada.");
+        pushBlocked("international_not_supported", "Shipping is currently available only within Canada.");
         continue;
       }
-      // Seller-configured per-product options. An option is offered for this seller's parcel only
-      // when every product enables it; price is the highest configured price (server-side, never client).
-      const DEF: Record<string, { enabled: boolean; days: string; price: number }> = {
-        standard: { enabled: true, days: "3-7", price: 12.5 }, express: { enabled: true, days: "1-3", price: 19.99 },
-        free: { enabled: false, days: "3-7", price: 0 }, pickup: { enabled: false, days: "1-2", price: 0 },
-      };
-      const NAMES: Record<string, string> = { standard: "Standard Shipping", express: "Express Shipping", free: "Free Shipping", pickup: "Local Pickup" };
       const options: Array<Record<string, unknown>> = [];
-      for (const key of Object.keys(DEF)) {
-        let ok = true, price = 0, maxDays = 0, minDays = 99;
-        for (const it of vItems) {
-          const raw = (productMap.get(it.product_id) as any)?.shipping_options?.[key];
-          const o = raw ? { ...DEF[key], ...raw } : DEF[key];
-          if (!o.enabled) { ok = false; break; }
-          const pr = key === "free" || key === "pickup" ? 0 : Math.max(0, Number(o.price) || 0);
-          if (key !== "free" && key !== "pickup" && !(pr > 0)) { ok = false; break; }
-          price = Math.max(price, pr);
-          const [lo, hi] = String(o.days || DEF[key].days).split("-").map((n) => parseInt(n, 10));
-          minDays = Math.min(minDays, lo || 1); maxDays = Math.max(maxDays, hi || lo || 7);
-        }
-        if (!ok) continue;
-        const amt = Math.round(price * 100) / 100;
-        options.push({ source: "estimate", rate_id: null, provider: "Barakaz", service: NAMES[key],
-          amount_original: amt, currency_original: "CAD", fx_rate_to_cad: 1, amount_cad: amt, estimated_days: maxDays,
-          duration_terms: key === "pickup" ? `Local pickup: ready in ${minDays}–${maxDays} business days` : `Estimated delivery: ${minDays}–${maxDays} business days; carrier selected at fulfillment`,
-          is_estimate: true });
+      for (const r of liveRates) {
+        const amount = Number(r.amount);
+        const conv = normalizeToCad(amount, String(r.currency || ""), rates);
+        if (!r.object_id || !conv || !(conv.amount_cad > 0)) continue;
+        const sl = (r.servicelevel as Record<string, unknown> | undefined) ?? {};
+        const transit = Number(r.estimated_days);
+        const days = Number.isFinite(transit) && transit > 0 ? transit + handlingDays : null;
+        options.push({
+          source: "shippo", rate_id: r.object_id, provider: String(r.provider || "Carrier"),
+          service: String(sl.name || "Shipping"), amount_original: round2(amount),
+          currency_original: String(r.currency).toUpperCase(), fx_rate_to_cad: conv.fx_rate_to_cad,
+          amount_cad: conv.amount_cad, estimated_days: days,
+          duration_terms: days ? `Estimated delivery: about ${days} business days (includes ${handlingDays}-day handling)` : (r.duration_terms ?? null),
+          is_estimate: false,
+        });
       }
-      if (!options.length) { pushBlocked("no_shared_option", "These items don't share a delivery option from this seller. Order them separately."); continue; }
+      options.sort((a, b) => Number(a.amount_cad) - Number(b.amount_cad));
+      if (!options.length) {
+        pushBlocked("live_rates_unavailable", `Live carrier rates are unavailable for ${storeName} right now. Please check your address or try again shortly.`);
+        continue;
+      }
 
       for (const o of options) {
         quoteRows.push({
