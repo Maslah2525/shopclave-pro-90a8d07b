@@ -63,7 +63,7 @@ export default function DynamicBannerPlacement({ placement }: { placement: Place
   const animation = ["none", "fade", "slide", "zoom", "float"].includes(current.animation_type || "")
     ? current.animation_type : "fade";
   const duration = Math.max(100, Math.min(3000, current.transition_duration_ms || 700));
-  const media = current.desktop_image_url || current.image_url;
+  const media = current.banner_mode === "dynamic" ? null : current.desktop_image_url || current.image_url;
   const mobile = current.mobile_image_url || media;
   const visible = "block";
   return (

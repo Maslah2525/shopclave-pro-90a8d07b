@@ -57,11 +57,11 @@ export default function DynamicBannerAdmin() {
   const save = useMutation({
     mutationFn: async () => {
       if (!form.title.trim()) throw new Error("Enter a banner title.");
-      if (!safeLink(form.link_url)) throw new Error("Use a relative path or an HTTP(S) URL.");
+      if (!safeLink(form.link_url)) throw new Error("Use a relative path or an HTTPS URL.");
       if (form.starts_at && form.ends_at && new Date(form.ends_at) <= new Date(form.starts_at)) throw new Error("End date must be after start date.");
       if (form.banner_mode === "image" && !form.desktop_image_url) throw new Error("Upload a desktop image.");
       const { starts_at, ends_at, ...rest } = form;
-      const payload = { ...rest, kind: "brand", image_url: form.desktop_image_url || form.image_url || "https://placehold.co/1x1/png", desktop_image_url: form.desktop_image_url || null, mobile_image_url: form.mobile_image_url || null, background_gradient: form.background_gradient?.trim() || null, starts_at: starts_at ? new Date(starts_at).toISOString() : null, ends_at: ends_at ? new Date(ends_at).toISOString() : null };
+      const payload = { ...rest, kind: "brand", image_url: form.banner_mode === "dynamic" ? "/favicon.ico" : form.desktop_image_url, desktop_image_url: form.banner_mode === "dynamic" ? null : form.desktop_image_url || null, mobile_image_url: form.banner_mode === "dynamic" ? null : form.mobile_image_url || null, background_gradient: form.background_gradient?.trim() || null, starts_at: starts_at ? new Date(starts_at).toISOString() : null, ends_at: ends_at ? new Date(ends_at).toISOString() : null };
       const query = editing ? (supabase.from("promotions") as any).update(payload).eq("id", editing) : (supabase.from("promotions") as any).insert(payload);
       const { error } = await query;
       if (error) throw error;
