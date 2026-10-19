@@ -1,0 +1,12 @@
+/* Promotional placement entrance animations. Respect reduced-motion preferences. */
+@keyframes barakaz-banner-fade { from { opacity: .3 } to { opacity: 1 } }
+@keyframes barakaz-banner-slide { from { opacity: .4; transform: translateX(2%) } to { opacity: 1; transform: translateX(0) } }
+@keyframes barakaz-banner-zoom { from { opacity: .5; transform: scale(1.025) } to { opacity: 1; transform: scale(1) } }
+@keyframes barakaz-banner-float { from { opacity: .6; transform: translateY(8px) } to { opacity: 1; transform: translateY(0) } }
+.dynamic-banner--fade { animation: barakaz-banner-fade ease-out both; }
+.dynamic-banner--slide { animation: barakaz-banner-slide ease-out both; }
+.dynamic-banner--zoom { animation: barakaz-banner-zoom ease-out both; }
+.dynamic-banner--float { animation: barakaz-banner-float ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .dynamic-banner { animation: none !important; }
+}
