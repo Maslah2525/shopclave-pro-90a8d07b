@@ -46,6 +46,7 @@ const AdminCategories = () => {
   const [deleteCat, setDeleteCat] = useState<any>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [form, setForm] = useState({ name: "", slug: "", parent_id: "", image: null as File | null });
+  const [newSubName, setNewSubName] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
   const { data: categories = [] } = useQuery({
