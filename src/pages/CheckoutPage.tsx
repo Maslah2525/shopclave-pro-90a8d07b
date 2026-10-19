@@ -9,7 +9,8 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { customerDetailsError, customerDetailsParams, detailsFromSaved } from "@/lib/customerDetails";
 import { CheckCircle2, ChevronRight, MapPin, Truck, CreditCard, ArrowLeft, Lock, ShieldCheck, RotateCcw, Pencil, ShoppingBag } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { useLocale } from "@/hooks/useLocale";
@@ -57,6 +58,9 @@ const showPaymentWindowLoader = (paymentWindow: Window) => {
 const CheckoutPage = () => {
   const { items, totalPrice, clearCart } = useCart();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [addressSaving, setAddressSaving] = useState(false);
+  const addressPrefilled = useRef(false);
   const { formatPrice, country } = useLocale();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -98,7 +102,7 @@ const CheckoutPage = () => {
     phone: "",
     addressLine: "",
     city: "",
-    country: countryByCode(DEFAULT_COUNTRY)!.name,
+    country: countryByCode(DEFAULT_COUNTRY)?.name ?? "Canada",
     state: "",
     zip: "",
     email: "",
@@ -133,40 +137,38 @@ const CheckoutPage = () => {
   }, [user, navigate]);
 
   // Load saved address
-  const { data: savedAddress } = useQuery({
+  const { data: savedAddress, isLoading: addressLoading, isError: addressLoadError, refetch: retryAddress } = useQuery({
     queryKey: ["user-address", user?.id],
     queryFn: async () => {
-      const { data } = await supabase
+      if (!user) throw new Error("Sign in to load your address");
+      const { data, error } = await supabase
         .from("addresses")
         .select("*")
-        .eq("user_id", user!.id)
+        .eq("user_id", user.id)
         .eq("is_default", true)
+        .order("created_at", { ascending: false })
+        .limit(1)
         .maybeSingle();
+      if (error) throw error;
       return data;
     },
     enabled: !!user,
   });
 
   useEffect(() => {
-    if (savedAddress) {
+    if (savedAddress && !addressPrefilled.current) {
+      addressPrefilled.current = true;
+      const details = detailsFromSaved(savedAddress);
       setAddress((prev) => ({
-        fullName: savedAddress.full_name,
-        phone: savedAddress.phone || "",
-        addressLine: savedAddress.address_line,
-        city: savedAddress.city,
-        country: savedAddress.country,
-        state: (savedAddress as any).state || "",
-        zip: (savedAddress as any).postal_code || (savedAddress as any).zip || "",
+        ...details,
         email: prev.email || user?.email || "",
       }));
-      setAddressConfirmed(true);
-      setActiveStep("delivery");
+      if (!customerDetailsError(details) && isDomesticDestination(countryByName(details.country)?.code ?? "")) {
+        setAddressConfirmed(true);
+        setActiveStep("delivery");
+      }
     }
   }, [savedAddress, user?.email]);
-
-  if (items.length === 0 || !user) {
-    return null; // useEffect handles redirect
-  }
 
   // Group items by vendor
   const vendorIds = [...new Set(items.map(i => i.vendorId))];
@@ -362,7 +364,8 @@ const CheckoutPage = () => {
     setDeliveryConfirmed(false);
   };
 
-  const handleConfirmAddress = () => {
+  const handleConfirmAddress = async () => {
+    if (!user || addressSaving) return;
     if (!address.fullName || !address.phone || !address.addressLine || !address.city) {
       toast.error("Please fill in all address fields");
       return;
@@ -374,6 +377,18 @@ const CheckoutPage = () => {
     if (!address.state) { toast.error("Please select your province or territory"); return; }
     const postalErr = validatePostal(countryCode, address.zip);
     if (postalErr) { toast.error(postalErr); return; }
+    const detailsError = customerDetailsError(address);
+    if (detailsError) { toast.error(detailsError); return; }
+    setAddressSaving(true);
+    try {
+      const { data, error } = await supabase.rpc("save_customer_details", customerDetailsParams(address));
+      if (error) throw error;
+      if (!data) throw new Error("Unable to save your address. Please try again.");
+      await Promise.all([queryClient.invalidateQueries({ queryKey: ["user-address", user.id] }), queryClient.invalidateQueries({ queryKey: ["customer-details", user.id] }), queryClient.invalidateQueries({ queryKey: ["profile", user.id] })]);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to save your address");
+      return;
+    } finally { setAddressSaving(false); }
     // Reset rates so they re-fetch for the (possibly updated) address
     setShippingRates({});
     setSelectedRates({});
@@ -419,7 +434,7 @@ const CheckoutPage = () => {
   };
 
   const handlePlaceOrder = async () => {
-    if (loading) return;
+    if (loading || !user) return;
     const isFramed = window.top !== window.self;
     const paymentWindow = paymentMethod === "card" && isFramed
       ? window.open("about:blank", "_blank")
@@ -625,6 +640,8 @@ const CheckoutPage = () => {
     </div>
   );
 
+  if (items.length === 0 || !user) return null;
+
   return (
     <MarketplaceLayout>
       <CheckoutLoader stage={checkoutStage} provider={paymentMethod === "card" ? cardProvider : null} />
@@ -733,8 +750,9 @@ const CheckoutPage = () => {
                       We'll send your order confirmation here.
                     </p>
                   </div>
-                  <Button className="w-full mt-2" onClick={handleConfirmAddress} disabled={!domestic}>
-                    Save & Continue
+                  {addressLoadError && <div role="alert" className="space-y-2"><p className="text-sm">Your saved address could not be loaded.</p><Button variant="outline" onClick={() => void retryAddress()}>Retry</Button></div>}
+                  <Button className="w-full mt-2" onClick={() => void handleConfirmAddress()} disabled={!domestic || addressSaving || addressLoading || addressLoadError}>
+                    {addressSaving ? "Saving…" : addressLoading ? "Loading saved address…" : "Save & Continue"}
                   </Button>
                 </div>
               )}

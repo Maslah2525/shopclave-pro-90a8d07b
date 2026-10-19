@@ -246,6 +246,13 @@
       "when": 1792364254544,
       "tag": "0034_secure_live_withdrawal_review_execution",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1792372587247,
+      "tag": "0035_save_customer_contact_and_default_address",
+      "breakpoints": true
     }
   ]
 }

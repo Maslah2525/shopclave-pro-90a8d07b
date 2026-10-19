@@ -1,5 +1,11 @@
 # Seller onboarding roadmap
 
+## Category management and saved customer details
+- [x] Add subcategory actions under every existing category level and preserve form typing/parent selection.
+- [x] Save customer contact/address details atomically, including postal codes, and reuse valid addresses at checkout for all sign-in methods.
+- [x] Run 15 focused tests; preview builds clean; owner-only saving permissions confirmed and private pages redirect signed-out visitors without browser errors.
+- [ ] Verify category creation and profile save/reload in signed-in sessions — no auth account matches the requesting user; requires preview sign-in. Nothing published and no orders placed.
+
 ## Customer paid-order email currency
 - [x] Display country-based currency consistently across customer email totals while preserving actual charged amounts and seller CAD accounting.
 - [x] Run invoice currency and existing email timing tests.

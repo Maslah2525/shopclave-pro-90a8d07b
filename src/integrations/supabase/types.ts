@@ -24,6 +24,7 @@ export type Database = {
           id: string
           is_default: boolean
           phone: string | null
+          postal_code: string | null
           state: string | null
           user_id: string
         }
@@ -36,6 +37,7 @@ export type Database = {
           id?: string
           is_default?: boolean
           phone?: string | null
+          postal_code?: string | null
           state?: string | null
           user_id: string
         }
@@ -48,6 +50,7 @@ export type Database = {
           id?: string
           is_default?: boolean
           phone?: string | null
+          postal_code?: string | null
           state?: string | null
           user_id?: string
         }
@@ -3706,6 +3709,36 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "seller_verification_documents"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      save_customer_details: {
+        Args: {
+          p_address_line: string
+          p_city: string
+          p_country: string
+          p_full_name: string
+          p_phone: string
+          p_postal_code: string
+          p_state: string
+        }
+        Returns: {
+          address_line: string
+          city: string
+          country: string
+          created_at: string
+          full_name: string
+          id: string
+          is_default: boolean
+          phone: string | null
+          postal_code: string | null
+          state: string | null
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "addresses"
           isOneToOne: true
           isSetofReturn: false
         }
