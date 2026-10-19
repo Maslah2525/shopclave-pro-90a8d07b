@@ -1,6 +1,8 @@
 import MarketplaceLayout from "@/components/layout/MarketplaceLayout";
 import SEO from "@/components/seo/SEO";
 import HeroBanner from "@/components/marketplace/HeroBanner";
+import DynamicBannerPlacement from "@/components/marketplace/DynamicBannerPlacement";
+import "@/components/marketplace/dynamic-banner.css";
 import PromoStrip from "@/components/marketplace/PromoStrip";
 import NewArrivalsCategories from "@/components/marketplace/NewArrivalsCategories";
 import FlashSaleSection from "@/components/marketplace/FlashSaleSection";
@@ -142,11 +144,16 @@ const Index = () => {
         canonicalPath="/"
       />
       <HeroBanner />
+      <DynamicBannerPlacement placement="homepage_full_width" />
       <NewArrivalsCategories />
+      <DynamicBannerPlacement placement="category_promotion" />
       <PromoStrip />
+      <DynamicBannerPlacement placement="sponsored_products_banner" />
       <FlashSaleSection />
+      <DynamicBannerPlacement placement="flash_sale_banner" />
       <BestDealsSection />
 
+      <DynamicBannerPlacement placement="featured_products_banner" />
       {/* Featured Products */}
       {showFeaturedSection && (
         <section className="container py-8">
@@ -178,6 +185,7 @@ const Index = () => {
         </section>
       )}
 
+      <DynamicBannerPlacement placement="homepage_secondary" />
       {/* Sell banner */}
       <section className="container py-8">
         <div className="bg-[hsl(var(--nav-dark))] rounded-2xl p-8 md:p-12 text-center">
