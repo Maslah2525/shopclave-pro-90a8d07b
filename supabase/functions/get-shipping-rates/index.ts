@@ -147,7 +147,7 @@ Deno.serve(async (req) => {
     const addrFp = addressFingerprint(shipping_address);
     const itemsFp = itemsFingerprint(items);
     const expiresAt = new Date(Date.now() + QUOTE_TTL_MINUTES * 60_000).toISOString();
-    const rates = await getCadRates();
+    const rates = (await getCadRates()) ?? {};
 
     const address_to = {
       name: shipping_address.fullName,
