@@ -65,7 +65,7 @@ export default function DynamicBannerPlacement({ placement }: { placement: Place
   const visible = current.target_device !== "mobile" && current.target_device !== "desktop"
     ? "block" : current.target_device === "mobile" ? "block md:hidden" : "hidden md:block";
   return (
-    <section aria-label={placement.replaceAll("_", " ")} className={`container py-5 ${visible}`}>
+    <section aria-label={placement.replace(/_/g, " ")} className={`container py-5 ${visible}`}>
       <Link to={safeLink(current.link_url)} className="block rounded-2xl overflow-hidden focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
         <div key={current.id} className={`relative min-h-36 md:min-h-56 flex items-center overflow-hidden dynamic-banner dynamic-banner--${animation}`}
           style={{ ...background(current), animationDuration: `${duration}ms` }}>
