@@ -1,5 +1,11 @@
 # Seller onboarding roadmap
 
+## Dynamic banner database preparation
+- [x] Apply 0036_extend_dynamic_banner_system: 9 hero columns, 12 promotion columns, verified vendor keys and 8 placements; original 15 promotion records and policies match their pre-change hashes.
+- [x] Run 30 isolated PostgreSQL tests for defaults, validation, permission-based writes and public schedules; live anonymous reads return 10 eligible promotions and all 10 associated assets download.
+- [x] Leave homepage, components, routes and frontend design untouched; verify existing hero fallback and legacy API queries without runtime errors.
+- [ ] Verify a real authenticated admin upload/create/edit/delete cycle — requires an authorized marketing session; no production test records, uploads or real-account impersonation performed.
+
 ## Category management and saved customer details
 - [x] Add subcategory actions under every existing category level and preserve form typing/parent selection.
 - [x] Save customer contact/address details atomically, including postal codes, and reuse valid addresses at checkout for all sign-in methods.

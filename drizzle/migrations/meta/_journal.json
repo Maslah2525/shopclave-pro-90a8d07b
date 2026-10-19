@@ -253,6 +253,13 @@
       "when": 1792372587247,
       "tag": "0035_save_customer_contact_and_default_address",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1792424569637,
+      "tag": "0036_extend_dynamic_banner_system",
+      "breakpoints": true
     }
   ]
 }
