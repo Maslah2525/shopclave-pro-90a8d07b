@@ -1,5 +1,10 @@
 # Seller onboarding roadmap
 
+## Category management and saved customer details
+- [ ] Add subcategory actions under every existing category level.
+- [ ] Save customer contact/address details and reuse them at checkout, including Google accounts.
+- [ ] Run focused tests and verify category/profile flows without publishing or placing orders.
+
 ## Customer paid-order email currency
 - [x] Display country-based currency consistently across customer email totals while preserving actual charged amounts and seller CAD accounting.
 - [x] Run invoice currency and existing email timing tests.
