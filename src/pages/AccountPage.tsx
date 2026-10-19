@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import MarketplaceLayout from "@/components/layout/MarketplaceLayout";
 import CustomerReturnRequest from "@/components/account/CustomerReturnRequest";
+import CustomerDetailsForm from "@/components/account/CustomerDetailsForm";
 import FulfillmentProgress from "@/components/shipping/FulfillmentProgress";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
@@ -72,9 +73,10 @@ const AccountPage = () => {
     queryKey: ["my-return-requests", user?.id],
     enabled: !!user,
     queryFn: async () => {
+      if (!user) throw new Error("Sign in to view returns");
       const { data, error } = await supabase.from("return_requests")
         .select("id, order_id, order_item_id, status, reason, created_at, refund_amount_cad")
-        .eq("user_id", user!.id)
+        .eq("user_id", user.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
@@ -85,11 +87,13 @@ const AccountPage = () => {
     queryKey: ["profile", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data } = await supabase
+      if (!user) throw new Error("Sign in to view your profile");
+      const { data, error } = await supabase
         .from("profiles")
         .select("*")
-        .eq("user_id", user!.id)
+        .eq("user_id", user.id)
         .single();
+      if (error) throw error;
       return data;
     },
   });
@@ -136,6 +140,8 @@ const AccountPage = () => {
             </div>
           </div>
         </div>
+
+        <CustomerDetailsForm key={user.id} userId={user.id} email={user.email ?? ""} />
 
         {/* Orders */}
         <h2 className="font-display text-xl font-bold mb-4 flex items-center gap-2">
