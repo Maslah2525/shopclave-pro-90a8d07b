@@ -19,7 +19,7 @@ const productSlugFromLink = (link: string) => {
   return match?.[1] ? decodeURIComponent(match[1]) : null;
 };
 
-const PromoStrip = ({ hideSectionHeadings = false }: { hideSectionHeadings?: boolean }) => {
+const PromoStrip = ({ hideSectionHeadings = false, compactSponsored = false }: { hideSectionHeadings?: boolean; compactSponsored?: boolean }) => {
   const { data } = useQuery({
     queryKey: ["public-promotions"],
     queryFn: async () => {
@@ -62,24 +62,7 @@ const PromoStrip = ({ hideSectionHeadings = false }: { hideSectionHeadings?: boo
     .filter((entry): entry is { promo: Promo; product: any } => Boolean(entry));
 
   return (
-    <div className="container py-6 space-y-8">
-      {brands.length > 0 && (
-        <section>
-          <h2 className="font-display text-lg md:text-xl font-bold text-foreground mb-4">Featured Brands</h2>
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
-            {brands.map((b) => (
-              <Link key={b.id} to={b.link_url} className="group bg-card rounded-lg p-3 border hover:shadow-md transition-shadow flex flex-col items-center text-center">
-                <div className="aspect-square w-full overflow-hidden rounded-md bg-muted mb-2">
-                  <img src={b.image_url} alt={b.title} className="w-full h-full object-contain group-hover:scale-105 transition-transform" loading="lazy" />
-                </div>
-                <p className="text-xs font-medium text-foreground line-clamp-1">{b.title}</p>
-                {b.subtitle && <p className="text-[10px] text-muted-foreground line-clamp-1">{b.subtitle}</p>}
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
-
+    <div className={`container ${compactSponsored ? "pt-1 pb-6" : "py-6"} space-y-8`}>
       {sponsoredProducts.length > 0 && (
         <section>
           {!hideSectionHeadings && <h2 className="font-display text-lg md:text-xl font-bold text-foreground mb-4">Sponsored Products</h2>}
@@ -107,6 +90,24 @@ const PromoStrip = ({ hideSectionHeadings = false }: { hideSectionHeadings?: boo
           </div>
         </section>
       )}
+      {brands.length > 0 && (
+        <section>
+          <h2 className="font-display text-lg md:text-xl font-bold text-foreground mb-4">Featured Brands</h2>
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+            {brands.map((b) => (
+              <Link key={b.id} to={b.link_url} className="group bg-card rounded-lg p-3 border hover:shadow-md transition-shadow flex flex-col items-center text-center">
+                <div className="aspect-square w-full overflow-hidden rounded-md bg-muted mb-2">
+                  <img src={b.image_url} alt={b.title} className="w-full h-full object-contain group-hover:scale-105 transition-transform" loading="lazy" />
+                </div>
+                <p className="text-xs font-medium text-foreground line-clamp-1">{b.title}</p>
+                {b.subtitle && <p className="text-[10px] text-muted-foreground line-clamp-1">{b.subtitle}</p>}
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+
     </div>
   );
 };

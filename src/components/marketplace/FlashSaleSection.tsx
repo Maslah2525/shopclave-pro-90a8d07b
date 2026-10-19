@@ -7,7 +7,7 @@ import { Zap } from "lucide-react";
 import CountdownTimer from "@/components/shared/CountdownTimer";
 import barakazIcon from "@/assets/barakaz-icon.webp";
 
-const FlashSaleSection = ({ hideHeading = false }: { hideHeading?: boolean }) => {
+const FlashSaleSection = ({ hideHeading = false, compact = false }: { hideHeading?: boolean; compact?: boolean }) => {
   const { data: products = [], isLoading } = useQuery({
     queryKey: ["flash-sale-products"],
     queryFn: async () => {
@@ -30,8 +30,8 @@ const FlashSaleSection = ({ hideHeading = false }: { hideHeading?: boolean }) =>
   const soonestEnd = products[0]?.deal_ends_at as string | undefined;
 
   return (
-    <section className="container py-8">
-      <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
+    <section className={`container ${compact ? "pt-1 pb-8" : "py-8"}`}>
+      <div className={`flex items-center justify-between flex-wrap gap-2 ${compact ? "mb-2" : "mb-6"}`}>
         <div className="flex items-center gap-2">
           {!hideHeading && <Zap className="h-5 w-5 text-primary fill-primary" />}
           {!hideHeading && <h2 className="font-display text-xl md:text-2xl font-bold text-foreground">Flash Sale</h2>}
