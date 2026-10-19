@@ -147,16 +147,16 @@ const Index = () => {
       <DynamicBannerPlacement placement="homepage_full_width" />
       <NewArrivalsCategories />
       <DynamicBannerPlacement placement="category_promotion" />
-      <PromoStrip hideSectionHeadings />
-      <DynamicBannerPlacement placement="sponsored_products_banner" />
-      <FlashSaleSection hideHeading />
-      <DynamicBannerPlacement placement="flash_sale_banner" />
+      <DynamicBannerPlacement placement="sponsored_products_banner" compact />
+      <PromoStrip hideSectionHeadings compactSponsored />
+      <DynamicBannerPlacement placement="flash_sale_banner" compact />
+      <FlashSaleSection hideHeading compact />
       <BestDealsSection />
 
-      <DynamicBannerPlacement placement="featured_products_banner" />
+      <DynamicBannerPlacement placement="featured_products_banner" compact />
       {/* Featured Products */}
       {showFeaturedSection && (
-        <section className="container py-8">
+        <section className="container pt-1 pb-8">
           {isLoading ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
               {Array.from({ length: 10 }).map((_, i) => (
