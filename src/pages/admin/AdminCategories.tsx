@@ -150,6 +150,11 @@ const AdminCategories = () => {
 
   const toggle = (id: string) => setExpanded((p) => ({ ...p, [id]: !p[id] }));
 
+  const openAddChild = (parentId: string) => {
+    setForm({ name: "", slug: "", parent_id: parentId, image: null });
+    setAddOpen(true);
+  };
+
   const CategoryImage = ({ url }: { url: string | null }) => (
     <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center overflow-hidden shrink-0">
       {url ? <img src={url} alt="" className="h-full w-full object-cover" /> : <ImageIcon className="h-5 w-5 text-muted-foreground" />}
@@ -167,11 +172,11 @@ const AdminCategories = () => {
             <div key={child.id}>
               <div className="flex items-center gap-3 py-2 px-2 rounded-md hover:bg-muted/50 group">
                 <CategoryImage url={child.image_url} />
-                <span className="text-sm font-medium flex-1">{child.name}</span>
-                <span className="text-xs text-muted-foreground">{child.slug}</span>
-                <div className="opacity-0 group-hover:opacity-100 flex gap-1">
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(child)}><Pencil className="h-3.5 w-3.5" /></Button>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteCat(child)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                 <span className="text-sm font-medium flex-1 min-w-0 break-words">{child.name}</span>
+                 <div className="flex gap-1 shrink-0">
+                   <Button variant="ghost" size="icon" className="h-7 w-7" aria-label={`Add subcategory to ${child.name}`} title="Add subcategory" onClick={() => openAddChild(child.id)}><Plus className="h-3.5 w-3.5" /></Button>
+                   <Button variant="ghost" size="icon" className="h-7 w-7" aria-label={`Edit ${child.name}`} title="Edit category" onClick={() => openEdit(child)}><Pencil className="h-3.5 w-3.5" /></Button>
+                   <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" aria-label={`Delete ${child.name}`} title="Delete category" onClick={() => setDeleteCat(child)}><Trash2 className="h-3.5 w-3.5" /></Button>
                 </div>
               </div>
               {grandchildren.length > 0 && renderSubcategories(child.id, depth + 1)}
@@ -182,15 +187,15 @@ const AdminCategories = () => {
     );
   };
 
-  const FormFields = ({ isEdit }: { isEdit?: boolean }) => (
+  const renderFormFields = (isEdit = false) => (
     <div className="space-y-4">
       <div>
-        <Label>Name</Label>
-        <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value, slug: isEdit ? f.slug : autoSlug(e.target.value) }))} placeholder="Category name" />
+        <Label htmlFor="category-name">Name</Label>
+        <Input id="category-name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value, slug: isEdit ? f.slug : autoSlug(e.target.value) }))} placeholder="Category name" />
       </div>
       <div>
-        <Label>Slug</Label>
-        <Input value={form.slug} onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value }))} placeholder="auto-generated" />
+        <Label htmlFor="category-slug">Slug</Label>
+        <Input id="category-slug" value={form.slug} onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value }))} placeholder="auto-generated" />
       </div>
       <ParentPickerField
         value={form.parent_id}
@@ -236,7 +241,7 @@ const AdminCategories = () => {
           </DialogTrigger>
           <DialogContent>
             <DialogHeader><DialogTitle>Add Category</DialogTitle></DialogHeader>
-            <FormFields />
+            {renderFormFields()}
             <DialogFooter>
               <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
               <Button onClick={() => addMutation.mutate()} disabled={!form.name.trim() || addMutation.isPending}>
@@ -265,9 +270,10 @@ const AdminCategories = () => {
                     <p className="font-semibold truncate">{cat.name}</p>
                     <p className="text-xs text-muted-foreground">{children.length} subcategories · {cat.slug}</p>
                   </div>
-                  <div className="opacity-0 group-hover:opacity-100 flex gap-1">
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(cat)}><Pencil className="h-3.5 w-3.5" /></Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteCat(cat)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                   <div className="flex gap-1 shrink-0">
+                     <Button variant="ghost" size="icon" className="h-7 w-7" aria-label={`Add subcategory to ${cat.name}`} title="Add subcategory" onClick={() => openAddChild(cat.id)}><Plus className="h-3.5 w-3.5" /></Button>
+                     <Button variant="ghost" size="icon" className="h-7 w-7" aria-label={`Edit ${cat.name}`} title="Edit category" onClick={() => openEdit(cat)}><Pencil className="h-3.5 w-3.5" /></Button>
+                     <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" aria-label={`Delete ${cat.name}`} title="Delete category" onClick={() => setDeleteCat(cat)}><Trash2 className="h-3.5 w-3.5" /></Button>
                   </div>
                 </div>
                 <CollapsibleContent>
@@ -289,7 +295,7 @@ const AdminCategories = () => {
       <Dialog open={!!editCat} onOpenChange={(o) => { if (!o) { setEditCat(null); resetForm(); } }}>
         <DialogContent>
           <DialogHeader><DialogTitle>Edit Category</DialogTitle></DialogHeader>
-          <FormFields isEdit />
+          {renderFormFields(true)}
           <DialogFooter>
             <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
             <Button onClick={() => editMutation.mutate()} disabled={!form.name.trim() || editMutation.isPending}>
