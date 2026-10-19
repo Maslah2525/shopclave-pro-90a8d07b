@@ -1,5 +1,6 @@
 # Architecture decisions
 - Dynamic banners extend the existing marketing tables additively with database validation and verified vendor foreign keys; existing RLS, permission functions, storage policies and legacy image fields remain authoritative so frontend rollout can happen separately.
+- Migration behavior tests run against disposable local PostgreSQL using vitest.database.config.ts, separate from browser-oriented tests, to verify RLS and constraints without production test records or account impersonation.
 - Customer account and checkout save contact details and the default address through one owner-scoped transactional RPC; postal codes persist and incomplete legacy addresses never skip validation.
 - Admin category additions reuse the cascading hierarchy picker at every depth; form fields retain stable identity to preserve typing and parent selection.
 - Customer paid-order emails resolve currency from the saved checkout country and convert every amount together; equivalents are labeled separately from the persisted provider charge, with CAD seller accounting unchanged and per-render currency formatters preventing cross-recipient leakage.
