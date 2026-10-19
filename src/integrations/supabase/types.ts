@@ -485,6 +485,11 @@ export type Database = {
       }
       hero_banners: {
         Row: {
+          animation_config: Json | null
+          animation_type: string | null
+          background_color: string | null
+          background_gradient: string | null
+          banner_mode: string | null
           created_at: string
           cta_label: string | null
           desktop_image_url: string
@@ -494,12 +499,21 @@ export type Database = {
           is_active: boolean
           link_url: string
           mobile_image_url: string | null
+          rotation_interval_ms: number | null
           starts_at: string | null
           subtitle: string | null
+          target_device: string | null
           title: string | null
+          transition_duration_ms: number | null
           updated_at: string
+          vendor_id: string | null
         }
         Insert: {
+          animation_config?: Json | null
+          animation_type?: string | null
+          background_color?: string | null
+          background_gradient?: string | null
+          banner_mode?: string | null
           created_at?: string
           cta_label?: string | null
           desktop_image_url: string
@@ -509,12 +523,21 @@ export type Database = {
           is_active?: boolean
           link_url?: string
           mobile_image_url?: string | null
+          rotation_interval_ms?: number | null
           starts_at?: string | null
           subtitle?: string | null
+          target_device?: string | null
           title?: string | null
+          transition_duration_ms?: number | null
           updated_at?: string
+          vendor_id?: string | null
         }
         Update: {
+          animation_config?: Json | null
+          animation_type?: string | null
+          background_color?: string | null
+          background_gradient?: string | null
+          banner_mode?: string | null
           created_at?: string
           cta_label?: string | null
           desktop_image_url?: string
@@ -524,12 +547,31 @@ export type Database = {
           is_active?: boolean
           link_url?: string
           mobile_image_url?: string | null
+          rotation_interval_ms?: number | null
           starts_at?: string | null
           subtitle?: string | null
+          target_device?: string | null
           title?: string | null
+          transition_duration_ms?: number | null
           updated_at?: string
+          vendor_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "hero_banners_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hero_banners_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors_public"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       message_edit_history: {
         Row: {
@@ -1252,7 +1294,14 @@ export type Database = {
       }
       promotions: {
         Row: {
+          animation_config: Json | null
+          animation_type: string | null
+          background_color: string | null
+          background_gradient: string | null
+          banner_mode: string | null
           created_at: string
+          cta_label: string | null
+          desktop_image_url: string | null
           display_order: number
           ends_at: string | null
           id: string
@@ -1260,14 +1309,26 @@ export type Database = {
           is_active: boolean
           kind: string
           link_url: string
+          mobile_image_url: string | null
           placement: string
+          rotation_interval_ms: number | null
           starts_at: string | null
           subtitle: string | null
+          target_device: string | null
           title: string
+          transition_duration_ms: number | null
           updated_at: string
+          vendor_id: string | null
         }
         Insert: {
+          animation_config?: Json | null
+          animation_type?: string | null
+          background_color?: string | null
+          background_gradient?: string | null
+          banner_mode?: string | null
           created_at?: string
+          cta_label?: string | null
+          desktop_image_url?: string | null
           display_order?: number
           ends_at?: string | null
           id?: string
@@ -1275,14 +1336,26 @@ export type Database = {
           is_active?: boolean
           kind: string
           link_url?: string
+          mobile_image_url?: string | null
           placement: string
+          rotation_interval_ms?: number | null
           starts_at?: string | null
           subtitle?: string | null
+          target_device?: string | null
           title: string
+          transition_duration_ms?: number | null
           updated_at?: string
+          vendor_id?: string | null
         }
         Update: {
+          animation_config?: Json | null
+          animation_type?: string | null
+          background_color?: string | null
+          background_gradient?: string | null
+          banner_mode?: string | null
           created_at?: string
+          cta_label?: string | null
+          desktop_image_url?: string | null
           display_order?: number
           ends_at?: string | null
           id?: string
@@ -1290,13 +1363,33 @@ export type Database = {
           is_active?: boolean
           kind?: string
           link_url?: string
+          mobile_image_url?: string | null
           placement?: string
+          rotation_interval_ms?: number | null
           starts_at?: string | null
           subtitle?: string | null
+          target_device?: string | null
           title?: string
+          transition_duration_ms?: number | null
           updated_at?: string
+          vendor_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "promotions_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promotions_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors_public"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       resource_categories: {
         Row: {
@@ -3422,6 +3515,11 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      banner_json_is_safe: {
+        Args: { depth?: number; value: Json }
+        Returns: boolean
+      }
+      banner_url_is_safe: { Args: { value: string }; Returns: boolean }
       can_manage_marketing: { Args: { _user_id: string }; Returns: boolean }
       can_manage_resources: { Args: { _user_id: string }; Returns: boolean }
       claim_seller_notifications: {
