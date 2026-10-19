@@ -434,7 +434,7 @@ const CheckoutPage = () => {
   };
 
   const handlePlaceOrder = async () => {
-    if (loading) return;
+    if (loading || !user) return;
     const isFramed = window.top !== window.self;
     const paymentWindow = paymentMethod === "card" && isFramed
       ? window.open("about:blank", "_blank")
@@ -639,6 +639,8 @@ const CheckoutPage = () => {
       )}
     </div>
   );
+
+  if (items.length === 0 || !user) return null;
 
   return (
     <MarketplaceLayout>
