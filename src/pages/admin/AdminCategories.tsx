@@ -320,10 +320,45 @@ const AdminCategories = () => {
       </div>
 
       {/* Edit Dialog */}
-      <Dialog open={!!editCat} onOpenChange={(o) => { if (!o) { setEditCat(null); resetForm(); } }}>
+      <Dialog open={!!editCat} onOpenChange={(o) => { if (!o) { setEditCat(null); setNewSubName(""); resetForm(); } }}>
         <DialogContent>
           <DialogHeader><DialogTitle>Edit Category</DialogTitle></DialogHeader>
           {renderFormFields(true)}
+
+          {/* Subcategory management inside Edit */}
+          <div className="border-t border-border pt-4 space-y-2">
+            <Label>Subcategories of “{editCat?.name}”</Label>
+            <p className="text-xs text-muted-foreground">
+              Add new subcategories here, or remove ones you no longer need. Deleting a subcategory also removes all of its own subcategories.
+            </p>
+            <div className="max-h-48 overflow-y-auto rounded-md border border-border divide-y divide-border">
+              {editCat && getChildren(editCat.id).length > 0 ? (
+                getChildren(editCat.id).map((child: any) => (
+                  <div key={child.id} className="flex items-center gap-2 px-2 py-1.5">
+                    <CategoryImage url={child.image_url} />
+                    <span className="text-sm flex-1 min-w-0 truncate">{child.name}</span>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive shrink-0" aria-label={`Delete ${child.name}`} title="Delete subcategory" onClick={() => setDeleteCat(child)}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ))
+              ) : (
+                <p className="text-xs text-muted-foreground px-2 py-2">No subcategories yet.</p>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Input
+                value={newSubName}
+                onChange={(e) => setNewSubName(e.target.value)}
+                placeholder="New subcategory name"
+                onKeyDown={(e) => { if (e.key === "Enter" && newSubName.trim() && !addChildMutation.isPending) addChildMutation.mutate(); }}
+              />
+              <Button type="button" variant="outline" className="shrink-0 gap-1.5" onClick={() => addChildMutation.mutate()} disabled={!newSubName.trim() || addChildMutation.isPending}>
+                <Plus className="h-4 w-4" /> {addChildMutation.isPending ? "Adding..." : "Add"}
+              </Button>
+            </div>
+          </div>
+
           <DialogFooter>
             <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
             <Button onClick={() => editMutation.mutate()} disabled={!form.name.trim() || editMutation.isPending}>
