@@ -31,7 +31,7 @@ const background = (banner: Banner) => {
   return {};
 };
 
-export default function DynamicBannerPlacement({ placement }: { placement: Placement }) {
+export default function DynamicBannerPlacement({ placement, compact = false }: { placement: Placement; compact?: boolean }) {
   const [index, setIndex] = useState(0);
   const [device, setDevice] = useState<"mobile" | "desktop">(() => typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches ? "mobile" : "desktop");
   useEffect(() => { const mq = window.matchMedia("(max-width: 767px)"); const update = () => setDevice(mq.matches ? "mobile" : "desktop"); mq.addEventListener("change", update); return () => mq.removeEventListener("change", update); }, []);
@@ -67,7 +67,7 @@ export default function DynamicBannerPlacement({ placement }: { placement: Place
   const mobile = current.mobile_image_url || media;
   const visible = "block";
   return (
-    <section aria-label={placement.replace(/_/g, " ")} className={`container py-5 ${visible}`}>
+    <section aria-label={placement.replace(/_/g, " ")} className={`container ${compact ? "pt-3 pb-1" : "py-5"} ${visible}`}>
       <Link to={safeLink(current.link_url)} className="block rounded-2xl overflow-hidden focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
         <div key={current.id} className={`relative min-h-36 md:min-h-56 flex items-center overflow-hidden dynamic-banner dynamic-banner--${animation}`}
           style={{ ...background(current), animationDuration: `${duration}ms` }}>
@@ -82,7 +82,7 @@ export default function DynamicBannerPlacement({ placement }: { placement: Place
           </div>}
         </div>
       </Link>
-      {eligible.length > 1 && <div className="flex justify-center gap-2 mt-3" aria-label="Banner navigation">
+      {eligible.length > 1 && <div className="flex justify-center gap-2 mt-1" aria-label="Banner navigation">
         {eligible.map((banner, i) => <button key={banner.id} type="button" aria-label={`Show banner ${i + 1}`} aria-current={i === index ? "true" : undefined}
           onClick={() => setIndex(i)} className={`h-2.5 w-2.5 rounded-full ${i === index ? "bg-primary" : "bg-muted-foreground/30"}`} />)}
       </div>}
