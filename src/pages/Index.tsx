@@ -147,9 +147,9 @@ const Index = () => {
       <DynamicBannerPlacement placement="homepage_full_width" />
       <NewArrivalsCategories />
       <DynamicBannerPlacement placement="category_promotion" />
-      <PromoStrip />
+      <PromoStrip hideSectionHeadings />
       <DynamicBannerPlacement placement="sponsored_products_banner" />
-      <FlashSaleSection />
+      <FlashSaleSection hideHeading />
       <DynamicBannerPlacement placement="flash_sale_banner" />
       <BestDealsSection />
 
@@ -157,9 +157,6 @@ const Index = () => {
       {/* Featured Products */}
       {showFeaturedSection && (
         <section className="container py-8">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="font-display text-xl md:text-2xl font-bold text-foreground">{t("home.featured")}</h2>
-          </div>
           {isLoading ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
               {Array.from({ length: 10 }).map((_, i) => (

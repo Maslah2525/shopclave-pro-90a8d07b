@@ -19,7 +19,7 @@ const productSlugFromLink = (link: string) => {
   return match?.[1] ? decodeURIComponent(match[1]) : null;
 };
 
-const PromoStrip = () => {
+const PromoStrip = ({ hideSectionHeadings = false }: { hideSectionHeadings?: boolean }) => {
   const { data } = useQuery({
     queryKey: ["public-promotions"],
     queryFn: async () => {
@@ -82,7 +82,7 @@ const PromoStrip = () => {
 
       {sponsoredProducts.length > 0 && (
         <section>
-          <h2 className="font-display text-lg md:text-xl font-bold text-foreground mb-4">Sponsored Products</h2>
+          {!hideSectionHeadings && <h2 className="font-display text-lg md:text-xl font-bold text-foreground mb-4">Sponsored Products</h2>}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
             {sponsoredProducts.slice(0, 10).map(({ promo, product }) => (
               <ProductCard
