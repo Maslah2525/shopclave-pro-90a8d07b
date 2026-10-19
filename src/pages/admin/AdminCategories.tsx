@@ -142,6 +142,33 @@ const AdminCategories = () => {
     onError: (e: any) => toast.error(e.message),
   });
 
+  const addChildMutation = useMutation({
+    mutationFn: async () => {
+      if (!editCat) throw new Error("No category selected");
+      const name = newSubName.trim();
+      let slug = autoSlug(name);
+      const { error } = await supabase.from("categories").insert({
+        name,
+        slug,
+        parent_id: editCat.id,
+        image_url: null,
+      });
+      if (error && /duplicate|unique/i.test(error.message)) {
+        slug = `${slug}-${Date.now().toString(36)}`;
+        const retry = await supabase.from("categories").insert({ name, slug, parent_id: editCat.id, image_url: null });
+        if (retry.error) throw retry.error;
+      } else if (error) {
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-categories"] });
+      setNewSubName("");
+      toast.success("Subcategory added");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
   const resetForm = () => setForm({ name: "", slug: "", parent_id: "", image: null });
 
   const openEdit = (cat: any) => {
