@@ -1,5 +1,10 @@
 # Seller onboarding roadmap
 
+## Dynamic banner database preparation
+- [ ] Extend only hero_banners/promotions with animation, device, vendor and placement fields; preserve original records, columns, RLS and marketing-assets policies.
+- [ ] Verify legacy compatibility, constraints, public eligibility and write authorization; document exact migration and verification limitations.
+- [ ] Leave homepage, components, routes and frontend design untouched.
+
 ## Category management and saved customer details
 - [x] Add subcategory actions under every existing category level and preserve form typing/parent selection.
 - [x] Save customer contact/address details atomically, including postal codes, and reuse valid addresses at checkout for all sign-in methods.
