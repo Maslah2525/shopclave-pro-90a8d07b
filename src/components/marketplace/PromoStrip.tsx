@@ -19,7 +19,7 @@ const productSlugFromLink = (link: string) => {
   return match?.[1] ? decodeURIComponent(match[1]) : null;
 };
 
-const PromoStrip = ({ hideSectionHeadings = false }: { hideSectionHeadings?: boolean }) => {
+const PromoStrip = ({ hideSectionHeadings = false, compactSponsored = false }: { hideSectionHeadings?: boolean; compactSponsored?: boolean }) => {
   const { data } = useQuery({
     queryKey: ["public-promotions"],
     queryFn: async () => {
@@ -62,7 +62,7 @@ const PromoStrip = ({ hideSectionHeadings = false }: { hideSectionHeadings?: boo
     .filter((entry): entry is { promo: Promo; product: any } => Boolean(entry));
 
   return (
-    <div className="container py-6 space-y-8">
+    <div className={`container ${compactSponsored ? "pt-1 pb-6" : "py-6"} space-y-8`}>
       {brands.length > 0 && (
         <section>
           <h2 className="font-display text-lg md:text-xl font-bold text-foreground mb-4">Featured Brands</h2>
