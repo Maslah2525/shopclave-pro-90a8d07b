@@ -19,7 +19,7 @@ const productSlugFromLink = (link: string) => {
   return match?.[1] ? decodeURIComponent(match[1]) : null;
 };
 
-const PromoStrip = () => {
+const PromoStrip = ({ showSponsored = true }: { showSponsored?: boolean }) => {
   const { data } = useQuery({
     queryKey: ["public-promotions"],
     queryFn: async () => {
@@ -80,7 +80,7 @@ const PromoStrip = () => {
         </section>
       )}
 
-      {sponsoredProducts.length > 0 && (
+      {showSponsored && sponsoredProducts.length > 0 && (
         <section>
           <h2 className="font-display text-lg md:text-xl font-bold text-foreground mb-4">Sponsored Products</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
