@@ -33,6 +33,8 @@ const background = (banner: Banner) => {
 
 export default function DynamicBannerPlacement({ placement }: { placement: Placement }) {
   const [index, setIndex] = useState(0);
+  const [device, setDevice] = useState<"mobile" | "desktop">(() => typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches ? "mobile" : "desktop");
+  useEffect(() => { const mq = window.matchMedia("(max-width: 767px)"); const update = () => setDevice(mq.matches ? "mobile" : "desktop"); mq.addEventListener("change", update); return () => mq.removeEventListener("change", update); }, []);
   const { data: banners = [] } = useQuery({
     queryKey: ["dynamic-banner-placement", placement],
     queryFn: async () => {
@@ -48,22 +50,22 @@ export default function DynamicBannerPlacement({ placement }: { placement: Place
     },
     refetchInterval: 60_000,
   });
-  useEffect(() => { setIndex(0); }, [placement, banners.length]);
-  const current = banners[index % Math.max(banners.length, 1)];
+  const eligible = banners.filter(b => !b.target_device || b.target_device === "all" || b.target_device === device);
+  useEffect(() => { setIndex(0); }, [placement, device, banners.length]);
+  const current = eligible[index % Math.max(eligible.length, 1)];
   useEffect(() => {
-    if (banners.length < 2) return;
+    if (eligible.length < 2) return;
     const interval = Math.max(2000, Math.min(30000, current?.rotation_interval_ms || 5000));
-    const timer = window.setInterval(() => setIndex(i => (i + 1) % banners.length), interval);
+    const timer = window.setInterval(() => setIndex(i => (i + 1) % eligible.length), interval);
     return () => window.clearInterval(timer);
-  }, [banners.length, current?.rotation_interval_ms]);
+  }, [eligible.length, current?.rotation_interval_ms]);
   if (!current) return null;
-  const animation = ["fade", "slide", "zoom", "float"].includes(current.animation_type || "")
+  const animation = ["none", "fade", "slide", "zoom", "float"].includes(current.animation_type || "")
     ? current.animation_type : "fade";
   const duration = Math.max(100, Math.min(3000, current.transition_duration_ms || 700));
   const media = current.desktop_image_url || current.image_url;
   const mobile = current.mobile_image_url || media;
-  const visible = current.target_device !== "mobile" && current.target_device !== "desktop"
-    ? "block" : current.target_device === "mobile" ? "block md:hidden" : "hidden md:block";
+  const visible = "block";
   return (
     <section aria-label={placement.replace(/_/g, " ")} className={`container py-5 ${visible}`}>
       <Link to={safeLink(current.link_url)} className="block rounded-2xl overflow-hidden focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
@@ -80,8 +82,8 @@ export default function DynamicBannerPlacement({ placement }: { placement: Place
           </div>}
         </div>
       </Link>
-      {banners.length > 1 && <div className="flex justify-center gap-2 mt-3" aria-label="Banner navigation">
-        {banners.map((banner, i) => <button key={banner.id} type="button" aria-label={`Show banner ${i + 1}`} aria-current={i === index ? "true" : undefined}
+      {eligible.length > 1 && <div className="flex justify-center gap-2 mt-3" aria-label="Banner navigation">
+        {eligible.map((banner, i) => <button key={banner.id} type="button" aria-label={`Show banner ${i + 1}`} aria-current={i === index ? "true" : undefined}
           onClick={() => setIndex(i)} className={`h-2.5 w-2.5 rounded-full ${i === index ? "bg-primary" : "bg-muted-foreground/30"}`} />)}
       </div>}
     </section>
