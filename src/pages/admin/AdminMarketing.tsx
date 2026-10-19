@@ -16,6 +16,7 @@ import { Plus, Pencil, Trash2, ArrowUp, ArrowDown, Image as ImageIcon, Megaphone
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { convertImageToWebp } from "@/lib/imageToWebp";
+import DynamicBannerAdmin from "@/components/admin/DynamicBannerAdmin";
 
 
 // ----- Spec definitions shown in the UI -----
@@ -1151,9 +1152,11 @@ const AdminMarketing = () => {
         <TabsList>
           <TabsTrigger value="banners">Hero Banners</TabsTrigger>
           <TabsTrigger value="promotions">Promotions</TabsTrigger>
+          <TabsTrigger value="dynamic">Dynamic Banners</TabsTrigger>
         </TabsList>
         <TabsContent value="banners" className="mt-4"><BannersTab /></TabsContent>
         <TabsContent value="promotions" className="mt-4"><PromotionsTab /></TabsContent>
+        <TabsContent value="dynamic" className="mt-4"><DynamicBannerAdmin /></TabsContent>
       </Tabs>
     </div>
   );
