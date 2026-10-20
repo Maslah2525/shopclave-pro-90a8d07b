@@ -69,16 +69,16 @@ export default function DynamicBannerPlacement({ placement, compact = false }: {
   return (
     <section aria-label={placement.replace(/_/g, " ")} className={`container ${compact ? "pt-3 pb-1" : "py-5"} ${visible}`}>
       <Link to={safeLink(current.link_url)} className="block rounded-2xl overflow-hidden focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
-        <div key={current.id} className={`relative min-h-36 md:min-h-56 flex items-center overflow-hidden dynamic-banner dynamic-banner--${animation}`}
+        <div key={current.id} className={`relative min-h-44 md:min-h-56 flex items-center overflow-hidden dynamic-banner dynamic-banner--${animation}`}
           style={{ ...background(current), animationDuration: `${duration}ms` }}>
           {media && <picture className="absolute inset-0">
             {mobile && <source media="(max-width: 767px)" srcSet={mobile} />}
             <img src={media} alt={current.title || "Promotion"} loading="lazy" className="w-full h-full object-cover" />
           </picture>}
-          {(current.title || current.subtitle || current.cta_label) && <div className="relative z-10 p-6 md:p-10 max-w-xl text-white drop-shadow-lg">
-            {current.title && <h2 className="text-xl md:text-4xl font-bold">{current.title}</h2>}
-            {current.subtitle && <p className="mt-2 text-sm md:text-lg">{current.subtitle}</p>}
-            {current.cta_label && <span className="inline-block mt-4 bg-white text-gray-900 px-5 py-2 rounded-lg font-semibold text-sm drop-shadow-none">{current.cta_label}</span>}
+          {(current.title || current.subtitle || current.cta_label) && <div className="relative z-10 w-full min-w-0 max-w-xl px-4 py-5 sm:p-6 md:p-10 text-white drop-shadow-lg break-words [overflow-wrap:anywhere]">
+            {current.title && <h2 className="text-base leading-tight sm:text-xl md:text-4xl md:leading-tight font-bold">{current.title}</h2>}
+            {current.subtitle && <p className="mt-2 text-xs leading-snug sm:text-sm md:text-lg md:leading-normal">{current.subtitle}</p>}
+            {current.cta_label && <span className="inline-block max-w-full mt-3 md:mt-4 bg-white text-gray-900 px-3 py-2 md:px-5 rounded-lg font-semibold text-xs sm:text-sm leading-snug drop-shadow-none whitespace-normal break-words">{current.cta_label}</span>}
           </div>}
         </div>
       </Link>
