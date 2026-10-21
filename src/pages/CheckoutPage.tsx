@@ -263,11 +263,6 @@ const CheckoutPage = () => {
   const taxTotal = taxQuote?.ok ? Number(taxQuote.total_tax_cad) : 0;
   const grandTotal = totalPrice + shippingTotal + taxTotal;
 
-  const etaLabel = (days: number | null | undefined) => {
-    if (!days || days <= 0) return "Carrier ETA unavailable";
-    const arrival = new Date(); arrival.setDate(arrival.getDate() + days);
-    return "Estimated " + arrival.toLocaleDateString("en-CA", { day: "2-digit", month: "short" });
-  };
   // Delivery dates
   const deliveryStart = new Date();
   deliveryStart.setDate(deliveryStart.getDate() + 3);
@@ -337,8 +332,11 @@ const CheckoutPage = () => {
           if (v.blocked) errMap[v.vendor_id] = v.message;
           rateMap[v.vendor_id] = v.rates || [];
           if (v.rates?.length) {
-            const preferredService = readDeliveryPreference(v.vendor_id);
-            autoSelect[v.vendor_id] = v.rates.find((rate: any) => rate.service === preferredService) || v.rates[0];
+            autoSelect[v.vendor_id] = pickAutoSelectedRate(
+              v.rates,
+              handlingByVendor[v.vendor_id] ?? 1,
+              readDeliveryPreference(v.vendor_id),
+            );
           }
         });
         setShippingRates(rateMap);
