@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ShoppingBag, LayoutGrid, Store, Tag, Link2, ImagePlus, X } from "lucide-react";
+import { CategoryPicker, useCategoryAncestors } from "@/components/shared/CategoryPicker";
 import { toast } from "sonner";
 
 const placements = ["featured_products_banner", "sponsored_products_banner", "category_promotion", "flash_sale_banner", "homepage_full_width", "homepage_secondary"] as const;
@@ -80,6 +81,21 @@ function SearchPicker({ placeholder, fetcher, onPick }: { placeholder: string; f
   </div>;
 }
 
+/** Cascading category picker that resolves the picked leaf to its URL. */
+function CategoryLinkPicker({ onPick }: { onPick: (item: PickerItem) => void }) {
+  const [id, setId] = useState("");
+  const { data: ancestors = [] } = useCategoryAncestors(id || null);
+  const lastPicked = useRef("");
+  useEffect(() => {
+    const leaf = ancestors[ancestors.length - 1];
+    if (leaf && lastPicked.current !== leaf.id) {
+      lastPicked.current = leaf.id;
+      onPick({ id: leaf.id, label: ancestors.map(a => a.name).join(" › "), url: `/category/${leaf.slug}` });
+    }
+  }, [ancestors, onPick]);
+  return <CategoryPicker value={id} onChange={setId} showBreadcrumb={false} />;
+}
+
 export default function DynamicBannerAdmin() {
   const qc = useQueryClient();
   const [editing, setEditing] = useState<string | null>(null);
@@ -98,14 +114,6 @@ export default function DynamicBannerAdmin() {
       const { data, error } = await (supabase.from("promotions") as any).select("*").in("placement", [...placements]).order("display_order");
       if (error) throw error;
       return data || [];
-    },
-  });
-  const { data: categoryOptions = [] } = useQuery({
-    queryKey: ["admin-banner-categories"],
-    queryFn: async () => {
-      const { data, error } = await (supabase.from("categories") as any).select("id,name,slug").order("name");
-      if (error) throw error;
-      return (data || []) as { id: string; name: string; slug: string }[];
     },
   });
   const refresh = () => {
@@ -283,10 +291,8 @@ export default function DynamicBannerAdmin() {
             </div>
             {linkType === "product" && <div className="space-y-2"><Label>Search and select product</Label><SearchPicker placeholder="Type a product name…" fetcher={searchProducts} onPick={pickLink} /></div>}
             {linkType === "category" && <div className="space-y-2"><Label>Select category</Label>
-              <Select value="" onValueChange={slug => { const cat = categoryOptions.find(c => c.slug === slug); if (cat) pickLink({ id: cat.id, label: cat.name, url: `/category/${cat.slug}` }); }}>
-                <SelectTrigger><SelectValue placeholder="Choose a category…" /></SelectTrigger>
-                <SelectContent>{categoryOptions.map(c => <SelectItem key={c.id} value={c.slug}>{c.name}</SelectItem>)}</SelectContent>
-              </Select></div>}
+              <p className="text-xs text-muted-foreground">Pick a main category, then its sub-categories, level by level.</p>
+              <CategoryLinkPicker key={linkType} onPick={pickLink} /></div>}
             {linkType === "store" && <div className="space-y-2"><Label>Search and select store</Label><SearchPicker placeholder="Type a store name…" fetcher={searchStores} onPick={pickLink} /></div>}
             {linkType === "brand" && <div className="space-y-2"><Label>Brand name</Label><Input placeholder="e.g. Samsung" onChange={e => { const v = e.target.value.trim(); setLinkTarget(v); update("link_url", v ? `/search?q=${encodeURIComponent(v)}` : "/"); }} /></div>}
             {linkType === "custom" && <div className="space-y-2"><Label>Destination URL</Label><Input value={form.link_url} onChange={e => update("link_url", e.target.value)} placeholder="/search or https://..." /></div>}
