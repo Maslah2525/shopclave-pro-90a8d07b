@@ -132,10 +132,12 @@ const CheckoutPage = () => {
   }, [items.length, navigate]);
 
   useEffect(() => {
-    if (!user) {
+    // Wait for the session to resolve first, so a signed-in shopper who opens
+    // or refreshes /checkout directly isn't bounced to the sign-in page.
+    if (!loading && !user) {
       navigate("/auth", { replace: true });
     }
-  }, [user, navigate]);
+  }, [loading, user, navigate]);
 
   // Load saved address
   const { data: savedAddress, isLoading: addressLoading, isError: addressLoadError, refetch: retryAddress } = useQuery({
