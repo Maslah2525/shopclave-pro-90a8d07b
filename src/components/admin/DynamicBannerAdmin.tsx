@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -7,10 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ShoppingBag, LayoutGrid, Store, Tag, Link2, ImagePlus, X } from "lucide-react";
 import { toast } from "sonner";
 
 const placements = ["featured_products_banner", "sponsored_products_banner", "category_promotion", "flash_sale_banner", "homepage_full_width", "homepage_secondary"] as const;
-const recommendedDimensions = (placement: string) => placement === "homepage_full_width" ? { desktop: "1920 × 600", mobile: "750 × 900" } : { desktop: "1600 × 400", mobile: "750 × 500" };
+const recommendedDimensions = (placement: string) => placement === "homepage_full_width" ? { desktop: { w: 1920, h: 600 }, mobile: { w: 750, h: 900 } } : { desktop: { w: 1600, h: 400 }, mobile: { w: 750, h: 500 } };
+const ratio = (w: number, h: number) => { const g = (a: number, b: number): number => b ? g(b, a % b) : a; const d = g(w, h); return `${w / d} : ${h / d}`; };
 const defaults = { placement: placements[0] as string, title: "", subtitle: "", cta_label: "Shop now", link_url: "/", image_url: "", desktop_image_url: "", mobile_image_url: "", banner_mode: "image", animation_type: "fade", transition_duration_ms: 700, rotation_interval_ms: 5000, background_color: "#1f2937", background_gradient: "", is_active: false, starts_at: "", ends_at: "", display_order: 0, target_device: "all" };
 type Form = typeof defaults;
 const dateInput = (date: string | null) => {
@@ -28,6 +30,56 @@ const bannerStatus = (row: any) => {
 };
 const safeLink = (link: string) => (link.startsWith("/") && !link.startsWith("//")) || /^https:\/\/[^\s]+$/i.test(link);
 
+const steps = [
+  { n: 1, label: "Banner Details", id: "db-step-details" },
+  { n: 2, label: "Images", id: "db-step-images" },
+  { n: 3, label: "Link & Targeting", id: "db-step-link" },
+  { n: 4, label: "Animation & Style", id: "db-step-animation" },
+  { n: 5, label: "Scheduling", id: "db-step-scheduling" },
+  { n: 6, label: "Preview", id: "db-step-preview" },
+];
+
+const linkTypes = [
+  { value: "product", label: "Product", icon: ShoppingBag },
+  { value: "category", label: "Category", icon: LayoutGrid },
+  { value: "store", label: "Store", icon: Store },
+  { value: "brand", label: "Brand", icon: Tag },
+  { value: "custom", label: "Custom URL", icon: Link2 },
+] as const;
+type LinkType = typeof linkTypes[number]["value"];
+const linkTypeFromUrl = (url: string): LinkType => {
+  if (/^\/product\//.test(url)) return "product";
+  if (/^\/category\//.test(url)) return "category";
+  if (/^\/store\//.test(url)) return "store";
+  if (/^\/search\?q=/.test(url)) return "brand";
+  return "custom";
+};
+
+type PickerItem = { id: string; label: string; sub?: string; url: string };
+function SearchPicker({ placeholder, fetcher, onPick }: { placeholder: string; fetcher: (term: string) => Promise<PickerItem[]>; onPick: (item: PickerItem) => void }) {
+  const [term, setTerm] = useState("");
+  const [results, setResults] = useState<PickerItem[]>([]);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (term.trim().length < 2) { setResults([]); return; }
+    setBusy(true);
+    const timer = setTimeout(async () => {
+      try { setResults(await fetcher(term.trim())); } catch { setResults([]); } finally { setBusy(false); }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [term]);
+  return <div className="space-y-2">
+    <Input value={term} onChange={e => setTerm(e.target.value)} placeholder={placeholder} />
+    {busy && <p className="text-xs text-muted-foreground">Searching…</p>}
+    {results.length > 0 && <div className="rounded-md border divide-y bg-card max-h-48 overflow-auto">
+      {results.map(r => <button key={r.id} type="button" className="w-full text-left px-3 py-2 hover:bg-muted" onClick={() => { onPick(r); setTerm(""); setResults([]); }}>
+        <span className="block text-sm font-medium">{r.label}</span>
+        {r.sub && <span className="block text-xs text-muted-foreground">{r.sub}</span>}
+      </button>)}
+    </div>}
+  </div>;
+}
+
 export default function DynamicBannerAdmin() {
   const qc = useQueryClient();
   const [editing, setEditing] = useState<string | null>(null);
@@ -35,6 +87,11 @@ export default function DynamicBannerAdmin() {
   const [uploading, setUploading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [previewDevice, setPreviewDevice] = useState<"desktop" | "mobile">("desktop");
+  const [activeStep, setActiveStep] = useState(1);
+  const [linkType, setLinkType] = useState<LinkType>("custom");
+  const [linkTarget, setLinkTarget] = useState("");
+  const desktopInput = useRef<HTMLInputElement>(null);
+  const mobileInput = useRef<HTMLInputElement>(null);
   const { data: rows = [] } = useQuery({
     queryKey: ["admin-dynamic-banners"],
     queryFn: async () => {
@@ -43,15 +100,28 @@ export default function DynamicBannerAdmin() {
       return data || [];
     },
   });
+  const { data: categoryOptions = [] } = useQuery({
+    queryKey: ["admin-banner-categories"],
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("categories") as any).select("id,name,slug").order("name");
+      if (error) throw error;
+      return (data || []) as { id: string; name: string; slug: string }[];
+    },
+  });
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ["admin-dynamic-banners"] });
     qc.invalidateQueries({ queryKey: ["admin-promotions"] });
     qc.invalidateQueries({ queryKey: ["dynamic-banner-placement"] });
   };
   const update = (key: keyof Form, value: any) => setForm(prev => ({ ...prev, [key]: value }));
+  const resetForm = () => { setEditing(null); setForm({ ...defaults }); setLinkType("custom"); setLinkTarget(""); setActiveStep(1); };
   const edit = (row: any) => {
     setEditing(row.id);
-    setForm({ ...defaults, ...Object.fromEntries(Object.keys(defaults).map(key => [key, row[key] ?? (defaults as any)[key]])), starts_at: dateInput(row.starts_at), ends_at: dateInput(row.ends_at) } as Form);
+    const next = { ...defaults, ...Object.fromEntries(Object.keys(defaults).map(key => [key, row[key] ?? (defaults as any)[key]])), starts_at: dateInput(row.starts_at), ends_at: dateInput(row.ends_at) } as Form;
+    setForm(next);
+    setLinkType(linkTypeFromUrl(next.link_url || "/"));
+    setLinkTarget("");
+    setActiveStep(1);
     setShowForm(true);
   };
   const upload = async (file: File, field: "desktop_image_url" | "mobile_image_url") => {
@@ -71,6 +141,7 @@ export default function DynamicBannerAdmin() {
   const save = useMutation({
     mutationFn: async () => {
       if (!form.title.trim()) throw new Error("Enter a banner title.");
+      if (linkType !== "custom" && form.link_url === "/") throw new Error("Choose what this banner links to.");
       if (!safeLink(form.link_url)) throw new Error("Use a relative path or an HTTPS URL.");
       if (form.starts_at && form.ends_at && new Date(form.ends_at) <= new Date(form.starts_at)) throw new Error("End date must be after start date.");
       if (form.banner_mode === "image" && !form.desktop_image_url) throw new Error("Upload a desktop image.");
@@ -80,7 +151,7 @@ export default function DynamicBannerAdmin() {
       const { error } = await query;
       if (error) throw error;
     },
-    onSuccess: () => { refresh(); setShowForm(false); setEditing(null); setForm({ ...defaults }); toast.success("Banner saved"); },
+    onSuccess: () => { refresh(); setShowForm(false); resetForm(); toast.success("Banner saved"); },
     onError: (e: Error) => toast.error(e.message),
   });
   const toggle = useMutation({
@@ -126,19 +197,62 @@ export default function DynamicBannerAdmin() {
     onSuccess: refresh,
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const searchProducts = async (term: string): Promise<PickerItem[]> => {
+    const { data, error } = await (supabase.from("products") as any).select("id,name,slug,price").eq("status", "active").ilike("name", `%${term}%`).limit(6);
+    if (error) throw error;
+    return (data || []).map((p: any) => ({ id: p.id, label: p.name, sub: p.price != null ? `CA$${p.price}` : undefined, url: `/product/${p.slug}` }));
+  };
+  const searchStores = async (term: string): Promise<PickerItem[]> => {
+    const { data, error } = await (supabase.from("vendors") as any).select("id,store_name,slug").ilike("store_name", `%${term}%`).limit(6);
+    if (error) throw error;
+    return (data || []).map((v: any) => ({ id: v.id, label: v.store_name || "Unnamed store", url: `/store/${v.slug ?? v.id}` }));
+  };
+  const pickLink = (item: PickerItem) => { update("link_url", item.url); setLinkTarget(item.label); };
+  const goToStep = (n: number, id: string) => { setActiveStep(n); document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }); };
+  const dims = recommendedDimensions(form.placement);
+
+  const imageCard = (field: "desktop_image_url" | "mobile_image_url", label: string, dim: { w: number; h: number }, inputRef: React.RefObject<HTMLInputElement | null>) => (
+    <div className="rounded-lg border p-4 space-y-3 min-w-0">
+      <div className="flex items-center gap-2 text-sm font-medium"><ImagePlus className="h-4 w-4 text-muted-foreground" />{label} <span className="text-muted-foreground font-normal">(Recommended)</span></div>
+      <ul className="text-xs text-muted-foreground space-y-0.5">
+        <li>Size: {dim.w} × {dim.h} px</li>
+        <li>Ratio: {ratio(dim.w, dim.h)}</li>
+        <li>Format: JPG, PNG, WebP</li>
+        <li>Max size: 2 MB</li>
+      </ul>
+      {form[field] && <img src={form[field]} alt={`${label} preview`} className="w-full aspect-[3/1] object-cover rounded border" />}
+      <div className="flex gap-2">
+        <Button type="button" size="sm" variant="outline" disabled={uploading} onClick={() => inputRef.current?.click()}>{form[field] ? "Change Image" : "Choose Image"}</Button>
+        {form[field] && <Button type="button" size="sm" variant="destructive" onClick={() => update(field, "")}>Remove</Button>}
+      </div>
+      <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" disabled={uploading}
+        onChange={e => { const file = e.target.files?.[0]; if (file) upload(file, field); e.target.value = ""; }} />
+    </div>
+  );
+
   return <div className="space-y-5">
     <div className="flex justify-between items-center gap-3">
       <p className="text-sm text-muted-foreground">Manage scheduled promotional banners in the new homepage placements.</p>
-      <Button onClick={() => { setEditing(null); setForm({ ...defaults }); setShowForm(true); }}>Add dynamic banner</Button>
+      <Button onClick={() => { resetForm(); setShowForm(true); }}>Add dynamic banner</Button>
     </div>
     {showForm && <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div><h3 className="text-lg font-bold">{editing ? "Edit Banner" : "New Banner"}</h3><p className="text-sm text-muted-foreground">Configure your banner and review it before saving.</p></div>
         <div className="flex gap-2"><Button variant="outline" onClick={() => setShowForm(false)}>Cancel</Button><Button disabled={save.isPending || uploading} onClick={() => save.mutate()}>{save.isPending ? "Saving..." : "Save Banner"}</Button></div>
       </div>
+      <div className="flex flex-wrap items-center gap-1 rounded-lg border bg-card p-2" aria-label="Banner setup steps">
+        {steps.map(s => (
+          <button key={s.n} type="button" onClick={() => goToStep(s.n, s.id)} aria-current={activeStep === s.n ? "step" : undefined}
+            className={`flex items-center gap-2 rounded-md px-3 py-2 text-xs sm:text-sm font-medium transition-colors ${activeStep === s.n ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}>
+            <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[11px] ${activeStep === s.n ? "bg-primary-foreground text-primary" : "bg-muted-foreground/20"}`}>{s.n}</span>
+            {s.label}
+          </button>
+        ))}
+      </div>
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] gap-5 items-start">
         <div className="space-y-4 min-w-0">
-          <Card><CardContent className="p-5 space-y-4">
+          <Card id="db-step-details" className="scroll-mt-4"><CardContent className="p-5 space-y-4">
             <h4 className="font-semibold border-b pb-2">1. Banner Details</h4>
             <div className="grid sm:grid-cols-2 gap-4">
               <div className="space-y-2"><Label>Banner name / title</Label><Input value={form.title} onChange={e => update("title", e.target.value)} /></div>
@@ -148,24 +262,40 @@ export default function DynamicBannerAdmin() {
             </div>
             <div className="flex items-center gap-3"><Switch checked={form.is_active} onCheckedChange={v => update("is_active", v)} /><Label>{form.is_active ? "Active" : "Inactive"}</Label></div>
           </CardContent></Card>
-          <Card><CardContent className="p-5 space-y-4">
+          <Card id="db-step-images" className="scroll-mt-4"><CardContent className="p-5 space-y-4">
             <h4 className="font-semibold border-b pb-2">2. Images</h4>
             <div className="space-y-2"><Label>Banner mode</Label><Select value={form.banner_mode} onValueChange={v => update("banner_mode", v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="image">Image banner</SelectItem><SelectItem value="dynamic">Text / colour composition</SelectItem></SelectContent></Select></div>
             {form.banner_mode === "image" && <div className="grid sm:grid-cols-2 gap-4">
-              {(["desktop_image_url", "mobile_image_url"] as const).map(field => <div key={field} className="space-y-2 min-w-0">
-                <Label>{field === "desktop_image_url" ? "Desktop image" : "Mobile image (optional)"}</Label>
-                <p className="text-xs text-muted-foreground">Recommended {recommendedDimensions(form.placement)[field === "desktop_image_url" ? "desktop" : "mobile"]} px · JPG, PNG or WebP · Max 2 MB</p>
-                <Input type="file" accept="image/jpeg,image/png,image/webp" disabled={uploading} onChange={e => { const file = e.target.files?.[0]; if (file) upload(file, field); }} />
-                {form[field] && <div className="space-y-2"><img src={form[field]} alt="Banner upload preview" className="w-full aspect-[3/1] object-contain bg-muted rounded border" /><Button size="sm" variant="outline" type="button" onClick={() => update(field, "")}>Remove image</Button></div>}
-              </div>)}
+              {imageCard("desktop_image_url", "Desktop Image", dims.desktop, desktopInput)}
+              {imageCard("mobile_image_url", "Mobile Image", dims.mobile, mobileInput)}
             </div>}
           </CardContent></Card>
-          <Card><CardContent className="p-5 space-y-4">
+          <Card id="db-step-link" className="scroll-mt-4"><CardContent className="p-5 space-y-4">
             <h4 className="font-semibold border-b pb-2">3. Link &amp; Targeting</h4>
-            <div className="space-y-2"><Label>Destination URL</Label><Input value={form.link_url} onChange={e => update("link_url", e.target.value)} placeholder="/search or https://..." /><p className="text-xs text-muted-foreground">Use an existing Barakaz page path or an HTTPS link. Database search linking will be added separately.</p></div>
+            <div className="space-y-2">
+              <Label>Link type</Label>
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                {linkTypes.map(t => <button key={t.value} type="button" onClick={() => { setLinkType(t.value); setLinkTarget(""); update("link_url", "/"); }}
+                  className={`flex flex-col items-center gap-1.5 rounded-lg border px-2 py-3 text-xs font-medium transition-colors ${linkType === t.value ? "border-primary text-primary bg-primary/5" : "text-muted-foreground hover:bg-muted"}`}>
+                  <t.icon className="h-5 w-5" />{t.label}
+                </button>)}
+              </div>
+            </div>
+            {linkType === "product" && <div className="space-y-2"><Label>Search and select product</Label><SearchPicker placeholder="Type a product name…" fetcher={searchProducts} onPick={pickLink} /></div>}
+            {linkType === "category" && <div className="space-y-2"><Label>Select category</Label>
+              <Select value="" onValueChange={slug => { const cat = categoryOptions.find(c => c.slug === slug); if (cat) pickLink({ id: cat.id, label: cat.name, url: `/category/${cat.slug}` }); }}>
+                <SelectTrigger><SelectValue placeholder="Choose a category…" /></SelectTrigger>
+                <SelectContent>{categoryOptions.map(c => <SelectItem key={c.id} value={c.slug}>{c.name}</SelectItem>)}</SelectContent>
+              </Select></div>}
+            {linkType === "store" && <div className="space-y-2"><Label>Search and select store</Label><SearchPicker placeholder="Type a store name…" fetcher={searchStores} onPick={pickLink} /></div>}
+            {linkType === "brand" && <div className="space-y-2"><Label>Brand name</Label><Input placeholder="e.g. Samsung" onChange={e => { const v = e.target.value.trim(); setLinkTarget(v); update("link_url", v ? `/search?q=${encodeURIComponent(v)}` : "/"); }} /></div>}
+            {linkType === "custom" && <div className="space-y-2"><Label>Destination URL</Label><Input value={form.link_url} onChange={e => update("link_url", e.target.value)} placeholder="/search or https://..." /></div>}
+            {linkTarget && <div className="inline-flex items-center gap-2 rounded-md bg-muted px-3 py-1.5 text-sm"><span className="font-medium">{linkTarget}</span><button type="button" aria-label="Clear link target" onClick={() => { setLinkTarget(""); update("link_url", "/"); }}><X className="h-3.5 w-3.5" /></button></div>}
+            {linkType !== "custom" && form.link_url !== "/" && <p className="text-xs text-muted-foreground">This banner will link to <span className="font-medium">{form.link_url}</span>.</p>}
+            <p className="text-xs text-muted-foreground">Links use existing Barakaz pages or an HTTPS address.</p>
             <div className="space-y-2"><Label>Target device</Label><Select value={form.target_device} onValueChange={v => update("target_device", v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All devices</SelectItem><SelectItem value="desktop">Desktop only</SelectItem><SelectItem value="mobile">Mobile only</SelectItem></SelectContent></Select></div>
           </CardContent></Card>
-          <Card><CardContent className="p-5 space-y-4">
+          <Card id="db-step-animation" className="scroll-mt-4"><CardContent className="p-5 space-y-4">
             <h4 className="font-semibold border-b pb-2">4. Animation &amp; Style</h4>
             <div className="grid sm:grid-cols-2 gap-4">
               <div className="space-y-2"><Label>Animation</Label><Select value={form.animation_type} onValueChange={v => update("animation_type", v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["none", "fade", "slide", "zoom", "float"].map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}</SelectContent></Select></div>
@@ -174,7 +304,7 @@ export default function DynamicBannerAdmin() {
               <div className="space-y-2"><Label>Rotation time (ms)</Label><Input type="number" min={2000} max={30000} value={form.rotation_interval_ms} onChange={e => update("rotation_interval_ms", Number(e.target.value))} /></div>
             </div>
           </CardContent></Card>
-          <Card><CardContent className="p-5 space-y-4">
+          <Card id="db-step-scheduling" className="scroll-mt-4"><CardContent className="p-5 space-y-4">
             <h4 className="font-semibold border-b pb-2">5. Scheduling</h4>
             <div className="grid sm:grid-cols-2 gap-4">
               <div className="space-y-2"><Label>Start date &amp; time (optional)</Label><Input type="datetime-local" value={form.starts_at} onChange={e => update("starts_at", e.target.value)} /></div>
@@ -182,7 +312,7 @@ export default function DynamicBannerAdmin() {
             </div>
           </CardContent></Card>
         </div>
-        <Card><CardContent className="p-5 space-y-4">
+        <Card id="db-step-preview" className="scroll-mt-4"><CardContent className="p-5 space-y-4">
           <h4 className="font-semibold border-b pb-2">6. Live Preview</h4>
           <div className="flex gap-2">
             <Button type="button" size="sm" variant={previewDevice === "desktop" ? "default" : "outline"} onClick={() => setPreviewDevice("desktop")}>Desktop View</Button>
