@@ -81,6 +81,21 @@ function SearchPicker({ placeholder, fetcher, onPick }: { placeholder: string; f
   </div>;
 }
 
+/** Cascading category picker that resolves the picked leaf to its URL. */
+function CategoryLinkPicker({ onPick }: { onPick: (item: PickerItem) => void }) {
+  const [id, setId] = useState("");
+  const { data: ancestors = [] } = useCategoryAncestors(id || null);
+  const lastPicked = useRef("");
+  useEffect(() => {
+    const leaf = ancestors[ancestors.length - 1];
+    if (leaf && lastPicked.current !== leaf.id) {
+      lastPicked.current = leaf.id;
+      onPick({ id: leaf.id, label: ancestors.map(a => a.name).join(" › "), url: `/category/${leaf.slug}` });
+    }
+  }, [ancestors, onPick]);
+  return <CategoryPicker value={id} onChange={setId} showBreadcrumb={false} />;
+}
+
 export default function DynamicBannerAdmin() {
   const qc = useQueryClient();
   const [editing, setEditing] = useState<string | null>(null);
@@ -276,10 +291,8 @@ export default function DynamicBannerAdmin() {
             </div>
             {linkType === "product" && <div className="space-y-2"><Label>Search and select product</Label><SearchPicker placeholder="Type a product name…" fetcher={searchProducts} onPick={pickLink} /></div>}
             {linkType === "category" && <div className="space-y-2"><Label>Select category</Label>
-              <Select value="" onValueChange={slug => { const cat = categoryOptions.find(c => c.slug === slug); if (cat) pickLink({ id: cat.id, label: cat.name, url: `/category/${cat.slug}` }); }}>
-                <SelectTrigger><SelectValue placeholder="Choose a category…" /></SelectTrigger>
-                <SelectContent>{categoryOptions.map(c => <SelectItem key={c.id} value={c.slug}>{c.name}</SelectItem>)}</SelectContent>
-              </Select></div>}
+              <p className="text-xs text-muted-foreground">Pick a main category, then its sub-categories, level by level.</p>
+              <CategoryLinkPicker key={linkType} onPick={pickLink} /></div>}
             {linkType === "store" && <div className="space-y-2"><Label>Search and select store</Label><SearchPicker placeholder="Type a store name…" fetcher={searchStores} onPick={pickLink} /></div>}
             {linkType === "brand" && <div className="space-y-2"><Label>Brand name</Label><Input placeholder="e.g. Samsung" onChange={e => { const v = e.target.value.trim(); setLinkTarget(v); update("link_url", v ? `/search?q=${encodeURIComponent(v)}` : "/"); }} /></div>}
             {linkType === "custom" && <div className="space-y-2"><Label>Destination URL</Label><Input value={form.link_url} onChange={e => update("link_url", e.target.value)} placeholder="/search or https://..." /></div>}
