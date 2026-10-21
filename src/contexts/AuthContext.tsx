@@ -63,20 +63,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        setTimeout(() => fetchRolesAndPerms(session.user.id), 0);
+        // Keep loading until roles resolve so route guards never see a user with no roles.
+        setTimeout(() => fetchRolesAndPerms(session.user.id).finally(() => setLoading(false)), 0);
       } else {
         setUserRoles([]);
         setPermissions([]);
         setIsSuperAdmin(false);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      if (session?.user) fetchRolesAndPerms(session.user.id);
-      setLoading(false);
+      if (session?.user) fetchRolesAndPerms(session.user.id).finally(() => setLoading(false));
+      else setLoading(false);
     });
 
     return () => subscription.unsubscribe();
