@@ -864,7 +864,7 @@ const CheckoutPage = () => {
               {deliveryConfirmed && activeStep !== "delivery" && activeStep !== "review" && (
                 <div className="px-4 pb-4 text-sm text-muted-foreground">
                   <p>{deliveryItemsLabel(items.length)}</p>
-                  {Object.entries(selectedRates).map(([vid, rate]: [string, any]) => <p key={vid}>{rate.service}: {formatPrice(rate.amount_cad)}</p>)}
+                  {Object.entries(selectedRates).map(([vid, rate]: [string, any]) => <p key={vid}>{tierLabelOf(rate, handlingByVendor[vid] ?? 1)} ({rate.provider} · {rate.service}): {formatPrice(rate.amount_cad)}</p>)}
                 
                 </div>
               )}
@@ -937,8 +937,9 @@ const CheckoutPage = () => {
                                   <div className="mt-4 flex items-start gap-3 bg-secondary/40 px-3 py-2.5 text-xs">
                                     <Truck className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
                                     <div className="min-w-0 flex-1">
-                                      <p className="font-medium text-foreground">{rate.service}</p>
-                                      <p className="mt-0.5 text-muted-foreground">Estimated arrival {windowFor(vendorId, rate.service)}</p>
+                                      <p className="font-medium text-foreground">{tierLabelOf(rate, handlingByVendor[vendorId] ?? 1)}</p>
+                                      <p className="text-muted-foreground">{rate.provider} · {rate.service}</p>
+                                      <p className="mt-0.5 text-muted-foreground">Estimated arrival {etaFor(rate)}</p>
                                     </div>
                                     <span className="shrink-0 font-medium text-foreground tabular-nums">{formatPrice(rate.amount_cad)}</span>
                                   </div>
