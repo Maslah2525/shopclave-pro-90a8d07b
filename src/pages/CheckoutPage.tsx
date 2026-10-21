@@ -16,7 +16,8 @@ import { Separator } from "@/components/ui/separator";
 import { useLocale } from "@/hooks/useLocale";
 import CheckoutLoader from "@/components/checkout/CheckoutLoader";
 import { validateStripeCheckoutUrl, logHandoff } from "@/lib/stripeHandoff";
-import { estimateDeliveryWindow, formatDeliveryWindow, transitDaysForService, deliveryItemsLabel, readDeliveryPreference } from "@/lib/deliveryEstimate";
+import { estimateDeliveryWindow, formatDeliveryWindow, deliveryItemsLabel, readDeliveryPreference } from "@/lib/deliveryEstimate";
+import { buildDeliveryOptions, pickAutoSelectedRate, tierLabelOf, STANDARD_LABEL, EXPRESS_LABEL } from "@/lib/shippingOptions";
 import { COUNTRIES, DEFAULT_COUNTRY, countryByCode, countryByName, searchCountries, addressFormat, validatePostal, isDomesticDestination } from "@/lib/countries";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -224,15 +225,20 @@ const CheckoutPage = () => {
   (handlingRows || []).forEach((r) => {
     handlingByVendor[r.vendor_id] = Math.max(handlingByVendor[r.vendor_id] ?? 0, r.handling_time_days ?? 1);
   });
-  const windowFor = (vendorId: string, service: string) =>
-    formatDeliveryWindow(
+  // Arrival window from the carrier's own estimate (already includes seller handling).
+  const etaFor = (rate: any) => {
+    const days = Number(rate?.estimated_days ?? 0);
+    if (!days || days <= 0) return "Carrier ETA unavailable";
+    return formatDeliveryWindow(
       estimateDeliveryWindow({
         from: new Date(),
-        ...transitDaysForService(service),
-        handlingDays: handlingByVendor[vendorId] ?? 1,
+        minDays: days,
+        maxDays: days,
+        handlingDays: 0,
         province: address.country === "Canada" ? address.state : undefined,
       }),
     );
+  };
 
 
 
@@ -257,11 +263,6 @@ const CheckoutPage = () => {
   const taxTotal = taxQuote?.ok ? Number(taxQuote.total_tax_cad) : 0;
   const grandTotal = totalPrice + shippingTotal + taxTotal;
 
-  const etaLabel = (days: number | null | undefined) => {
-    if (!days || days <= 0) return "Carrier ETA unavailable";
-    const arrival = new Date(); arrival.setDate(arrival.getDate() + days);
-    return "Estimated " + arrival.toLocaleDateString("en-CA", { day: "2-digit", month: "short" });
-  };
   // Delivery dates
   const deliveryStart = new Date();
   deliveryStart.setDate(deliveryStart.getDate() + 3);
@@ -331,8 +332,11 @@ const CheckoutPage = () => {
           if (v.blocked) errMap[v.vendor_id] = v.message;
           rateMap[v.vendor_id] = v.rates || [];
           if (v.rates?.length) {
-            const preferredService = readDeliveryPreference(v.vendor_id);
-            autoSelect[v.vendor_id] = v.rates.find((rate: any) => rate.service === preferredService) || v.rates[0];
+            autoSelect[v.vendor_id] = pickAutoSelectedRate(
+              v.rates,
+              handlingByVendor[v.vendor_id] ?? 1,
+              readDeliveryPreference(v.vendor_id),
+            );
           }
         });
         setShippingRates(rateMap);
@@ -777,6 +781,12 @@ const CheckoutPage = () => {
 
                   {Object.entries(vendorGroups).map(([vendorId, group]) => {
                     const rates = shippingRates[vendorId] || [];
+                    // Only the cheapest Standard and cheapest Express rate render.
+                    const options = buildDeliveryOptions(rates, handlingByVendor[vendorId] ?? 1);
+                    const curated = [
+                      options.standard ? { label: STANDARD_LABEL, rate: options.standard } : null,
+                      options.express ? { label: EXPRESS_LABEL, rate: options.express } : null,
+                    ].filter(Boolean) as Array<{ label: string; rate: any }>;
                     const err = shippingErrors[vendorId];
                     const selected = selectedRates[vendorId];
                     return (
@@ -813,7 +823,7 @@ const CheckoutPage = () => {
                             }}
                             className="space-y-1.5"
                           >
-                            {rates.map((r) => (
+                            {curated.map(({ label, rate: r }) => (
                               <label
                                 key={r.quote_id}
                                 htmlFor={`${vendorId}-${r.quote_id}`}
@@ -824,10 +834,9 @@ const CheckoutPage = () => {
                                 <RadioGroupItem value={r.quote_id} id={`${vendorId}-${r.quote_id}`} />
                                 <Truck className="h-4 w-4 text-primary shrink-0" />
                                 <div className="flex-1 min-w-0">
-                                  <p className="font-medium truncate">
-                                    {r.service}
-                                  </p>
-                                  <p className="text-[11px] text-muted-foreground">Est. arrival {windowFor(vendorId, r.service)}</p>
+                                  <p className="font-medium truncate">{label}</p>
+                                  <p className="text-[11px] text-muted-foreground truncate">{r.provider} · {r.service}</p>
+                                  <p className="text-[11px] text-muted-foreground">Est. arrival {etaFor(r)}</p>
                                 </div>
 
                                 <p className="font-semibold">{formatPrice(r.amount_cad)}</p>
@@ -855,7 +864,7 @@ const CheckoutPage = () => {
               {deliveryConfirmed && activeStep !== "delivery" && activeStep !== "review" && (
                 <div className="px-4 pb-4 text-sm text-muted-foreground">
                   <p>{deliveryItemsLabel(items.length)}</p>
-                  {Object.entries(selectedRates).map(([vid, rate]: [string, any]) => <p key={vid}>{rate.service}: {formatPrice(rate.amount_cad)}</p>)}
+                  {Object.entries(selectedRates).map(([vid, rate]: [string, any]) => <p key={vid}>{tierLabelOf(rate, handlingByVendor[vid] ?? 1)} ({rate.provider} · {rate.service}): {formatPrice(rate.amount_cad)}</p>)}
                 
                 </div>
               )}
@@ -928,8 +937,9 @@ const CheckoutPage = () => {
                                   <div className="mt-4 flex items-start gap-3 bg-secondary/40 px-3 py-2.5 text-xs">
                                     <Truck className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
                                     <div className="min-w-0 flex-1">
-                                      <p className="font-medium text-foreground">{rate.service}</p>
-                                      <p className="mt-0.5 text-muted-foreground">Estimated arrival {windowFor(vendorId, rate.service)}</p>
+                                      <p className="font-medium text-foreground">{tierLabelOf(rate, handlingByVendor[vendorId] ?? 1)}</p>
+                                      <p className="text-muted-foreground">{rate.provider} · {rate.service}</p>
+                                      <p className="mt-0.5 text-muted-foreground">Estimated arrival {etaFor(rate)}</p>
                                     </div>
                                     <span className="shrink-0 font-medium text-foreground tabular-nums">{formatPrice(rate.amount_cad)}</span>
                                   </div>
