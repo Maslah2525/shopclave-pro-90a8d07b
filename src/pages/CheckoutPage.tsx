@@ -781,6 +781,12 @@ const CheckoutPage = () => {
 
                   {Object.entries(vendorGroups).map(([vendorId, group]) => {
                     const rates = shippingRates[vendorId] || [];
+                    // Only the cheapest Standard and cheapest Express rate render.
+                    const options = buildDeliveryOptions(rates, handlingByVendor[vendorId] ?? 1);
+                    const curated = [
+                      options.standard ? { label: STANDARD_LABEL, rate: options.standard } : null,
+                      options.express ? { label: EXPRESS_LABEL, rate: options.express } : null,
+                    ].filter(Boolean) as Array<{ label: string; rate: any }>;
                     const err = shippingErrors[vendorId];
                     const selected = selectedRates[vendorId];
                     return (
@@ -817,7 +823,7 @@ const CheckoutPage = () => {
                             }}
                             className="space-y-1.5"
                           >
-                            {rates.map((r) => (
+                            {curated.map(({ label, rate: r }) => (
                               <label
                                 key={r.quote_id}
                                 htmlFor={`${vendorId}-${r.quote_id}`}
@@ -828,10 +834,9 @@ const CheckoutPage = () => {
                                 <RadioGroupItem value={r.quote_id} id={`${vendorId}-${r.quote_id}`} />
                                 <Truck className="h-4 w-4 text-primary shrink-0" />
                                 <div className="flex-1 min-w-0">
-                                  <p className="font-medium truncate">
-                                    {r.service}
-                                  </p>
-                                  <p className="text-[11px] text-muted-foreground">Est. arrival {windowFor(vendorId, r.service)}</p>
+                                  <p className="font-medium truncate">{label}</p>
+                                  <p className="text-[11px] text-muted-foreground truncate">{r.provider} · {r.service}</p>
+                                  <p className="text-[11px] text-muted-foreground">Est. arrival {etaFor(r)}</p>
                                 </div>
 
                                 <p className="font-semibold">{formatPrice(r.amount_cad)}</p>
