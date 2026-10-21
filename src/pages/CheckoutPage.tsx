@@ -16,7 +16,8 @@ import { Separator } from "@/components/ui/separator";
 import { useLocale } from "@/hooks/useLocale";
 import CheckoutLoader from "@/components/checkout/CheckoutLoader";
 import { validateStripeCheckoutUrl, logHandoff } from "@/lib/stripeHandoff";
-import { estimateDeliveryWindow, formatDeliveryWindow, transitDaysForService, deliveryItemsLabel, readDeliveryPreference } from "@/lib/deliveryEstimate";
+import { estimateDeliveryWindow, formatDeliveryWindow, deliveryItemsLabel, readDeliveryPreference } from "@/lib/deliveryEstimate";
+import { buildDeliveryOptions, pickAutoSelectedRate, tierLabelOf, STANDARD_LABEL, EXPRESS_LABEL } from "@/lib/shippingOptions";
 import { COUNTRIES, DEFAULT_COUNTRY, countryByCode, countryByName, searchCountries, addressFormat, validatePostal, isDomesticDestination } from "@/lib/countries";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -224,15 +225,20 @@ const CheckoutPage = () => {
   (handlingRows || []).forEach((r) => {
     handlingByVendor[r.vendor_id] = Math.max(handlingByVendor[r.vendor_id] ?? 0, r.handling_time_days ?? 1);
   });
-  const windowFor = (vendorId: string, service: string) =>
-    formatDeliveryWindow(
+  // Arrival window from the carrier's own estimate (already includes seller handling).
+  const etaFor = (rate: any) => {
+    const days = Number(rate?.estimated_days ?? 0);
+    if (!days || days <= 0) return "Carrier ETA unavailable";
+    return formatDeliveryWindow(
       estimateDeliveryWindow({
         from: new Date(),
-        ...transitDaysForService(service),
-        handlingDays: handlingByVendor[vendorId] ?? 1,
+        minDays: days,
+        maxDays: days,
+        handlingDays: 0,
         province: address.country === "Canada" ? address.state : undefined,
       }),
     );
+  };
 
 
 
