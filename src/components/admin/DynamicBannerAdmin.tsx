@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ShoppingBag, LayoutGrid, Store, Tag, Link2, ImagePlus, X } from "lucide-react";
+import { CategoryPicker, useCategoryAncestors } from "@/components/shared/CategoryPicker";
 import { toast } from "sonner";
 
 const placements = ["featured_products_banner", "sponsored_products_banner", "category_promotion", "flash_sale_banner", "homepage_full_width", "homepage_secondary"] as const;
@@ -98,14 +99,6 @@ export default function DynamicBannerAdmin() {
       const { data, error } = await (supabase.from("promotions") as any).select("*").in("placement", [...placements]).order("display_order");
       if (error) throw error;
       return data || [];
-    },
-  });
-  const { data: categoryOptions = [] } = useQuery({
-    queryKey: ["admin-banner-categories"],
-    queryFn: async () => {
-      const { data, error } = await (supabase.from("categories") as any).select("id,name,slug").order("name");
-      if (error) throw error;
-      return (data || []) as { id: string; name: string; slug: string }[];
     },
   });
   const refresh = () => {
