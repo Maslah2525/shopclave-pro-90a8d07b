@@ -268,10 +268,13 @@ export default function DynamicBannerAdmin({ variant = "dynamic" }: { variant?: 
   };
   const shortDate = (d: string | null) => d ? new Date(d).toLocaleDateString(undefined, { month: "short", day: "2-digit" }) : null;
   const previewImg = (device: "desktop" | "mobile") => form.banner_mode !== "image" ? "" : device === "mobile" ? form.mobile_image_url || form.desktop_image_url : form.desktop_image_url;
-  const textColor = String((form.animation_config as any).text_color || "#ffffff");
-  const previewText = (mobile: boolean) => <div style={{ color: /^#[\da-fA-F]{3,8}$/.test(textColor) ? textColor : undefined }} className={`relative z-10 min-w-0 max-w-[60%] text-white drop-shadow-lg break-words [overflow-wrap:anywhere] ${mobile ? "p-3" : "p-6"}`}>
-    <h3 className={`font-bold leading-tight ${mobile ? "text-base" : "text-3xl"}`}>{form.title || "Your headline"}</h3>
-    {form.subtitle && <p className={`${mobile ? "text-[10px]" : "text-sm"} mt-1`}>{form.subtitle}</p>}
+  const cfg = (form.animation_config || {}) as Record<string, any>;
+  const legacyText = typeof cfg.text_color === "string" ? cfg.text_color : "";
+  const titleColor = String(cfg.title_color || legacyText || "#ffffff");
+  const subtitleColor = String(cfg.subtitle_color || legacyText || "#ffffff");
+  const previewText = (mobile: boolean) => <div className={`relative z-10 min-w-0 max-w-[60%] text-white drop-shadow-lg break-words [overflow-wrap:anywhere] ${mobile ? "p-3" : "p-6"}`}>
+    <h3 style={/^#[\da-fA-F]{3,8}$/.test(titleColor) ? { color: titleColor } : undefined} className={`font-bold leading-tight ${mobile ? "text-base" : "text-3xl"}`}>{form.title || "Your headline"}</h3>
+    {form.subtitle && <p style={/^#[\da-fA-F]{3,8}$/.test(subtitleColor) ? { color: subtitleColor } : undefined} className={`${mobile ? "text-[10px]" : "text-sm"} mt-1`}>{form.subtitle}</p>}
     {form.cta_label && <span className={`inline-block bg-primary text-primary-foreground rounded font-semibold ${mobile ? "mt-2 px-2 py-1 text-[10px]" : "mt-4 px-4 py-2 text-sm"}`}>{form.cta_label} →</span>}
   </div>;
   const fmt = (d: string) => new Date(d).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
@@ -334,8 +337,8 @@ export default function DynamicBannerAdmin({ variant = "dynamic" }: { variant?: 
             {([["pause_on_hover", "Pause on hover (desktop)"], ["show_arrows", "Show navigation arrows"], ["show_dots", "Show dots indicator"], ["enable_swipe", "Enable swipe (mobile)"]] as const).map(([k, l]) => <label key={k} className="flex items-center gap-2 text-xs">
               <input type="checkbox" className="accent-primary h-4 w-4" checked={!!form.animation_config[k]} onChange={e => update("animation_config", { ...form.animation_config, [k]: e.target.checked })} />{l}</label>)}
           </div>}
-          <div className="grid sm:grid-cols-2 gap-4">
-            {([["Background colour", form.background_color || "#ffffff", (v: string) => update("background_color", v)], ["Text colour", textColor, (v: string) => update("animation_config", { ...form.animation_config, text_color: v } as any)]] as const).map(([label, value, set]) => (
+          <div className="grid sm:grid-cols-3 gap-4">
+            {([["Background colour", form.background_color || "#ffffff", (v: string) => update("background_color", v)], ["Headline colour", titleColor, (v: string) => update("animation_config", { ...form.animation_config, title_color: v } as any)], ["Subtitle colour", subtitleColor, (v: string) => update("animation_config", { ...form.animation_config, subtitle_color: v } as any)]] as const).map(([label, value, set]) => (
               <div key={label} className="space-y-2 rounded-lg border p-3">
                 <Label>{label}</Label>
                 <div className="flex items-center gap-2">

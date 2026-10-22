@@ -31,9 +31,14 @@ const background = (banner: Banner) => {
   return {};
 };
 
-const textStyle = (banner: Banner) => {
-  const c = banner.animation_config?.text_color;
-  return typeof c === "string" && /^#[\da-fA-F]{3,8}$/.test(c) ? { color: c } : undefined;
+const textColors = (banner: Banner) => {
+  const cfg = (banner.animation_config || {}) as Record<string, unknown>;
+  const pick = (key: string, fallback: unknown) => {
+    const c = cfg[key] ?? fallback;
+    return typeof c === "string" && /^#[\da-fA-F]{3,8}$/.test(c) ? c : undefined;
+  };
+  const legacy = cfg.text_color;
+  return { title: pick("title_color", legacy), subtitle: pick("subtitle_color", legacy) };
 };
 
 export default function DynamicBannerPlacement({ placement, compact = false }: { placement: Placement; compact?: boolean }) {
@@ -80,9 +85,9 @@ export default function DynamicBannerPlacement({ placement, compact = false }: {
             {mobile && <source media="(max-width: 767px)" srcSet={mobile} />}
             <img src={media} alt={current.title || "Promotion"} loading="lazy" className="w-full h-full object-cover" />
           </picture>}
-          {(current.title || current.subtitle || current.cta_label) && <div style={textStyle(current)} className="relative z-10 min-w-0 w-[62%] max-w-[62%] md:w-auto md:max-w-xl px-4 py-4 sm:p-6 md:p-10 text-white drop-shadow-lg whitespace-normal break-words [overflow-wrap:anywhere]">
-            {current.title && <h2 className="text-sm leading-tight sm:text-xl md:text-4xl md:leading-tight font-bold whitespace-normal">{current.title}</h2>}
-            {current.subtitle && <p className="mt-1.5 text-[11px] leading-snug sm:text-sm md:text-lg md:leading-normal whitespace-normal">{current.subtitle}</p>}
+          {(current.title || current.subtitle || current.cta_label) && <div className="relative z-10 min-w-0 w-[62%] max-w-[62%] md:w-auto md:max-w-xl px-4 py-4 sm:p-6 md:p-10 text-white drop-shadow-lg whitespace-normal break-words [overflow-wrap:anywhere]">
+            {current.title && <h2 style={{ color: textColors(current).title }} className="text-sm leading-tight sm:text-xl md:text-4xl md:leading-tight font-bold whitespace-normal">{current.title}</h2>}
+            {current.subtitle && <p style={{ color: textColors(current).subtitle }} className="mt-1.5 text-[11px] leading-snug sm:text-sm md:text-lg md:leading-normal whitespace-normal">{current.subtitle}</p>}
             {current.cta_label && <span className="inline-block max-w-full mt-3 md:mt-4 bg-white text-gray-900 px-3 py-2 md:px-5 rounded-lg font-semibold text-xs sm:text-sm leading-snug drop-shadow-none whitespace-normal break-words">{current.cta_label}</span>}
           </div>}
         </div>
