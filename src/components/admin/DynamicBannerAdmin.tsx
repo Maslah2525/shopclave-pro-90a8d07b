@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ShoppingBag, LayoutGrid, Store, Tag, Link2, ImagePlus, X } from "lucide-react";
+import { ShoppingBag, LayoutGrid, Store, Tag, Link2, ImagePlus, X, Pencil, Copy, Trash2 } from "lucide-react";
 import { CategoryPicker, useCategoryAncestors } from "@/components/shared/CategoryPicker";
 import { toast } from "sonner";
 
@@ -96,6 +96,17 @@ function CategoryLinkPicker({ onPick }: { onPick: (item: PickerItem) => void }) 
   return <CategoryPicker value={id} onChange={setId} showBreadcrumb={false} />;
 }
 
+const Section = ({ n, title, id, children, action }: { n: number; title: string; id: string; children: React.ReactNode; action?: React.ReactNode }) => (
+    <Card id={id} className="scroll-mt-4"><CardContent className="p-4 space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <h4 className="flex items-center gap-2 font-semibold"><span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">{n}</span>{title}</h4>
+        {action}
+      </div>
+      {children}
+    </CardContent></Card>
+  );
+
+
 export default function DynamicBannerAdmin({ variant = "dynamic" }: { variant?: "dynamic" | "hero" } = {}) {
   const isHero = variant === "hero";
   const table = isHero ? "hero_banners" : "promotions";
@@ -152,14 +163,15 @@ export default function DynamicBannerAdmin({ variant = "dynamic" }: { variant?: 
   };
   const save = useMutation({
     mutationFn: async () => {
-      if (!form.title.trim()) throw new Error("Enter a banner title.");
+      const bannerName = String((form.animation_config as any).banner_name ?? "").trim();
+      if (!bannerName && !form.title.trim()) throw new Error("Enter a banner name.");
       if (linkType !== "custom" && form.link_url === "/") throw new Error("Choose what this banner links to.");
       if (!safeLink(form.link_url)) throw new Error("Use a relative path or an HTTPS URL.");
       if (form.starts_at && form.ends_at && new Date(form.ends_at) <= new Date(form.starts_at)) throw new Error("End date must be after start date.");
       if (form.banner_mode === "image" && !form.desktop_image_url) throw new Error("Upload a desktop image.");
       const { starts_at, ends_at, ...rest } = form;
-      const heroPayload = { title: form.title.trim(), subtitle: form.subtitle || null, cta_label: form.cta_label || null, link_url: form.link_url, desktop_image_url: form.desktop_image_url, mobile_image_url: form.mobile_image_url || null, banner_mode: "image", animation_type: form.animation_type, transition_duration_ms: form.transition_duration_ms, rotation_interval_ms: form.rotation_interval_ms, background_color: form.background_color, background_gradient: form.background_gradient?.trim() || null, animation_config: form.animation_config, is_active: form.is_active, display_order: form.display_order, target_device: form.target_device, starts_at: starts_at ? new Date(starts_at).toISOString() : null, ends_at: ends_at ? new Date(ends_at).toISOString() : null };
-      const payload = isHero ? heroPayload : { ...rest, kind: "brand", image_url: form.banner_mode === "dynamic" ? "/favicon.ico" : form.desktop_image_url, desktop_image_url: form.banner_mode === "dynamic" ? null : form.desktop_image_url || null, mobile_image_url: form.banner_mode === "dynamic" ? null : form.mobile_image_url || null, background_gradient: form.background_gradient?.trim() || null, starts_at: starts_at ? new Date(starts_at).toISOString() : null, ends_at: ends_at ? new Date(ends_at).toISOString() : null };
+      const heroPayload = { title: form.title.trim() || null, subtitle: form.subtitle || null, cta_label: form.cta_label || null, link_url: form.link_url, desktop_image_url: form.desktop_image_url, mobile_image_url: form.mobile_image_url || null, banner_mode: "image", animation_type: form.animation_type, transition_duration_ms: form.transition_duration_ms, rotation_interval_ms: form.rotation_interval_ms, background_color: form.background_color, background_gradient: form.background_gradient?.trim() || null, animation_config: form.animation_config, is_active: form.is_active, display_order: form.display_order, target_device: form.target_device, starts_at: starts_at ? new Date(starts_at).toISOString() : null, ends_at: ends_at ? new Date(ends_at).toISOString() : null };
+      const payload = isHero ? heroPayload : { ...rest, title: form.title.trim() || bannerName, kind: "brand", image_url: form.banner_mode === "dynamic" ? "/favicon.ico" : form.desktop_image_url, desktop_image_url: form.banner_mode === "dynamic" ? null : form.desktop_image_url || null, mobile_image_url: form.banner_mode === "dynamic" ? null : form.mobile_image_url || null, background_gradient: form.background_gradient?.trim() || null, starts_at: starts_at ? new Date(starts_at).toISOString() : null, ends_at: ends_at ? new Date(ends_at).toISOString() : null };
       const query = editing ? (supabase.from(table) as any).update(payload).eq("id", editing) : (supabase.from(table) as any).insert(payload);
       const { error } = await query;
       if (error) throw error;
@@ -247,16 +259,6 @@ export default function DynamicBannerAdmin({ variant = "dynamic" }: { variant?: 
       <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" disabled={uploading}
         onChange={e => { const file = e.target.files?.[0]; if (file) upload(file, field); e.target.value = ""; }} />
     </div>
-  );
-
-  const Section = ({ n, title, id, children, action }: { n: number; title: string; id: string; children: React.ReactNode; action?: React.ReactNode }) => (
-    <Card id={id} className="scroll-mt-4"><CardContent className="p-4 space-y-3">
-      <div className="flex items-center justify-between gap-2">
-        <h4 className="flex items-center gap-2 font-semibold"><span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">{n}</span>{title}</h4>
-        {action}
-      </div>
-      {children}
-    </CardContent></Card>
   );
 
   const statusBadge = (row: any) => {
