@@ -695,8 +695,10 @@ const ProductDetailPage = () => {
 
              <section className="col-span-full border border-border bg-card" aria-labelledby="delivery-heading">
                  <div className="border-b border-border px-3 py-2">
-                  <h2 id="delivery-heading" className="flex items-center gap-2 text-sm font-bold"><Truck className="h-4 w-4 text-primary" /> Delivery to your address</h2>
-                  <p className="mt-1 text-xs text-muted-foreground">Choose a delivery option. The final quote is confirmed at checkout.</p>
+                  <h2 id="delivery-heading" className="flex items-center gap-2 text-sm font-bold"><Truck className="h-4 w-4 text-primary" /> Delivery to {shipQuote.address?.city ? `${shipQuote.address.city}${shipQuote.address.state ? `, ${shipQuote.address.state}` : ""}` : "your address"}</h2>
+                  {shipQuote.status === "signed_out" ? <Link to="/auth" className="mt-1 inline-block text-xs font-semibold text-primary hover:underline">Sign in to see delivery prices</Link>
+                    : shipQuote.status === "no_address" ? <Link to="/account" className="mt-1 inline-block text-xs font-semibold text-primary hover:underline">Add your address to see delivery prices</Link>
+                    : shipQuote.address ? <Link to="/account" className="mt-1 inline-block text-xs font-semibold text-primary hover:underline">Change</Link> : null}
                 </div>
                 <RadioGroup
                   value={selectedDelivery}
@@ -722,6 +724,7 @@ const ProductDetailPage = () => {
                         <RadioGroupItem id={`delivery-${option.service}`} value={option.service} />
                         <div>
                           <p className="font-semibold">{option.label}</p>
+                          {option.carrier && <p className="text-xs text-muted-foreground">{option.carrier}</p>}
                           <p className="text-xs font-medium text-success">Estimated delivery {option.arrival}</p>
                         </div>
                         <span className="font-bold">{option.price}</span>

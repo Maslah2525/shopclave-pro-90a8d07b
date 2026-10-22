@@ -186,9 +186,9 @@ const HeroBanner = () => {
             {(slide.title || slide.cta) && (
               <div className="absolute inset-0 flex items-center">
                 <div className="container">
-                  <div className="max-w-md text-primary-foreground">
-                    {slide.title && <h2 className="font-display text-2xl md:text-4xl font-bold drop-shadow-md">{slide.title}</h2>}
-                    {slide.subtitle && <p className="mt-2 text-sm md:text-base drop-shadow">{slide.subtitle}</p>}
+                  <div className="max-w-[62%] md:max-w-md min-w-0 break-words [overflow-wrap:anywhere] text-primary-foreground">
+                    {slide.title && <h2 className="font-display text-base sm:text-2xl md:text-4xl leading-tight font-bold drop-shadow-md">{slide.title}</h2>}
+                    {slide.subtitle && <p className="mt-1.5 text-[11px] sm:text-sm md:text-base leading-snug drop-shadow">{slide.subtitle}</p>}
                     {slide.cta && (
                       <span className="inline-block mt-4 bg-primary text-primary-foreground px-5 py-2 rounded-md text-sm font-semibold">
                         {slide.cta}
