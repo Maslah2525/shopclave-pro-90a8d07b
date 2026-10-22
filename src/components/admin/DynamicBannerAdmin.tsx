@@ -268,7 +268,8 @@ export default function DynamicBannerAdmin({ variant = "dynamic" }: { variant?: 
   };
   const shortDate = (d: string | null) => d ? new Date(d).toLocaleDateString(undefined, { month: "short", day: "2-digit" }) : null;
   const previewImg = (device: "desktop" | "mobile") => form.banner_mode !== "image" ? "" : device === "mobile" ? form.mobile_image_url || form.desktop_image_url : form.desktop_image_url;
-  const previewText = (mobile: boolean) => <div className={`relative z-10 min-w-0 max-w-[60%] text-white drop-shadow-lg break-words [overflow-wrap:anywhere] ${mobile ? "p-3" : "p-6"}`}>
+  const textColor = String((form.animation_config as any).text_color || "#ffffff");
+  const previewText = (mobile: boolean) => <div style={{ color: /^#[\da-fA-F]{3,8}$/.test(textColor) ? textColor : undefined }} className={`relative z-10 min-w-0 max-w-[60%] text-white drop-shadow-lg break-words [overflow-wrap:anywhere] ${mobile ? "p-3" : "p-6"}`}>
     <h3 className={`font-bold leading-tight ${mobile ? "text-base" : "text-3xl"}`}>{form.title || "Your headline"}</h3>
     {form.subtitle && <p className={`${mobile ? "text-[10px]" : "text-sm"} mt-1`}>{form.subtitle}</p>}
     {form.cta_label && <span className={`inline-block bg-primary text-primary-foreground rounded font-semibold ${mobile ? "mt-2 px-2 py-1 text-[10px]" : "mt-4 px-4 py-2 text-sm"}`}>{form.cta_label} →</span>}
@@ -335,6 +336,9 @@ export default function DynamicBannerAdmin({ variant = "dynamic" }: { variant?: 
           </div>}
           <div className="flex items-center gap-3"><Label className="shrink-0">Background colour</Label>
             <div className="flex items-center gap-2 rounded-md border px-2 py-1"><input type="color" aria-label="Background colour" className="h-6 w-8 cursor-pointer bg-transparent" value={form.background_color} onChange={e => update("background_color", e.target.value)} /><Input className="h-7 w-28 border-0 px-1" value={form.background_color} onChange={e => update("background_color", e.target.value)} /></div>
+          </div>
+          <div className="flex items-center gap-3"><Label className="shrink-0">Text colour</Label>
+            <div className="flex items-center gap-2 rounded-md border px-2 py-1"><input type="color" aria-label="Text colour" className="h-6 w-8 cursor-pointer bg-transparent" value={textColor} onChange={e => update("animation_config", { ...form.animation_config, text_color: e.target.value } as any)} /><Input className="h-7 w-28 border-0 px-1" value={textColor} onChange={e => update("animation_config", { ...form.animation_config, text_color: e.target.value } as any)} /></div>
           </div>
         </Section>
         <Section n={5} title="Scheduling" id="db-step-scheduling">
