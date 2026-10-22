@@ -10,7 +10,7 @@ type Banner = {
   link_url: string | null; cta_label: string | null; animation_type: string | null;
   transition_duration_ms: number | null; rotation_interval_ms: number | null;
   background_color: string | null; background_gradient: string | null;
-  banner_mode: string | null; target_device: string | null;
+  banner_mode: string | null; target_device: string | null; animation_config?: Record<string, unknown> | null;
 };
 
 const safeLink = (value: string | null) => {
@@ -31,6 +31,11 @@ const background = (banner: Banner) => {
   return {};
 };
 
+const textStyle = (banner: Banner) => {
+  const c = banner.animation_config?.text_color;
+  return typeof c === "string" && /^#[\da-fA-F]{3,8}$/.test(c) ? { color: c } : undefined;
+};
+
 export default function DynamicBannerPlacement({ placement, compact = false }: { placement: Placement; compact?: boolean }) {
   const [index, setIndex] = useState(0);
   const [device, setDevice] = useState<"mobile" | "desktop">(() => typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches ? "mobile" : "desktop");
@@ -40,7 +45,7 @@ export default function DynamicBannerPlacement({ placement, compact = false }: {
     queryFn: async () => {
       const now = new Date().toISOString();
       const { data, error } = await (supabase.from("promotions") as any)
-        .select("id,title,subtitle,image_url,desktop_image_url,mobile_image_url,link_url,cta_label,animation_type,transition_duration_ms,rotation_interval_ms,background_color,background_gradient,banner_mode,target_device")
+        .select("id,title,subtitle,image_url,desktop_image_url,mobile_image_url,link_url,cta_label,animation_type,transition_duration_ms,rotation_interval_ms,background_color,background_gradient,banner_mode,target_device,animation_config")
         .eq("placement", placement).eq("is_active", true)
         .or(`starts_at.is.null,starts_at.lte.${now}`)
         .or(`ends_at.is.null,ends_at.gt.${now}`)
@@ -75,7 +80,7 @@ export default function DynamicBannerPlacement({ placement, compact = false }: {
             {mobile && <source media="(max-width: 767px)" srcSet={mobile} />}
             <img src={media} alt={current.title || "Promotion"} loading="lazy" className="w-full h-full object-cover" />
           </picture>}
-          {(current.title || current.subtitle || current.cta_label) && <div className="relative z-10 min-w-0 w-[62%] max-w-[62%] md:w-auto md:max-w-xl px-4 py-4 sm:p-6 md:p-10 text-white drop-shadow-lg whitespace-normal break-words [overflow-wrap:anywhere]">
+          {(current.title || current.subtitle || current.cta_label) && <div style={textStyle(current)} className="relative z-10 min-w-0 w-[62%] max-w-[62%] md:w-auto md:max-w-xl px-4 py-4 sm:p-6 md:p-10 text-white drop-shadow-lg whitespace-normal break-words [overflow-wrap:anywhere]">
             {current.title && <h2 className="text-sm leading-tight sm:text-xl md:text-4xl md:leading-tight font-bold whitespace-normal">{current.title}</h2>}
             {current.subtitle && <p className="mt-1.5 text-[11px] leading-snug sm:text-sm md:text-lg md:leading-normal whitespace-normal">{current.subtitle}</p>}
             {current.cta_label && <span className="inline-block max-w-full mt-3 md:mt-4 bg-white text-gray-900 px-3 py-2 md:px-5 rounded-lg font-semibold text-xs sm:text-sm leading-snug drop-shadow-none whitespace-normal break-words">{current.cta_label}</span>}
