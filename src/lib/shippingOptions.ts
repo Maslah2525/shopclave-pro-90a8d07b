@@ -16,7 +16,10 @@ export type RateLike = {
   estimated_days?: number | null;
 };
 
-const EXPRESS_NAME_RE = /(overnight|next\s*day|next-day|same\s*day)/i;
+const EXPRESS_NAME_RE = /(overnight|next\s*day|next-day|same\s*day|priority|express|2\s*day|2day|3\s*day|3day)/i;
+// Ground-style services stay in Standard regardless of how fast they are
+// on a given route (e.g. "UPS Standard", "Expedited Parcel", "Ground").
+const STANDARD_NAME_RE = /(standard|ground|economy|expedited|parcel|mail|post|freight|lettermail|letterpost)/i;
 
 /** Carrier transit days for a rate (server estimated_days already includes handling). */
 export function carrierTransitDays(rate: RateLike, handlingDays: number): number | null {
@@ -28,6 +31,7 @@ export function carrierTransitDays(rate: RateLike, handlingDays: number): number
 
 export function isExpressRate(rate: RateLike, handlingDays = 0): boolean {
   if (EXPRESS_NAME_RE.test(String(rate.service || ""))) return true;
+  if (STANDARD_NAME_RE.test(String(rate.service || ""))) return false;
   const transit = carrierTransitDays(rate, handlingDays);
   return transit !== null && transit <= EXPRESS_TRANSIT_MAX_DAYS;
 }

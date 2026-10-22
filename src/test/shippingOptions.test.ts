@@ -40,6 +40,15 @@ describe("checkout delivery options", () => {
     expect(o.express?.service).toBe("Priority Mail");
   });
 
+  it("keeps ground-style services in Standard even when the route is fast", () => {
+    const o = buildDeliveryOptions([rate({ service: "UPS Standard", amount_cad: 12, estimated_days: 3 })]);
+    expect(o.standard?.service).toBe("UPS Standard");
+    expect(o.express).toBeNull();
+    const ca = buildDeliveryOptions([rate({ service: "Expedited Parcel", amount_cad: 13, estimated_days: 3 })]);
+    expect(ca.standard?.service).toBe("Expedited Parcel");
+    expect(ca.express).toBeNull();
+  });
+
   it("treats rates without a carrier ETA as Standard", () => {
     const o = buildDeliveryOptions([rate({ service: "Mystery", estimated_days: null })]);
     expect(o.standard?.service).toBe("Mystery");
