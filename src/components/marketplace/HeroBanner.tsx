@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -132,6 +132,8 @@ const CATEGORY_CARDS = [
 
 const HeroBanner = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const touchX = useRef<number | null>(null);
 
   // Load admin-managed banners; fall back to static slides if none
   const { data: dbBanners } = useQuery({
@@ -139,7 +141,7 @@ const HeroBanner = () => {
     queryFn: async () => {
       const { data } = await supabase
         .from("hero_banners")
-        .select("id,title,subtitle,cta_label,link_url,desktop_image_url,mobile_image_url")
+        .select("id,title,subtitle,cta_label,link_url,desktop_image_url,mobile_image_url,animation_config,rotation_interval_ms")
         .order("display_order");
       return data || [];
     },
@@ -153,26 +155,41 @@ const HeroBanner = () => {
         title: b.title,
         subtitle: b.subtitle,
         cta: b.cta_label,
+        config: (b.animation_config || {}) as Record<string, boolean>,
+        interval: Number(b.rotation_interval_ms) || 5000,
       }))
-    : HERO_SLIDES.map((s) => ({ image: s.image, mobileImage: s.image, link: s.link, title: null, subtitle: null, cta: null }));
-
-  useEffect(() => {
-    if (!slides.length) return;
-    const timer = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % slides.length);
-    }, 5000);
-    return () => clearInterval(timer);
-  }, [slides.length]);
+    : HERO_SLIDES.map((s) => ({ image: s.image, mobileImage: s.image, link: s.link, title: null, subtitle: null, cta: null, config: {} as Record<string, boolean>, interval: 5000 }));
 
   const safeIdx = slides.length ? currentSlide % slides.length : 0;
   const slide = slides[safeIdx];
+  // Per-banner options; anything not explicitly turned off stays on.
+  const opt = (k: string) => slide?.config?.[k] !== false;
+  const interval = Math.max(1000, slide?.interval || 5000);
+
+  useEffect(() => {
+    if (slides.length < 2 || paused) return;
+    const timer = setTimeout(() => setCurrentSlide((prev) => (prev + 1) % slides.length), interval);
+    return () => clearTimeout(timer);
+  }, [slides.length, paused, interval, currentSlide]);
 
   if (!slide) return null;
 
   return (
     <div>
       {/* Hero carousel */}
-      <section className="relative">
+      <section
+        className="relative"
+        onMouseEnter={() => opt("pause_on_hover") && setPaused(true)}
+        onMouseLeave={() => setPaused(false)}
+        onTouchStart={(e) => { touchX.current = e.touches[0].clientX; }}
+        onTouchEnd={(e) => {
+          const start = touchX.current; touchX.current = null;
+          if (start === null || !opt("enable_swipe") || slides.length < 2) return;
+          const dx = e.changedTouches[0].clientX - start;
+          if (Math.abs(dx) < 40) return;
+          setCurrentSlide((prev) => (dx < 0 ? prev + 1 : prev - 1 + slides.length) % slides.length);
+        }}
+      >
         <Link to={slide.link} className="block">
           <div className="w-full overflow-hidden relative">
             <picture>
@@ -203,7 +220,7 @@ const HeroBanner = () => {
         {/* Navigation dots */}
         {slides.length > 1 && (
           <>
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+            {opt("show_dots") && <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
               {slides.map((_, i) => (
                 <button
                   key={i}
@@ -211,7 +228,8 @@ const HeroBanner = () => {
                   className={`w-2.5 h-2.5 rounded-full transition-colors ${i === safeIdx ? "bg-primary-foreground" : "bg-primary-foreground/40"}`}
                 />
               ))}
-            </div>
+            </div>}
+            {opt("show_arrows") && <>
             <button
               onClick={() => setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length)}
               className="absolute left-2 top-1/2 -translate-y-1/2 bg-card/80 hover:bg-card rounded-full p-2 shadow-lg"
@@ -224,6 +242,7 @@ const HeroBanner = () => {
             >
               <ChevronRight className="h-6 w-6 text-foreground" />
             </button>
+            </>}
           </>
         )}
       </section>
