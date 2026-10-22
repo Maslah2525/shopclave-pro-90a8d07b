@@ -334,11 +334,23 @@ export default function DynamicBannerAdmin({ variant = "dynamic" }: { variant?: 
             {([["pause_on_hover", "Pause on hover (desktop)"], ["show_arrows", "Show navigation arrows"], ["show_dots", "Show dots indicator"], ["enable_swipe", "Enable swipe (mobile)"]] as const).map(([k, l]) => <label key={k} className="flex items-center gap-2 text-xs">
               <input type="checkbox" className="accent-primary h-4 w-4" checked={!!form.animation_config[k]} onChange={e => update("animation_config", { ...form.animation_config, [k]: e.target.checked })} />{l}</label>)}
           </div>}
-          <div className="flex items-center gap-3"><Label className="shrink-0">Background colour</Label>
-            <div className="flex items-center gap-2 rounded-md border px-2 py-1"><input type="color" aria-label="Background colour" className="h-6 w-8 cursor-pointer bg-transparent" value={form.background_color} onChange={e => update("background_color", e.target.value)} /><Input className="h-7 w-28 border-0 px-1" value={form.background_color} onChange={e => update("background_color", e.target.value)} /></div>
-          </div>
-          <div className="flex items-center gap-3"><Label className="shrink-0">Text colour</Label>
-            <div className="flex items-center gap-2 rounded-md border px-2 py-1"><input type="color" aria-label="Text colour" className="h-6 w-8 cursor-pointer bg-transparent" value={textColor} onChange={e => update("animation_config", { ...form.animation_config, text_color: e.target.value } as any)} /><Input className="h-7 w-28 border-0 px-1" value={textColor} onChange={e => update("animation_config", { ...form.animation_config, text_color: e.target.value } as any)} /></div>
+          <div className="grid sm:grid-cols-2 gap-4">
+            {([["Background colour", form.background_color || "#ffffff", (v: string) => update("background_color", v)], ["Text colour", textColor, (v: string) => update("animation_config", { ...form.animation_config, text_color: v } as any)]] as const).map(([label, value, set]) => (
+              <div key={label} className="space-y-2 rounded-lg border p-3">
+                <Label>{label}</Label>
+                <div className="flex items-center gap-2">
+                  <label className="relative h-10 w-12 shrink-0 cursor-pointer overflow-hidden rounded-md border-2 border-border shadow-sm" style={{ backgroundColor: value }}>
+                    <input type="color" aria-label={label} className="absolute inset-0 h-full w-full cursor-pointer opacity-0" value={/^#[\da-fA-F]{6}$/.test(value) ? value : "#ffffff"} onChange={e => set(e.target.value)} />
+                  </label>
+                  <Input className="h-10" value={value} onChange={e => set(e.target.value)} />
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {["#ffffff", "#000000", "#ff420e", "#dc2626", "#2563eb", "#16a34a", "#facc15", "#7c3aed"].map(c => (
+                    <button key={c} type="button" aria-label={`${label} ${c}`} onClick={() => set(c)} className={`h-7 w-7 rounded-full border-2 ${value.toLowerCase() === c ? "border-primary ring-2 ring-primary/40" : "border-border"}`} style={{ backgroundColor: c }} />
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         </Section>
         <Section n={5} title="Scheduling" id="db-step-scheduling">
