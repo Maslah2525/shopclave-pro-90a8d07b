@@ -225,144 +225,177 @@ export default function DynamicBannerAdmin({ variant = "dynamic" }: { variant?: 
   const goToStep = (n: number, id: string) => { setActiveStep(n); document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }); };
   const dims = isHero ? { desktop: { w: 1920, h: 600 }, mobile: { w: 750, h: 500 } } : recommendedDimensions(form.placement);
 
-  const imageCard = (field: "desktop_image_url" | "mobile_image_url", label: string, dim: { w: number; h: number }, inputRef: React.RefObject<HTMLInputElement | null>) => (
-    <div className="rounded-lg border p-4 space-y-3 min-w-0">
-      <div className="flex items-center gap-2 text-sm font-medium"><ImagePlus className="h-4 w-4 text-muted-foreground" />{label} <span className="text-muted-foreground font-normal">(Recommended)</span></div>
-      <ul className="text-xs text-muted-foreground space-y-0.5">
-        <li>Size: {dim.w} × {dim.h} px</li>
-        <li>Ratio: {ratio(dim.w, dim.h)}</li>
-        <li>Format: JPG, PNG, WebP</li>
-        <li>Max size: 2 MB</li>
-      </ul>
-      {form[field] && <img src={form[field]} alt={`${label} preview`} className="w-full aspect-[3/1] object-cover rounded border" />}
-      <div className="flex gap-2">
-        <Button type="button" size="sm" variant="outline" disabled={uploading} onClick={() => inputRef.current?.click()}>{form[field] ? "Change Image" : "Choose Image"}</Button>
-        {form[field] && <Button type="button" size="sm" variant="destructive" onClick={() => update(field, "")}>Remove</Button>}
-      </div>
+  const imageCard = (field: "desktop_image_url" | "mobile_image_url", label: string, required: boolean, dim: { w: number; h: number }, maxMb: number, inputRef: React.RefObject<HTMLInputElement | null>) => (
+    <div className="space-y-2 min-w-0">
+      <Label>{label} {required ? <span className="text-destructive">*</span> : <span className="text-muted-foreground font-normal">(optional)</span>}</Label>
+      <button type="button" disabled={uploading} onClick={() => inputRef.current?.click()}
+        onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); const file = e.dataTransfer.files?.[0]; if (file) upload(file, field); }}
+        className="w-full rounded-lg border-2 border-dashed border-border bg-muted/30 hover:bg-muted/60 px-3 py-4 text-center transition-colors">
+        <ImagePlus className="h-7 w-7 mx-auto text-primary" />
+        <p className="mt-1 text-xs"><span className="text-primary font-medium">Click to upload</span> or drag and drop</p>
+        <p className="text-[11px] text-muted-foreground">Recommended size: {dim.w} × {dim.h} px</p>
+        <p className="text-[11px] text-muted-foreground">Format: JPG, PNG, WebP</p>
+        <p className="text-[11px] text-muted-foreground">Max file size: {maxMb} MB</p>
+      </button>
+      {form[field] && <>
+        <img src={form[field]} alt={`${label} preview`} className={`mx-auto object-cover rounded border ${field === "mobile_image_url" ? "w-2/3 aspect-[3/2]" : "w-full aspect-[16/5]"}`} />
+        <div className="grid grid-cols-2 gap-2">
+          <Button type="button" size="sm" variant="outline" disabled={uploading} onClick={() => inputRef.current?.click()}>Change image</Button>
+          <Button type="button" size="sm" variant="outline" className="border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => update(field, "")}>Remove</Button>
+        </div>
+      </>}
       <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" disabled={uploading}
         onChange={e => { const file = e.target.files?.[0]; if (file) upload(file, field); e.target.value = ""; }} />
     </div>
   );
 
-  return <div className="space-y-5">
-    <div className="flex justify-between items-center gap-3">
-      <p className="text-sm text-muted-foreground">{isHero ? "Manage the homepage hero carousel." : "Manage scheduled promotional banners in the new homepage placements."}</p>
-      <Button onClick={() => { resetForm(); setShowForm(true); }}>{isHero ? "Add New Banner" : "Add dynamic banner"}</Button>
-    </div>
-    {showForm && <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div><h3 className="text-lg font-bold">{editing ? "Edit Banner" : "New Banner"}</h3><p className="text-sm text-muted-foreground">Configure your banner and review it before saving.</p></div>
-        <div className="flex gap-2"><Button variant="outline" onClick={() => setShowForm(false)}>Cancel</Button><Button disabled={save.isPending || uploading} onClick={() => save.mutate()}>{save.isPending ? "Saving..." : "Save Banner"}</Button></div>
+  const Section = ({ n, title, id, children, action }: { n: number; title: string; id: string; children: React.ReactNode; action?: React.ReactNode }) => (
+    <Card id={id} className="scroll-mt-4"><CardContent className="p-4 space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <h4 className="flex items-center gap-2 font-semibold"><span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">{n}</span>{title}</h4>
+        {action}
       </div>
-      <div className="flex flex-wrap items-center gap-1 rounded-lg border bg-card p-2" aria-label="Banner setup steps">
-        {steps.map(s => (
-          <button key={s.n} type="button" onClick={() => goToStep(s.n, s.id)} aria-current={activeStep === s.n ? "step" : undefined}
-            className={`flex items-center gap-2 rounded-md px-3 py-2 text-xs sm:text-sm font-medium transition-colors ${activeStep === s.n ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}>
-            <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[11px] ${activeStep === s.n ? "bg-primary-foreground text-primary" : "bg-muted-foreground/20"}`}>{s.n}</span>
-            {s.label}
-          </button>
-        ))}
-      </div>
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] gap-5 items-start">
-        <div className="space-y-4 min-w-0">
-          <Card id="db-step-details" className="scroll-mt-4"><CardContent className="p-5 space-y-4">
-            <h4 className="font-semibold border-b pb-2">1. Banner Details</h4>
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>Banner name / title</Label><Input value={form.title} onChange={e => update("title", e.target.value)} /></div>
-              <div className="space-y-2"><Label>Placement</Label>{isHero ? <Input value="Homepage Hero Banner" disabled /> : <Select value={form.placement} onValueChange={v => update("placement", v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{placements.map(p => <SelectItem key={p} value={p}>{p.replace(/_/g, " ")}</SelectItem>)}</SelectContent></Select>}</div>
-              <div className="space-y-2"><Label>Subtitle</Label><Input value={form.subtitle} onChange={e => update("subtitle", e.target.value)} /></div>
-              <div className="space-y-2"><Label>CTA button label</Label><Input value={form.cta_label} onChange={e => update("cta_label", e.target.value)} /></div>
+      {children}
+    </CardContent></Card>
+  );
+
+  const statusBadge = (row: any) => {
+    const s = bannerStatus(row);
+    const cls = s === "Active" ? "bg-success/15 text-success" : s === "Scheduled" ? "bg-warning/15 text-warning" : "bg-muted text-muted-foreground";
+    return <button type="button" onClick={() => toggle.mutate(row)} title="Click to toggle active" className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium ${cls}`}>● {s}</button>;
+  };
+  const shortDate = (d: string | null) => d ? new Date(d).toLocaleDateString(undefined, { month: "short", day: "2-digit" }) : null;
+  const previewImg = (device: "desktop" | "mobile") => form.banner_mode !== "image" ? "" : device === "mobile" ? form.mobile_image_url || form.desktop_image_url : form.desktop_image_url;
+  const previewText = (mobile: boolean) => <div className={`relative z-10 min-w-0 max-w-[60%] text-white drop-shadow-lg break-words [overflow-wrap:anywhere] ${mobile ? "p-3" : "p-6"}`}>
+    <h3 className={`font-bold leading-tight ${mobile ? "text-base" : "text-3xl"}`}>{form.title || "Your headline"}</h3>
+    {form.subtitle && <p className={`${mobile ? "text-[10px]" : "text-sm"} mt-1`}>{form.subtitle}</p>}
+    {form.cta_label && <span className={`inline-block bg-primary text-primary-foreground rounded font-semibold ${mobile ? "mt-2 px-2 py-1 text-[10px]" : "mt-4 px-4 py-2 text-sm"}`}>{form.cta_label} →</span>}
+  </div>;
+  const fmt = (d: string) => new Date(d).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+
+  return <div className="space-y-4">
+    <nav className="text-sm text-muted-foreground" aria-label="Breadcrumb">Marketing <span className="mx-1">›</span> {isHero ? "Hero Banners" : "Dynamic Banners"} <span className="mx-1">›</span> <span className="font-semibold text-foreground">{editing ? "Edit Banner" : isHero ? "New Hero Banner" : "New Banner"}</span></nav>
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
+      <div className="space-y-4 min-w-0">
+        <Section n={1} title="Banner Details" id="db-step-details">
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div className="space-y-1.5"><Label>Banner name <span className="text-destructive">*</span></Label><Input value={(form.animation_config as any).banner_name ?? form.title} onChange={e => update("animation_config", { ...form.animation_config, banner_name: e.target.value })} placeholder="e.g. Fashion Winter Collection Banner" /></div>
+            <div className="space-y-1.5"><Label>Placement <span className="text-destructive">*</span></Label>{isHero ? <Input value="Homepage Hero Banner" disabled /> : <Select value={form.placement} onValueChange={v => update("placement", v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{placements.map(p => <SelectItem key={p} value={p}>{p.replace(/_/g, " ")}</SelectItem>)}</SelectContent></Select>}</div>
+          </div>
+          <div className="space-y-1.5"><Label>Status</Label>
+            <div className="flex items-center gap-3"><Switch checked={form.is_active} onCheckedChange={v => update("is_active", v)} /><span className="text-sm font-medium">{form.is_active ? "Active" : "Inactive"}</span><span className="text-xs text-muted-foreground">Banner will be visible on the selected placement</span></div>
+          </div>
+          <div className="grid sm:grid-cols-3 gap-3">
+            <div className="space-y-1.5"><Label>Headline (optional)</Label><Input value={form.title} onChange={e => update("title", e.target.value)} /></div>
+            <div className="space-y-1.5"><Label>Subtitle (optional)</Label><Input value={form.subtitle} onChange={e => update("subtitle", e.target.value)} /></div>
+            <div className="space-y-1.5"><Label>CTA label (optional)</Label><Input value={form.cta_label} onChange={e => update("cta_label", e.target.value)} /></div>
+          </div>
+        </Section>
+        <Section n={2} title="Images" id="db-step-images">
+          {!isHero && <div className="space-y-1.5"><Label>Banner mode</Label><Select value={form.banner_mode} onValueChange={v => update("banner_mode", v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="image">Image banner</SelectItem><SelectItem value="dynamic">Text / colour composition</SelectItem></SelectContent></Select></div>}
+          {form.banner_mode === "image" && <div className="grid sm:grid-cols-2 gap-4">
+            {imageCard("desktop_image_url", "Desktop image", true, dims.desktop, 2, desktopInput)}
+            {imageCard("mobile_image_url", "Mobile image", false, dims.mobile, isHero ? 1 : 2, mobileInput)}
+          </div>}
+        </Section>
+        <Section n={3} title="Link & Targeting" id="db-step-link">
+          <div className="space-y-1.5">
+            <Label>Link type <span className="text-destructive">*</span></Label>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+              {linkTypes.map(t => <button key={t.value} type="button" onClick={() => { setLinkType(t.value); setLinkTarget(""); update("link_url", "/"); }}
+                className={`flex items-center justify-center gap-1.5 rounded-md border px-2 py-2 text-xs font-medium transition-colors ${linkType === t.value ? "border-primary text-primary bg-primary/5" : "text-foreground hover:bg-muted"}`}>
+                <t.icon className="h-4 w-4" />{t.label}
+              </button>)}
             </div>
-            <div className="flex items-center gap-3"><Switch checked={form.is_active} onCheckedChange={v => update("is_active", v)} /><Label>{form.is_active ? "Active" : "Inactive"}</Label></div>
-          </CardContent></Card>
-          <Card id="db-step-images" className="scroll-mt-4"><CardContent className="p-5 space-y-4">
-            <h4 className="font-semibold border-b pb-2">2. Images</h4>
-            {!isHero && <div className="space-y-2"><Label>Banner mode</Label><Select value={form.banner_mode} onValueChange={v => update("banner_mode", v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="image">Image banner</SelectItem><SelectItem value="dynamic">Text / colour composition</SelectItem></SelectContent></Select></div>}
-            {form.banner_mode === "image" && <div className="grid sm:grid-cols-2 gap-4">
-              {imageCard("desktop_image_url", "Desktop Image", dims.desktop, desktopInput)}
-              {imageCard("mobile_image_url", "Mobile Image", dims.mobile, mobileInput)}
-            </div>}
-          </CardContent></Card>
-          <Card id="db-step-link" className="scroll-mt-4"><CardContent className="p-5 space-y-4">
-            <h4 className="font-semibold border-b pb-2">3. Link &amp; Targeting</h4>
-            <div className="space-y-2">
-              <Label>Link type</Label>
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                {linkTypes.map(t => <button key={t.value} type="button" onClick={() => { setLinkType(t.value); setLinkTarget(""); update("link_url", "/"); }}
-                  className={`flex flex-col items-center gap-1.5 rounded-lg border px-2 py-3 text-xs font-medium transition-colors ${linkType === t.value ? "border-primary text-primary bg-primary/5" : "text-muted-foreground hover:bg-muted"}`}>
-                  <t.icon className="h-5 w-5" />{t.label}
-                </button>)}
+          </div>
+          <div className="grid sm:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-3 items-start">
+            <div className="space-y-1.5 min-w-0">
+              {linkType === "product" && <><Label>Search and select product <span className="text-destructive">*</span></Label><SearchPicker placeholder="Type a product name…" fetcher={searchProducts} onPick={pickLink} /></>}
+              {linkType === "category" && <><Label>Select category <span className="text-destructive">*</span></Label><CategoryLinkPicker key={linkType} onPick={pickLink} /></>}
+              {linkType === "store" && <><Label>Search and select store <span className="text-destructive">*</span></Label><SearchPicker placeholder="Type a store name…" fetcher={searchStores} onPick={pickLink} /></>}
+              {linkType === "brand" && <><Label>Brand name <span className="text-destructive">*</span></Label><Input placeholder="e.g. Samsung" onChange={e => { const v = e.target.value.trim(); setLinkTarget(v); update("link_url", v ? `/search?q=${encodeURIComponent(v)}` : "/"); }} /></>}
+              {linkType === "custom" && <><Label>Destination URL <span className="text-destructive">*</span></Label><Input value={form.link_url} onChange={e => update("link_url", e.target.value)} placeholder="/search or https://..." /></>}
+              {linkTarget && <div className="flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"><span className="font-medium truncate">{linkTarget}</span><button type="button" aria-label="Clear link target" onClick={() => { setLinkTarget(""); update("link_url", "/"); }}><X className="h-4 w-4" /></button></div>}
+            </div>
+            <div className="space-y-1.5"><Label>Target device <span className="text-destructive">*</span></Label><Select value={form.target_device} onValueChange={v => update("target_device", v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All devices</SelectItem><SelectItem value="desktop">Desktop only</SelectItem><SelectItem value="mobile">Mobile only</SelectItem></SelectContent></Select></div>
+          </div>
+          {form.link_url !== "/" && <p className="rounded-md bg-primary/5 px-3 py-2 text-xs">ⓘ This banner will link to the selected {linkTypes.find(t => t.value === linkType)?.label.toLowerCase()} page <span className="text-muted-foreground">({form.link_url})</span>.</p>}
+        </Section>
+        <Section n={4} title="Animation & Style" id="db-step-animation">
+          <div className="grid sm:grid-cols-3 gap-3">
+            <div className="space-y-1.5"><Label>Animation type</Label><Select value={form.animation_type} onValueChange={v => update("animation_type", v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["none", "fade", "slide", "zoom", "float"].map(a => <SelectItem key={a} value={a} className="capitalize">{a[0].toUpperCase() + a.slice(1)}</SelectItem>)}</SelectContent></Select></div>
+            <div className="space-y-1.5"><Label>Transition speed (ms)</Label><Input type="number" min={100} max={3000} value={form.transition_duration_ms} onChange={e => update("transition_duration_ms", Number(e.target.value))} /></div>
+            <div className="space-y-1.5"><Label>Rotation time (ms)</Label><Input type="number" min={2000} max={30000} value={form.rotation_interval_ms} onChange={e => update("rotation_interval_ms", Number(e.target.value))} /></div>
+          </div>
+          {isHero && <div className="flex flex-wrap gap-x-5 gap-y-2">
+            {([["pause_on_hover", "Pause on hover (desktop)"], ["show_arrows", "Show navigation arrows"], ["show_dots", "Show dots indicator"], ["enable_swipe", "Enable swipe (mobile)"]] as const).map(([k, l]) => <label key={k} className="flex items-center gap-2 text-xs">
+              <input type="checkbox" className="accent-primary h-4 w-4" checked={!!form.animation_config[k]} onChange={e => update("animation_config", { ...form.animation_config, [k]: e.target.checked })} />{l}</label>)}
+          </div>}
+          <div className="flex items-center gap-3"><Label className="shrink-0">Background colour</Label>
+            <div className="flex items-center gap-2 rounded-md border px-2 py-1"><input type="color" aria-label="Background colour" className="h-6 w-8 cursor-pointer bg-transparent" value={form.background_color} onChange={e => update("background_color", e.target.value)} /><Input className="h-7 w-28 border-0 px-1" value={form.background_color} onChange={e => update("background_color", e.target.value)} /></div>
+          </div>
+        </Section>
+        <Section n={5} title="Scheduling" id="db-step-scheduling">
+          <div className="grid sm:grid-cols-3 gap-3 items-end">
+            <div className="space-y-1.5"><Label>Start date &amp; time (optional)</Label><Input type="datetime-local" value={form.starts_at} onChange={e => update("starts_at", e.target.value)} /></div>
+            <div className="space-y-1.5"><Label>End date &amp; time (optional)</Label><Input type="datetime-local" value={form.ends_at} onChange={e => update("ends_at", e.target.value)} /></div>
+            <div className="rounded-md bg-success/10 px-3 py-2 text-xs text-success">Banner will be active from<br /><b>{form.starts_at ? fmt(form.starts_at) : "now"} to {form.ends_at ? fmt(form.ends_at) : "no end date"}</b></div>
+          </div>
+        </Section>
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={() => resetForm()}>Cancel</Button>
+          <Button disabled={save.isPending || uploading} onClick={() => save.mutate()}>{save.isPending ? "Saving..." : "Save Banner"}</Button>
+        </div>
+      </div>
+      <div className="space-y-4 min-w-0">
+        <Section n={6} title="Live Preview" id="db-step-preview">
+          <div className="inline-flex rounded-md border overflow-hidden">
+            {(["desktop", "mobile"] as const).map(d => <button key={d} type="button" onClick={() => setPreviewDevice(d)} className={`px-10 py-1.5 text-sm font-medium ${previewDevice === d ? "bg-primary text-primary-foreground" : "bg-card"}`}>{d === "desktop" ? "Desktop View" : "Mobile View"}</button>)}
+          </div>
+          {previewDevice === "desktop" && <>
+            <div className="relative overflow-hidden rounded-lg aspect-[16/7] flex items-center" style={{ backgroundColor: form.background_color }}>
+              {previewImg("desktop") && <img className="absolute inset-0 w-full h-full object-cover" src={previewImg("desktop")} alt="Desktop banner preview" />}
+              {previewText(false)}
+            </div>
+            <div className="flex items-center justify-between">
+              {form.animation_config.show_arrows !== false ? <span className="flex h-7 w-7 items-center justify-center rounded-full border">‹</span> : <span />}
+              {form.animation_config.show_dots !== false && <div className="flex gap-1.5">{[0, 1, 2, 3].map(i => <span key={i} className={`h-2 w-2 rounded-full ${i === 0 ? "bg-primary" : "bg-muted-foreground/30"}`} />)}</div>}
+              {form.animation_config.show_arrows !== false ? <span className="flex h-7 w-7 items-center justify-center rounded-full border">›</span> : <span />}
+            </div>
+          </>}
+          <div className="rounded-lg bg-muted/50 p-3">
+            <p className="text-sm font-medium mb-2">Preview on Mobile</p>
+            <div className="mx-auto w-56 rounded-[2rem] border-[6px] border-foreground bg-foreground overflow-hidden">
+              <div className="relative overflow-hidden rounded-[1.5rem] aspect-[4/5] flex items-center" style={{ backgroundColor: form.background_color }}>
+                {previewImg("mobile") && <img className="absolute inset-0 w-full h-full object-cover" src={previewImg("mobile")} alt="Mobile banner preview" />}
+                {previewText(true)}
               </div>
             </div>
-            {linkType === "product" && <div className="space-y-2"><Label>Search and select product</Label><SearchPicker placeholder="Type a product name…" fetcher={searchProducts} onPick={pickLink} /></div>}
-            {linkType === "category" && <div className="space-y-2"><Label>Select category</Label>
-              <p className="text-xs text-muted-foreground">Pick a main category, then its sub-categories, level by level.</p>
-              <CategoryLinkPicker key={linkType} onPick={pickLink} /></div>}
-            {linkType === "store" && <div className="space-y-2"><Label>Search and select store</Label><SearchPicker placeholder="Type a store name…" fetcher={searchStores} onPick={pickLink} /></div>}
-            {linkType === "brand" && <div className="space-y-2"><Label>Brand name</Label><Input placeholder="e.g. Samsung" onChange={e => { const v = e.target.value.trim(); setLinkTarget(v); update("link_url", v ? `/search?q=${encodeURIComponent(v)}` : "/"); }} /></div>}
-            {linkType === "custom" && <div className="space-y-2"><Label>Destination URL</Label><Input value={form.link_url} onChange={e => update("link_url", e.target.value)} placeholder="/search or https://..." /></div>}
-            {linkTarget && <div className="inline-flex items-center gap-2 rounded-md bg-muted px-3 py-1.5 text-sm"><span className="font-medium">{linkTarget}</span><button type="button" aria-label="Clear link target" onClick={() => { setLinkTarget(""); update("link_url", "/"); }}><X className="h-3.5 w-3.5" /></button></div>}
-            {linkType !== "custom" && form.link_url !== "/" && <p className="text-xs text-muted-foreground">This banner will link to <span className="font-medium">{form.link_url}</span>.</p>}
-            <p className="text-xs text-muted-foreground">Links use existing Barakaz pages or an HTTPS address.</p>
-            <div className="space-y-2"><Label>Target device</Label><Select value={form.target_device} onValueChange={v => update("target_device", v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All devices</SelectItem><SelectItem value="desktop">Desktop only</SelectItem><SelectItem value="mobile">Mobile only</SelectItem></SelectContent></Select></div>
-          </CardContent></Card>
-          <Card id="db-step-animation" className="scroll-mt-4"><CardContent className="p-5 space-y-4">
-            <h4 className="font-semibold border-b pb-2">4. Animation &amp; Style</h4>
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>Animation</Label><Select value={form.animation_type} onValueChange={v => update("animation_type", v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["none", "fade", "slide", "zoom", "float"].map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}</SelectContent></Select></div>
-              <div className="space-y-2"><Label>Background colour</Label><Input type="color" value={form.background_color} onChange={e => update("background_color", e.target.value)} /></div>
-              <div className="space-y-2"><Label>Transition speed (ms)</Label><Input type="number" min={100} max={3000} value={form.transition_duration_ms} onChange={e => update("transition_duration_ms", Number(e.target.value))} /></div>
-              <div className="space-y-2"><Label>Rotation time (ms)</Label><Input type="number" min={2000} max={30000} value={form.rotation_interval_ms} onChange={e => update("rotation_interval_ms", Number(e.target.value))} /></div>
-            </div>
-            {isHero && <div className="grid sm:grid-cols-2 gap-2">
-              {([["pause_on_hover", "Pause on hover (desktop)"], ["show_arrows", "Show navigation arrows"], ["show_dots", "Show dots indicator"], ["enable_swipe", "Enable swipe (mobile)"]] as const).map(([k, l]) => <label key={k} className="flex items-center gap-2 text-sm">
-                <input type="checkbox" className="accent-primary h-4 w-4" checked={!!form.animation_config[k]} onChange={e => update("animation_config", { ...form.animation_config, [k]: e.target.checked })} />{l}</label>)}
-            </div>}
-          </CardContent></Card>
-          <Card id="db-step-scheduling" className="scroll-mt-4"><CardContent className="p-5 space-y-4">
-            <h4 className="font-semibold border-b pb-2">5. Scheduling</h4>
-            {(form.starts_at || form.ends_at) && <p className="rounded-md bg-muted px-3 py-2 text-xs">Banner will be active from <b>{form.starts_at ? new Date(form.starts_at).toLocaleString() : "now"}</b> to <b>{form.ends_at ? new Date(form.ends_at).toLocaleString() : "no end date"}</b>.</p>}
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>Start date &amp; time (optional)</Label><Input type="datetime-local" value={form.starts_at} onChange={e => update("starts_at", e.target.value)} /></div>
-              <div className="space-y-2"><Label>End date &amp; time (optional)</Label><Input type="datetime-local" value={form.ends_at} onChange={e => update("ends_at", e.target.value)} /></div>
-            </div>
-          </CardContent></Card>
-        </div>
-        <Card id="db-step-preview" className="scroll-mt-4"><CardContent className="p-5 space-y-4">
-          <h4 className="font-semibold border-b pb-2">6. Live Preview</h4>
-          <div className="flex gap-2">
-            <Button type="button" size="sm" variant={previewDevice === "desktop" ? "default" : "outline"} onClick={() => setPreviewDevice("desktop")}>Desktop View</Button>
-            <Button type="button" size="sm" variant={previewDevice === "mobile" ? "default" : "outline"} onClick={() => setPreviewDevice("mobile")}>Mobile View</Button>
           </div>
-          <div className={`mx-auto overflow-hidden rounded-xl border relative min-h-44 flex items-center ${previewDevice === "mobile" ? "max-w-[360px]" : "w-full"}`} style={{ backgroundColor: form.background_color }}>
-            {form.banner_mode === "image" && (previewDevice === "mobile" ? form.mobile_image_url || form.desktop_image_url : form.desktop_image_url) && <img className="absolute inset-0 w-full h-full object-cover" src={previewDevice === "mobile" ? form.mobile_image_url || form.desktop_image_url : form.desktop_image_url} alt="Live banner preview" />}
-            <div className="relative z-10 p-5 max-w-full text-white drop-shadow-lg break-words [overflow-wrap:anywhere]">
-              <h3 className={`font-bold leading-tight ${previewDevice === "mobile" ? "text-base" : "text-2xl"}`}>{form.title || "Banner title"}</h3>
-              <p className="text-sm mt-2">{form.subtitle}</p>
-              {form.cta_label && <span className="inline-block bg-white text-gray-900 rounded px-3 py-2 mt-3 text-sm font-semibold">{form.cta_label}</span>}
-            </div>
+        </Section>
+        <Section n={7} title="Existing Banners" id="db-step-existing" action={<Button size="sm" onClick={() => { resetForm(); document.getElementById("db-step-details")?.scrollIntoView({ behavior: "smooth" }); }}>+ Add New Banner</Button>}>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[560px] text-xs">
+              <thead><tr className="text-left border-b text-muted-foreground">{["#", "Banner", "Name", "Placement", "Status", "Schedule", "Order", "Actions"].map(l => <th key={l} className="p-2 font-medium">{l}</th>)}</tr></thead>
+              <tbody>{rows.map((row: any, i: number) => <tr key={row.id} className="border-b last:border-0">
+                <td className="p-2">{i + 1}</td>
+                <td className="p-2">{row.banner_mode !== "dynamic" && (row.desktop_image_url || row.image_url) ? <img src={row.desktop_image_url || row.image_url} alt="" className="w-12 h-8 object-cover rounded" /> : <div className="w-12 h-8 rounded" style={{ backgroundColor: row.background_color || "#1f2937" }} />}</td>
+                <td className="p-2 font-medium max-w-28">{row.animation_config?.banner_name || row.title || "Untitled"}</td>
+                <td className="p-2 capitalize">{row.placement ? row.placement.replace(/_/g, " ") : "Homepage Hero"}</td>
+                <td className="p-2">{statusBadge(row)}</td>
+                <td className="p-2 whitespace-nowrap">{row.starts_at || row.ends_at ? `${shortDate(row.starts_at) ?? "Now"} – ${shortDate(row.ends_at) ?? "No end"}` : "Not set"}</td>
+                <td className="p-2 whitespace-nowrap"><button type="button" className="px-1 hover:text-primary" onClick={() => move.mutate({ row, direction: -1 })} aria-label="Move up">↑</button><button type="button" className="px-1 hover:text-primary" onClick={() => move.mutate({ row, direction: 1 })} aria-label="Move down">↓</button></td>
+                <td className="p-2 whitespace-nowrap">
+                  <button type="button" className="p-1 hover:text-primary" aria-label="Edit" onClick={() => { edit(row); document.getElementById("db-step-details")?.scrollIntoView({ behavior: "smooth" }); }}><Pencil className="h-4 w-4" /></button>
+                  <button type="button" className="p-1 hover:text-primary" aria-label="Duplicate" disabled={duplicate.isPending} onClick={() => duplicate.mutate(row)}><Copy className="h-4 w-4" /></button>
+                  <button type="button" className="p-1 text-destructive" aria-label="Delete" disabled={remove.isPending} onClick={() => { if (window.confirm(`Permanently delete banner "${row.animation_config?.banner_name || row.title}"?`)) remove.mutate(row.id); }}><Trash2 className="h-4 w-4" /></button>
+                </td>
+              </tr>)}</tbody>
+            </table>
+            {!rows.length && <p className="p-3 text-muted-foreground text-sm">{isHero ? "No hero banners yet." : "No dynamic banners yet."}</p>}
           </div>
-          <p className="text-xs text-muted-foreground">Changes appear here before saving. Final cropping depends on screen size.</p>
-        </CardContent></Card>
+        </Section>
       </div>
-    </div>}
-    <Card><CardContent className="p-0 overflow-x-auto">
-      <table className="w-full min-w-[850px] text-sm">
-        <thead className="bg-muted/50"><tr className="text-left border-b">
-          {["Thumbnail", "Banner", "Placement", "Device", "Schedule", "Status", "Order", "Actions"].map(label => <th key={label} className="p-3 font-semibold">{label}</th>)}
-        </tr></thead>
-        <tbody>{rows.map((row: any) => <tr key={row.id} className="border-b last:border-0">
-          <td className="p-3">{row.banner_mode !== "dynamic" && (row.desktop_image_url || row.image_url) ? <img src={row.desktop_image_url || row.image_url} alt="" className="w-24 h-14 object-cover rounded" /> : <div className="w-24 h-14 rounded" style={{ backgroundColor: row.background_color || "#1f2937" }} />}</td>
-          <td className="p-3 font-medium max-w-40 truncate">{row.title}</td>
-          <td className="p-3">{row.placement ? row.placement.replace(/_/g, " ") : "Homepage hero"}</td>
-          <td className="p-3 capitalize">{row.target_device || "all"}</td>
-          <td className="p-3 text-xs">{row.starts_at ? new Date(row.starts_at).toLocaleDateString() : "Any time"} – {row.ends_at ? new Date(row.ends_at).toLocaleDateString() : "No end"}</td>
-          <td className="p-3"><span className="font-medium">{bannerStatus(row)}</span><div><Switch checked={row.is_active} onCheckedChange={() => toggle.mutate(row)} aria-label={`Toggle ${row.title}`} /></div></td>
-          <td className="p-3">{row.display_order ?? 0} <div className="flex gap-1"><Button variant="ghost" size="sm" onClick={() => move.mutate({ row, direction: -1 })} aria-label="Move up">↑</Button><Button variant="ghost" size="sm" onClick={() => move.mutate({ row, direction: 1 })} aria-label="Move down">↓</Button></div></td>
-          <td className="p-3 whitespace-nowrap"><Button variant="outline" size="sm" onClick={() => edit(row)}>Edit</Button>{" "}<Button variant="outline" size="sm" disabled={duplicate.isPending} onClick={() => duplicate.mutate(row)}>Duplicate</Button>{" "}<Button variant="destructive" size="sm" disabled={remove.isPending} onClick={() => { if (window.confirm(`Permanently delete banner "${row.title}"?`)) remove.mutate(row.id); }}>Delete</Button></td>
-        </tr>)}</tbody>
-      </table>
-      {!rows.length && <p className="p-4 text-muted-foreground">{isHero ? "No hero banners yet." : "No dynamic banners yet."}</p>}
-    </CardContent></Card>
+    </div>
   </div>;
 }
