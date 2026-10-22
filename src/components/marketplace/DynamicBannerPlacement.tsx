@@ -31,9 +31,14 @@ const background = (banner: Banner) => {
   return {};
 };
 
-const textStyle = (banner: Banner) => {
-  const c = banner.animation_config?.text_color;
-  return typeof c === "string" && /^#[\da-fA-F]{3,8}$/.test(c) ? { color: c } : undefined;
+const textColors = (banner: Banner) => {
+  const cfg = (banner.animation_config || {}) as Record<string, unknown>;
+  const pick = (key: string, fallback: unknown) => {
+    const c = cfg[key] ?? fallback;
+    return typeof c === "string" && /^#[\da-fA-F]{3,8}$/.test(c) ? c : undefined;
+  };
+  const legacy = cfg.text_color;
+  return { title: pick("title_color", legacy), subtitle: pick("subtitle_color", legacy) };
 };
 
 export default function DynamicBannerPlacement({ placement, compact = false }: { placement: Placement; compact?: boolean }) {

@@ -203,15 +203,15 @@ const HeroBanner = () => {
             {(slide.title || slide.cta) && (
               <div className="absolute inset-0 flex items-center">
                 <div className="container">
-                  <div style={typeof (slide.config as any)?.text_color === "string" && /^#[\da-fA-F]{3,8}$/.test((slide.config as any).text_color) ? { color: (slide.config as any).text_color } : undefined} className="max-w-[62%] md:max-w-md min-w-0 break-words [overflow-wrap:anywhere] text-primary-foreground">
-                    {slide.title && <h2 className="font-display text-base sm:text-2xl md:text-4xl leading-tight font-bold drop-shadow-md">{slide.title}</h2>}
-                    {slide.subtitle && <p className="mt-1.5 text-[11px] sm:text-sm md:text-base leading-snug drop-shadow">{slide.subtitle}</p>}
-                    {slide.cta && (
-                      <span className="inline-block mt-4 bg-primary text-primary-foreground px-5 py-2 rounded-md text-sm font-semibold">
-                        {slide.cta}
-                      </span>
-                    )}
-                  </div>
+              <div className="max-w-[62%] md:max-w-md min-w-0 break-words [overflow-wrap:anywhere] text-primary-foreground">
+                {slide.title && <h2 style={/^#[\da-fA-F]{3,8}$/.test(String((slide.config as any).title_color ?? (slide.config as any).text_color || "")) ? { color: String((slide.config as any).title_color ?? (slide.config as any).text_color) } : undefined} className="font-display text-base sm:text-2xl md:text-4xl leading-tight font-bold drop-shadow-md">{slide.title}</h2>}
+                {slide.subtitle && <p style={/^#[\da-fA-F]{3,8}$/.test(String((slide.config as any).subtitle_color ?? (slide.config as any).text_color || "")) ? { color: String((slide.config as any).subtitle_color ?? (slide.config as any).text_color) } : undefined} className="mt-1.5 text-[11px] sm:text-sm md:text-base leading-snug drop-shadow">{slide.subtitle}</p>}
+                {slide.cta && (
+                  <span className="inline-block mt-4 bg-primary text-primary-foreground px-5 py-2 rounded-md text-sm font-semibold">
+                    {slide.cta}
+                  </span>
+                )}
+              </div>
                 </div>
               </div>
             )}
