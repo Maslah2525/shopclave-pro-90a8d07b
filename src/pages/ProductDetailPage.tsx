@@ -51,6 +51,8 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { useCart } from "@/contexts/CartContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { useProductShippingQuote } from "@/hooks/useProductShippingQuote";
 import { useTranslation } from "@/contexts/TranslationContext";
 import { useLocale } from "@/hooks/useLocale";
 import { useProductRatings } from "@/hooks/useProductRatings";
@@ -301,6 +303,7 @@ const ProductDetailPage = () => {
   const { t } = useTranslation();
   const { formatPrice } = useLocale();
   const { addItem, items: cartItems } = useCart();
+  const { user } = useAuth();
   const { data: wishlistIds } = useWishlist();
   const toggleWishlist = useToggleWishlist();
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
@@ -385,22 +388,33 @@ const ProductDetailPage = () => {
   const discountPct = displayCompare && Number(displayCompare) > Number(displayPrice)
     ? Math.round(((Number(displayCompare) - Number(displayPrice)) / Number(displayCompare)) * 100)
     : null;
+  const shipQuote = useProductShippingQuote(user?.id, product?.id, selectedVariant?.id ?? null, qty, Number(product?.handling_time_days ?? 1));
   const deliveryOptions = useMemo(() => {
     const handlingDays = Number(product?.handling_time_days ?? 1);
     const opts = normalizeShippingOptions((product as any)?.shipping_options);
+    const statusText = shipQuote.status === "signed_out" ? "Sign in to see price"
+      : shipQuote.status === "no_address" ? "Add address to see price"
+      : shipQuote.status === "error" ? "Price unavailable" : null;
     return (Object.keys(SHIP_LABELS) as ShipKey[]).filter((k) => opts[k].enabled).map((k) => {
       const [lo, hi] = opts[k].days.split("-").map(Number);
-      return { service: SHIP_LABELS[k] as any, label: k === "pickup" ? "Local pickup" : `${SHIP_LABELS[k].replace(" Shipping", "")} delivery`,
-        price: k === "pickup" ? "Free" : "Live rate at checkout", lo, hi };
+      const rate = k === "express" ? shipQuote.options?.express : k === "standard" ? shipQuote.options?.standard : null;
+      const live = (k === "standard" || k === "express") && shipQuote.status === "ready";
+      const days = Number(rate?.estimated_days ?? 0);
+      const price = k === "pickup" ? "Free"
+        : shipQuote.status === "loading" ? "…"
+        : statusText ?? (live && rate ? formatPrice(Number(rate.amount_cad)) : live ? "Not available to this address" : "Price unavailable");
+      return { service: SHIP_LABELS[k] as any, label: k === "pickup" ? "Local pickup" : k === "express" ? "Express Delivery" : k === "standard" ? "Standard Shipping" : `${SHIP_LABELS[k].replace(" Shipping", "")} delivery`,
+        price, carrier: rate ? `${rate.provider} · ${rate.service}` : null,
+        lo: days > 0 ? days : lo, hi: days > 0 ? days : hi, handling: days > 0 ? 0 : handlingDays };
     }).map((option) => ({
       ...option,
       arrival: formatDeliveryWindow(estimateDeliveryWindow({
         from: new Date(),
         minDays: option.lo, maxDays: option.hi,
-        handlingDays,
+        handlingDays: option.handling,
       })),
     }));
-  }, [product?.handling_time_days, (product as any)?.shipping_options]);
+  }, [product?.handling_time_days, (product as any)?.shipping_options, shipQuote.status, shipQuote.options, formatPrice]);
 
   useEffect(() => {
     if (deliveryOptions.length && !deliveryOptions.some((o) => o.service === selectedDelivery)) setSelectedDelivery(deliveryOptions[0].service);
