@@ -75,9 +75,9 @@ export default function DynamicBannerPlacement({ placement, compact = false }: {
             {mobile && <source media="(max-width: 767px)" srcSet={mobile} />}
             <img src={media} alt={current.title || "Promotion"} loading="lazy" className="w-full h-full object-cover" />
           </picture>}
-          {(current.title || current.subtitle || current.cta_label) && <div className="relative z-10 w-full min-w-0 max-w-[72%] md:max-w-xl px-4 py-5 sm:p-6 md:p-10 text-white drop-shadow-lg break-words [overflow-wrap:anywhere]">
-            {current.title && <h2 className="text-base leading-tight sm:text-xl md:text-4xl md:leading-tight font-bold">{current.title}</h2>}
-            {current.subtitle && <p className="mt-2 text-xs leading-snug sm:text-sm md:text-lg md:leading-normal">{current.subtitle}</p>}
+          {(current.title || current.subtitle || current.cta_label) && <div className="relative z-10 min-w-0 w-[62%] max-w-[62%] md:w-auto md:max-w-xl px-4 py-4 sm:p-6 md:p-10 text-white drop-shadow-lg whitespace-normal break-words [overflow-wrap:anywhere]">
+            {current.title && <h2 className="text-sm leading-tight sm:text-xl md:text-4xl md:leading-tight font-bold whitespace-normal">{current.title}</h2>}
+            {current.subtitle && <p className="mt-1.5 text-[11px] leading-snug sm:text-sm md:text-lg md:leading-normal whitespace-normal">{current.subtitle}</p>}
             {current.cta_label && <span className="inline-block max-w-full mt-3 md:mt-4 bg-white text-gray-900 px-3 py-2 md:px-5 rounded-lg font-semibold text-xs sm:text-sm leading-snug drop-shadow-none whitespace-normal break-words">{current.cta_label}</span>}
           </div>}
         </div>
