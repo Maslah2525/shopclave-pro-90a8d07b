@@ -14,7 +14,7 @@ import { toast } from "sonner";
 const placements = ["featured_products_banner", "sponsored_products_banner", "category_promotion", "flash_sale_banner", "homepage_full_width", "homepage_secondary"] as const;
 const recommendedDimensions = (placement: string) => placement === "homepage_full_width" ? { desktop: { w: 1920, h: 600 }, mobile: { w: 750, h: 900 } } : { desktop: { w: 1600, h: 400 }, mobile: { w: 750, h: 500 } };
 const ratio = (w: number, h: number) => { const g = (a: number, b: number): number => b ? g(b, a % b) : a; const d = g(w, h); return `${w / d} : ${h / d}`; };
-const defaults = { placement: placements[0] as string, title: "", subtitle: "", cta_label: "Shop now", link_url: "/", image_url: "", desktop_image_url: "", mobile_image_url: "", banner_mode: "image", animation_type: "fade", transition_duration_ms: 700, rotation_interval_ms: 5000, background_color: "#1f2937", background_gradient: "", is_active: false, starts_at: "", ends_at: "", display_order: 0, target_device: "all" };
+const defaults = { placement: placements[0] as string, title: "", subtitle: "", cta_label: "Shop now", link_url: "/", image_url: "", desktop_image_url: "", mobile_image_url: "", banner_mode: "image", animation_type: "fade", transition_duration_ms: 700, rotation_interval_ms: 5000, background_color: "#1f2937", background_gradient: "", is_active: false, starts_at: "", ends_at: "", display_order: 0, target_device: "all", animation_config: { pause_on_hover: true, show_arrows: true, show_dots: true, enable_swipe: true } as Record<string, boolean> };
 type Form = typeof defaults;
 const dateInput = (date: string | null) => {
   if (!date) return "";
@@ -96,7 +96,9 @@ function CategoryLinkPicker({ onPick }: { onPick: (item: PickerItem) => void }) 
   return <CategoryPicker value={id} onChange={setId} showBreadcrumb={false} />;
 }
 
-export default function DynamicBannerAdmin() {
+export default function DynamicBannerAdmin({ variant = "dynamic" }: { variant?: "dynamic" | "hero" } = {}) {
+  const isHero = variant === "hero";
+  const table = isHero ? "hero_banners" : "promotions";
   const qc = useQueryClient();
   const [editing, setEditing] = useState<string | null>(null);
   const [form, setForm] = useState<Form>({ ...defaults });
@@ -109,9 +111,10 @@ export default function DynamicBannerAdmin() {
   const desktopInput = useRef<HTMLInputElement>(null);
   const mobileInput = useRef<HTMLInputElement>(null);
   const { data: rows = [] } = useQuery({
-    queryKey: ["admin-dynamic-banners"],
+    queryKey: ["admin-dynamic-banners", variant],
     queryFn: async () => {
-      const { data, error } = await (supabase.from("promotions") as any).select("*").in("placement", [...placements]).order("display_order");
+      const base = (supabase.from(table) as any).select("*");
+      const { data, error } = await (isHero ? base : base.in("placement", [...placements])).order("display_order");
       if (error) throw error;
       return data || [];
     },
@@ -120,12 +123,13 @@ export default function DynamicBannerAdmin() {
     qc.invalidateQueries({ queryKey: ["admin-dynamic-banners"] });
     qc.invalidateQueries({ queryKey: ["admin-promotions"] });
     qc.invalidateQueries({ queryKey: ["dynamic-banner-placement"] });
+    qc.invalidateQueries({ predicate: q => String(q.queryKey[0] ?? "").includes("hero") });
   };
   const update = (key: keyof Form, value: any) => setForm(prev => ({ ...prev, [key]: value }));
   const resetForm = () => { setEditing(null); setForm({ ...defaults }); setLinkType("custom"); setLinkTarget(""); setActiveStep(1); };
   const edit = (row: any) => {
     setEditing(row.id);
-    const next = { ...defaults, ...Object.fromEntries(Object.keys(defaults).map(key => [key, row[key] ?? (defaults as any)[key]])), starts_at: dateInput(row.starts_at), ends_at: dateInput(row.ends_at) } as Form;
+    const next = { ...defaults, animation_config: { ...defaults.animation_config, ...(row.animation_config || {}) }, ...Object.fromEntries(Object.keys(defaults).map(key => [key, row[key] ?? (defaults as any)[key]]).filter(([k]) => k !== "animation_config")), starts_at: dateInput(row.starts_at), ends_at: dateInput(row.ends_at) } as Form;
     setForm(next);
     setLinkType(linkTypeFromUrl(next.link_url || "/"));
     setLinkTarget("");
@@ -138,7 +142,7 @@ export default function DynamicBannerAdmin() {
     }
     setUploading(true);
     try {
-      const path = `banners/dynamic/${crypto.randomUUID()}.${file.name.split(".").pop()?.toLowerCase() || "webp"}`;
+      const path = `banners/${isHero ? "hero" : "dynamic"}/${crypto.randomUUID()}.${file.name.split(".").pop()?.toLowerCase() || "webp"}`;
       const { error } = await supabase.storage.from("marketing-assets").upload(path, file, { upsert: false, contentType: file.type });
       if (error) throw error;
       update(field, supabase.storage.from("marketing-assets").getPublicUrl(path).data.publicUrl);
@@ -154,8 +158,9 @@ export default function DynamicBannerAdmin() {
       if (form.starts_at && form.ends_at && new Date(form.ends_at) <= new Date(form.starts_at)) throw new Error("End date must be after start date.");
       if (form.banner_mode === "image" && !form.desktop_image_url) throw new Error("Upload a desktop image.");
       const { starts_at, ends_at, ...rest } = form;
-      const payload = { ...rest, kind: "brand", image_url: form.banner_mode === "dynamic" ? "/favicon.ico" : form.desktop_image_url, desktop_image_url: form.banner_mode === "dynamic" ? null : form.desktop_image_url || null, mobile_image_url: form.banner_mode === "dynamic" ? null : form.mobile_image_url || null, background_gradient: form.background_gradient?.trim() || null, starts_at: starts_at ? new Date(starts_at).toISOString() : null, ends_at: ends_at ? new Date(ends_at).toISOString() : null };
-      const query = editing ? (supabase.from("promotions") as any).update(payload).eq("id", editing) : (supabase.from("promotions") as any).insert(payload);
+      const heroPayload = { title: form.title.trim(), subtitle: form.subtitle || null, cta_label: form.cta_label || null, link_url: form.link_url, desktop_image_url: form.desktop_image_url, mobile_image_url: form.mobile_image_url || null, banner_mode: "image", animation_type: form.animation_type, transition_duration_ms: form.transition_duration_ms, rotation_interval_ms: form.rotation_interval_ms, background_color: form.background_color, background_gradient: form.background_gradient?.trim() || null, animation_config: form.animation_config, is_active: form.is_active, display_order: form.display_order, target_device: form.target_device, starts_at: starts_at ? new Date(starts_at).toISOString() : null, ends_at: ends_at ? new Date(ends_at).toISOString() : null };
+      const payload = isHero ? heroPayload : { ...rest, kind: "brand", image_url: form.banner_mode === "dynamic" ? "/favicon.ico" : form.desktop_image_url, desktop_image_url: form.banner_mode === "dynamic" ? null : form.desktop_image_url || null, mobile_image_url: form.banner_mode === "dynamic" ? null : form.mobile_image_url || null, background_gradient: form.background_gradient?.trim() || null, starts_at: starts_at ? new Date(starts_at).toISOString() : null, ends_at: ends_at ? new Date(ends_at).toISOString() : null };
+      const query = editing ? (supabase.from(table) as any).update(payload).eq("id", editing) : (supabase.from(table) as any).insert(payload);
       const { error } = await query;
       if (error) throw error;
     },
@@ -164,13 +169,13 @@ export default function DynamicBannerAdmin() {
   });
   const toggle = useMutation({
     mutationFn: async (row: any) => {
-      const { error } = await (supabase.from("promotions") as any).update({ is_active: !row.is_active }).eq("id", row.id);
+      const { error } = await (supabase.from(table) as any).update({ is_active: !row.is_active }).eq("id", row.id);
       if (error) throw error;
     }, onSuccess: refresh, onError: (e: Error) => toast.error(e.message),
   });
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await (supabase.from("promotions") as any).delete().eq("id", id);
+      const { error } = await (supabase.from(table) as any).delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => { refresh(); toast.success("Banner deleted"); },
@@ -179,7 +184,7 @@ export default function DynamicBannerAdmin() {
   const duplicate = useMutation({
     mutationFn: async (row: any) => {
       const { id, created_at, updated_at, ...rest } = row;
-      const { error } = await (supabase.from("promotions") as any).insert({
+      const { error } = await (supabase.from(table) as any).insert({
         ...rest, title: `${row.title} (Copy)`, is_active: false,
         starts_at: null, ends_at: null,
       });
@@ -197,9 +202,9 @@ export default function DynamicBannerAdmin() {
       const firstOrder = Number(row.display_order ?? 0);
       const secondOrder = Number(other.display_order ?? 0);
       const nextOrder = firstOrder === secondOrder ? position : secondOrder;
-      const { error: firstError } = await (supabase.from("promotions") as any).update({ display_order: nextOrder }).eq("id", row.id);
+      const { error: firstError } = await (supabase.from(table) as any).update({ display_order: nextOrder }).eq("id", row.id);
       if (firstError) throw firstError;
-      const { error: secondError } = await (supabase.from("promotions") as any).update({ display_order: firstOrder === secondOrder ? position + direction : firstOrder }).eq("id", other.id);
+      const { error: secondError } = await (supabase.from(table) as any).update({ display_order: firstOrder === secondOrder ? position + direction : firstOrder }).eq("id", other.id);
       if (secondError) throw secondError;
     },
     onSuccess: refresh,
@@ -218,7 +223,7 @@ export default function DynamicBannerAdmin() {
   };
   const pickLink = (item: PickerItem) => { update("link_url", item.url); setLinkTarget(item.label); };
   const goToStep = (n: number, id: string) => { setActiveStep(n); document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }); };
-  const dims = recommendedDimensions(form.placement);
+  const dims = isHero ? { desktop: { w: 1920, h: 600 }, mobile: { w: 750, h: 500 } } : recommendedDimensions(form.placement);
 
   const imageCard = (field: "desktop_image_url" | "mobile_image_url", label: string, dim: { w: number; h: number }, inputRef: React.RefObject<HTMLInputElement | null>) => (
     <div className="rounded-lg border p-4 space-y-3 min-w-0">
@@ -241,8 +246,8 @@ export default function DynamicBannerAdmin() {
 
   return <div className="space-y-5">
     <div className="flex justify-between items-center gap-3">
-      <p className="text-sm text-muted-foreground">Manage scheduled promotional banners in the new homepage placements.</p>
-      <Button onClick={() => { resetForm(); setShowForm(true); }}>Add dynamic banner</Button>
+      <p className="text-sm text-muted-foreground">{isHero ? "Manage the homepage hero carousel." : "Manage scheduled promotional banners in the new homepage placements."}</p>
+      <Button onClick={() => { resetForm(); setShowForm(true); }}>{isHero ? "Add New Banner" : "Add dynamic banner"}</Button>
     </div>
     {showForm && <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -264,7 +269,7 @@ export default function DynamicBannerAdmin() {
             <h4 className="font-semibold border-b pb-2">1. Banner Details</h4>
             <div className="grid sm:grid-cols-2 gap-4">
               <div className="space-y-2"><Label>Banner name / title</Label><Input value={form.title} onChange={e => update("title", e.target.value)} /></div>
-              <div className="space-y-2"><Label>Placement</Label><Select value={form.placement} onValueChange={v => update("placement", v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{placements.map(p => <SelectItem key={p} value={p}>{p.replace(/_/g, " ")}</SelectItem>)}</SelectContent></Select></div>
+              <div className="space-y-2"><Label>Placement</Label>{isHero ? <Input value="Homepage Hero Banner" disabled /> : <Select value={form.placement} onValueChange={v => update("placement", v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{placements.map(p => <SelectItem key={p} value={p}>{p.replace(/_/g, " ")}</SelectItem>)}</SelectContent></Select>}</div>
               <div className="space-y-2"><Label>Subtitle</Label><Input value={form.subtitle} onChange={e => update("subtitle", e.target.value)} /></div>
               <div className="space-y-2"><Label>CTA button label</Label><Input value={form.cta_label} onChange={e => update("cta_label", e.target.value)} /></div>
             </div>
@@ -272,7 +277,7 @@ export default function DynamicBannerAdmin() {
           </CardContent></Card>
           <Card id="db-step-images" className="scroll-mt-4"><CardContent className="p-5 space-y-4">
             <h4 className="font-semibold border-b pb-2">2. Images</h4>
-            <div className="space-y-2"><Label>Banner mode</Label><Select value={form.banner_mode} onValueChange={v => update("banner_mode", v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="image">Image banner</SelectItem><SelectItem value="dynamic">Text / colour composition</SelectItem></SelectContent></Select></div>
+            {!isHero && <div className="space-y-2"><Label>Banner mode</Label><Select value={form.banner_mode} onValueChange={v => update("banner_mode", v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="image">Image banner</SelectItem><SelectItem value="dynamic">Text / colour composition</SelectItem></SelectContent></Select></div>}
             {form.banner_mode === "image" && <div className="grid sm:grid-cols-2 gap-4">
               {imageCard("desktop_image_url", "Desktop Image", dims.desktop, desktopInput)}
               {imageCard("mobile_image_url", "Mobile Image", dims.mobile, mobileInput)}
@@ -309,9 +314,14 @@ export default function DynamicBannerAdmin() {
               <div className="space-y-2"><Label>Transition speed (ms)</Label><Input type="number" min={100} max={3000} value={form.transition_duration_ms} onChange={e => update("transition_duration_ms", Number(e.target.value))} /></div>
               <div className="space-y-2"><Label>Rotation time (ms)</Label><Input type="number" min={2000} max={30000} value={form.rotation_interval_ms} onChange={e => update("rotation_interval_ms", Number(e.target.value))} /></div>
             </div>
+            {isHero && <div className="grid sm:grid-cols-2 gap-2">
+              {([["pause_on_hover", "Pause on hover (desktop)"], ["show_arrows", "Show navigation arrows"], ["show_dots", "Show dots indicator"], ["enable_swipe", "Enable swipe (mobile)"]] as const).map(([k, l]) => <label key={k} className="flex items-center gap-2 text-sm">
+                <input type="checkbox" className="accent-primary h-4 w-4" checked={!!form.animation_config[k]} onChange={e => update("animation_config", { ...form.animation_config, [k]: e.target.checked })} />{l}</label>)}
+            </div>}
           </CardContent></Card>
           <Card id="db-step-scheduling" className="scroll-mt-4"><CardContent className="p-5 space-y-4">
             <h4 className="font-semibold border-b pb-2">5. Scheduling</h4>
+            {(form.starts_at || form.ends_at) && <p className="rounded-md bg-muted px-3 py-2 text-xs">Banner will be active from <b>{form.starts_at ? new Date(form.starts_at).toLocaleString() : "now"}</b> to <b>{form.ends_at ? new Date(form.ends_at).toLocaleString() : "no end date"}</b>.</p>}
             <div className="grid sm:grid-cols-2 gap-4">
               <div className="space-y-2"><Label>Start date &amp; time (optional)</Label><Input type="datetime-local" value={form.starts_at} onChange={e => update("starts_at", e.target.value)} /></div>
               <div className="space-y-2"><Label>End date &amp; time (optional)</Label><Input type="datetime-local" value={form.ends_at} onChange={e => update("ends_at", e.target.value)} /></div>
@@ -344,7 +354,7 @@ export default function DynamicBannerAdmin() {
         <tbody>{rows.map((row: any) => <tr key={row.id} className="border-b last:border-0">
           <td className="p-3">{row.banner_mode !== "dynamic" && (row.desktop_image_url || row.image_url) ? <img src={row.desktop_image_url || row.image_url} alt="" className="w-24 h-14 object-cover rounded" /> : <div className="w-24 h-14 rounded" style={{ backgroundColor: row.background_color || "#1f2937" }} />}</td>
           <td className="p-3 font-medium max-w-40 truncate">{row.title}</td>
-          <td className="p-3">{row.placement.replace(/_/g, " ")}</td>
+          <td className="p-3">{row.placement ? row.placement.replace(/_/g, " ") : "Homepage hero"}</td>
           <td className="p-3 capitalize">{row.target_device || "all"}</td>
           <td className="p-3 text-xs">{row.starts_at ? new Date(row.starts_at).toLocaleDateString() : "Any time"} – {row.ends_at ? new Date(row.ends_at).toLocaleDateString() : "No end"}</td>
           <td className="p-3"><span className="font-medium">{bannerStatus(row)}</span><div><Switch checked={row.is_active} onCheckedChange={() => toggle.mutate(row)} aria-label={`Toggle ${row.title}`} /></div></td>
@@ -352,7 +362,7 @@ export default function DynamicBannerAdmin() {
           <td className="p-3 whitespace-nowrap"><Button variant="outline" size="sm" onClick={() => edit(row)}>Edit</Button>{" "}<Button variant="outline" size="sm" disabled={duplicate.isPending} onClick={() => duplicate.mutate(row)}>Duplicate</Button>{" "}<Button variant="destructive" size="sm" disabled={remove.isPending} onClick={() => { if (window.confirm(`Permanently delete banner "${row.title}"?`)) remove.mutate(row.id); }}>Delete</Button></td>
         </tr>)}</tbody>
       </table>
-      {!rows.length && <p className="p-4 text-muted-foreground">No dynamic banners yet.</p>}
+      {!rows.length && <p className="p-4 text-muted-foreground">{isHero ? "No hero banners yet." : "No dynamic banners yet."}</p>}
     </CardContent></Card>
   </div>;
 }

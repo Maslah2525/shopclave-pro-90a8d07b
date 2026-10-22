@@ -1154,7 +1154,7 @@ const AdminMarketing = () => {
           <TabsTrigger value="promotions">Promotions</TabsTrigger>
           <TabsTrigger value="dynamic">Dynamic Banners</TabsTrigger>
         </TabsList>
-        <TabsContent value="banners" className="mt-4"><BannersTab /></TabsContent>
+        <TabsContent value="banners" className="mt-4"><DynamicBannerAdmin variant="hero" /></TabsContent>
         <TabsContent value="promotions" className="mt-4"><PromotionsTab /></TabsContent>
         <TabsContent value="dynamic" className="mt-4"><DynamicBannerAdmin /></TabsContent>
       </Tabs>
