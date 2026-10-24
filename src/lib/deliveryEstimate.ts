@@ -97,6 +97,17 @@ export function transitDaysForService(service: string): { minDays: number; maxDa
   return service === "Express Shipping" ? { minDays: 1, maxDays: 3 } : { minDays: 3, maxDays: 7 };
 }
 
+/** Quote ETA already includes handling; never substitute a generic tier estimate. */
+export function quotedDeliveryWindow(
+  rate: { estimated_days?: number | null } | null | undefined,
+  from: Date,
+  province?: string,
+): DeliveryWindow | null {
+  const days = Number(rate?.estimated_days);
+  if (!Number.isFinite(days) || days <= 0) return null;
+  return estimateDeliveryWindow({ from, minDays: days, maxDays: days, handlingDays: 0, province });
+}
+
 export function saveDeliveryPreference(vendorId: string, service: DeliveryService): void {
   if (typeof window === "undefined") return;
   try {
@@ -122,6 +133,7 @@ export function readDeliveryPreference(vendorId: string): DeliveryService | null
 
 export function formatDeliveryWindow(w: DeliveryWindow, locale = "en-CA"): string {
   const f = (d: Date) => d.toLocaleDateString(locale, { weekday: "short", month: "short", day: "numeric" });
+  if (iso(w.earliest) === iso(w.latest)) return f(w.earliest);
   return `${f(w.earliest)} – ${f(w.latest)}`;
 }
 
