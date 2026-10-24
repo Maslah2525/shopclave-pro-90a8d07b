@@ -16,7 +16,7 @@ import { Separator } from "@/components/ui/separator";
 import { useLocale } from "@/hooks/useLocale";
 import CheckoutLoader from "@/components/checkout/CheckoutLoader";
 import { validateStripeCheckoutUrl, logHandoff } from "@/lib/stripeHandoff";
-import { estimateDeliveryWindow, formatDeliveryWindow, deliveryItemsLabel, readDeliveryPreference } from "@/lib/deliveryEstimate";
+import { quotedDeliveryWindow, formatDeliveryWindow, deliveryItemsLabel, readDeliveryPreference } from "@/lib/deliveryEstimate";
 import { buildDeliveryOptions, pickAutoSelectedRate, tierLabelOf, STANDARD_LABEL, EXPRESS_LABEL } from "@/lib/shippingOptions";
 import { COUNTRIES, DEFAULT_COUNTRY, countryByCode, countryByName, searchCountries, addressFormat, validatePostal, isDomesticDestination } from "@/lib/countries";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -229,17 +229,8 @@ const CheckoutPage = () => {
   });
   // Arrival window from the carrier's own estimate (already includes seller handling).
   const etaFor = (rate: any) => {
-    const days = Number(rate?.estimated_days ?? 0);
-    if (!days || days <= 0) return "Carrier ETA unavailable";
-    return formatDeliveryWindow(
-      estimateDeliveryWindow({
-        from: new Date(),
-        minDays: days,
-        maxDays: days,
-        handlingDays: 0,
-        province: address.country === "Canada" ? address.state : undefined,
-      }),
-    );
+    const window = quotedDeliveryWindow(rate, new Date(), address.country === "Canada" ? address.state : undefined);
+    return window ? formatDeliveryWindow(window) : "unavailable";
   };
 
 
@@ -837,7 +828,6 @@ const CheckoutPage = () => {
                                 <Truck className="h-4 w-4 text-primary shrink-0" />
                                 <div className="flex-1 min-w-0">
                                   <p className="font-medium truncate">{label}</p>
-                                  <p className="text-[11px] text-muted-foreground truncate">{r.provider} · {r.service}</p>
                                   <p className="text-[11px] text-muted-foreground">Est. arrival {etaFor(r)}</p>
                                 </div>
 
@@ -866,7 +856,7 @@ const CheckoutPage = () => {
               {deliveryConfirmed && activeStep !== "delivery" && activeStep !== "review" && (
                 <div className="px-4 pb-4 text-sm text-muted-foreground">
                   <p>{deliveryItemsLabel(items.length)}</p>
-                  {Object.entries(selectedRates).map(([vid, rate]: [string, any]) => <p key={vid}>{tierLabelOf(rate, handlingByVendor[vid] ?? 1)} ({rate.provider} · {rate.service}): {formatPrice(rate.amount_cad)}</p>)}
+                  {Object.entries(selectedRates).map(([vid, rate]: [string, any]) => <p key={vid}>{tierLabelOf(rate, handlingByVendor[vid] ?? 1)}: {formatPrice(rate.amount_cad)}</p>)}
                 
                 </div>
               )}
@@ -940,7 +930,6 @@ const CheckoutPage = () => {
                                     <Truck className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
                                     <div className="min-w-0 flex-1">
                                       <p className="font-medium text-foreground">{tierLabelOf(rate, handlingByVendor[vendorId] ?? 1)}</p>
-                                      <p className="text-muted-foreground">{rate.provider} · {rate.service}</p>
                                       <p className="mt-0.5 text-muted-foreground">Estimated arrival {etaFor(rate)}</p>
                                     </div>
                                     <span className="shrink-0 font-medium text-foreground tabular-nums">{formatPrice(rate.amount_cad)}</span>

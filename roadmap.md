@@ -1,5 +1,10 @@
 # Seller onboarding roadmap
 
+## Delivery fee presentation
+- [x] Use each selected address-based quote's own arrival estimate without generic shipping fallbacks; hide logistics names on product and checkout fee displays.
+- [x] Run 23 focused tests and verify the public product display with no runtime errors; preview build OK, no order placed.
+- [ ] Verify real signed-in address-based quotes in the UI — requesting user has no matching auth account; requires signing in to the preview.
+
 ## Dynamic banner database preparation
 - [x] Apply 0036_extend_dynamic_banner_system: 9 hero columns, 12 promotion columns, verified vendor keys and 8 placements; original 15 promotion records and policies match their pre-change hashes.
 - [x] Run 30 isolated PostgreSQL tests for defaults, validation, permission-based writes and public schedules; live anonymous reads return 10 eligible promotions and all 10 associated assets download.
