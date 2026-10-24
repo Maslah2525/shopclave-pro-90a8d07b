@@ -2,12 +2,29 @@ import { describe, it, expect } from "vitest";
 import {
   addBusinessDays, isBusinessDay, estimateDeliveryWindow, transitDaysForService, deliveryItemsLabel,
   readDeliveryPreference, saveDeliveryPreference,
+  quotedDeliveryWindow,
 } from "@/lib/deliveryEstimate";
 
 const d = (s: string) => { const [y, m, dd] = s.split("-").map(Number); return new Date(y, m - 1, dd); };
 const iso = (x: Date) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`;
 
 describe("deliveryEstimate", () => {
+  it("uses each selected quote's own arrival days without adding handling twice", () => {
+    const standard = quotedDeliveryWindow({ estimated_days: 7 }, d("2026-10-26"), "ON");
+    const express = quotedDeliveryWindow({ estimated_days: 3 }, d("2026-10-26"), "ON");
+    expect(standard && iso(standard.earliest)).toBe("2026-11-04");
+    expect(express && iso(express.earliest)).toBe("2026-10-29");
+  });
+  it("does not replace a missing live arrival estimate with generic shipping dates", () => {
+    expect(quotedDeliveryWindow({ estimated_days: null }, d("2026-10-26"))).toBeNull();
+    expect(quotedDeliveryWindow({ estimated_days: NaN }, d("2026-10-26"))).toBeNull();
+    expect(quotedDeliveryWindow(null, d("2026-10-26"))).toBeNull();
+  });
+  it("preserves matching genuine estimates rather than inventing a faster Express arrival", () => {
+    expect(quotedDeliveryWindow({ estimated_days: 3 }, d("2026-10-26"))).toEqual(
+      quotedDeliveryWindow({ estimated_days: 3 }, d("2026-10-26")),
+    );
+  });
   it("skips weekends", () => {
     expect(iso(addBusinessDays(d("2026-09-25"), 1))).toBe("2026-09-28"); // Fri -> Mon
   });

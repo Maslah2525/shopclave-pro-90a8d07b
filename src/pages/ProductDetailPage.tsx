@@ -84,8 +84,8 @@ import { getProductDisplayStats } from "@/lib/productDisplayStats";
 import {
   estimateDeliveryWindow,
   formatDeliveryWindow,
+  quotedDeliveryWindow,
   saveDeliveryPreference,
-  transitDaysForService,
   type DeliveryService,
 } from "@/lib/deliveryEstimate";
 
@@ -399,22 +399,17 @@ const ProductDetailPage = () => {
       const [lo, hi] = opts[k].days.split("-").map(Number);
       const rate = k === "express" ? shipQuote.options?.express : k === "standard" ? shipQuote.options?.standard : null;
       const live = (k === "standard" || k === "express") && shipQuote.status === "ready";
-      const days = Number(rate?.estimated_days ?? 0);
+      const province = shipQuote.address?.country === "Canada" || shipQuote.address?.country === "CA" ? shipQuote.address.state ?? undefined : undefined;
+      const window = k === "pickup"
+        ? estimateDeliveryWindow({ from: new Date(), minDays: lo, maxDays: hi, handlingDays, province })
+        : quotedDeliveryWindow(rate, new Date(), province);
       const price = k === "pickup" ? "Free"
         : shipQuote.status === "loading" ? "…"
         : statusText ?? (live && rate ? formatPrice(Number(rate.amount_cad)) : live ? "Not available to this address" : "Price unavailable");
       return { service: SHIP_LABELS[k] as any, label: k === "pickup" ? "Local pickup" : k === "express" ? "Express Delivery" : k === "standard" ? "Standard Shipping" : `${SHIP_LABELS[k].replace(" Shipping", "")} delivery`,
-        price, carrier: rate ? `${rate.provider} · ${rate.service}` : null,
-        lo: days > 0 ? days : lo, hi: days > 0 ? days : hi, handling: days > 0 ? 0 : handlingDays };
-    }).map((option) => ({
-      ...option,
-      arrival: formatDeliveryWindow(estimateDeliveryWindow({
-        from: new Date(),
-        minDays: option.lo, maxDays: option.hi,
-        handlingDays: option.handling,
-      })),
-    }));
-  }, [product?.handling_time_days, (product as any)?.shipping_options, shipQuote.status, shipQuote.options, formatPrice]);
+        price, arrival: window ? formatDeliveryWindow(window) : null };
+    });
+  }, [product?.handling_time_days, (product as any)?.shipping_options, shipQuote.status, shipQuote.options, shipQuote.address, formatPrice]);
 
   useEffect(() => {
     if (deliveryOptions.length && !deliveryOptions.some((o) => o.service === selectedDelivery)) setSelectedDelivery(deliveryOptions[0].service);
@@ -724,8 +719,8 @@ const ProductDetailPage = () => {
                         <RadioGroupItem id={`delivery-${option.service}`} value={option.service} />
                         <div>
                           <p className="font-semibold">{option.label}</p>
-                          {option.carrier && <p className="text-xs text-muted-foreground">{option.carrier}</p>}
-                          <p className="text-xs font-medium text-success">Estimated delivery {option.arrival}</p>
+                          {option.arrival ? <p className="text-xs font-medium text-success">Estimated delivery {option.arrival}</p>
+                            : <p className="text-xs text-muted-foreground">Delivery estimate unavailable</p>}
                         </div>
                         <span className="font-bold">{option.price}</span>
                       </label>

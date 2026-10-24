@@ -10,7 +10,8 @@ export function useProductShippingQuote(userId: string | undefined, productId: s
     queryKey: ["user-address", userId],
     enabled: !!userId,
     queryFn: async () => {
-      const { data, error } = await supabase.from("addresses").select("*").eq("user_id", userId!).eq("is_default", true)
+      if (!userId) return null;
+      const { data, error } = await supabase.from("addresses").select("*").eq("user_id", userId).eq("is_default", true)
         .order("created_at", { ascending: false }).limit(1).maybeSingle();
       if (error) throw error;
       return data as SavedAddress | null;
@@ -19,15 +20,16 @@ export function useProductShippingQuote(userId: string | undefined, productId: s
   const a = addressQ.data;
   const complete = !!a && !!a.full_name && !!a.phone && !!a.address_line && !!a.city && !!a.country;
   const ratesQ = useQuery({
-    queryKey: ["product-shipping-quote", productId, variantId, qty, a?.address_line, a?.city, a?.postal_code, a?.country],
+    queryKey: ["product-shipping-quote", userId, productId, variantId, qty, handlingDays, a?.full_name, a?.phone, a?.address_line, a?.city, a?.state, a?.postal_code, a?.country],
     enabled: !!userId && !!productId && complete,
     staleTime: 10 * 60 * 1000,
     retry: false,
     queryFn: async (): Promise<DeliveryOptions> => {
+      if (!productId || !a || !complete) throw new Error("A product and complete delivery address are required");
       const { data, error } = await supabase.functions.invoke("get-shipping-rates", {
         body: {
           items: [{ product_id: productId, quantity: Math.max(1, qty), variant_id: variantId }],
-          shipping_address: { fullName: a!.full_name, phone: a!.phone, addressLine: a!.address_line, city: a!.city, state: a!.state ?? "", zip: a!.postal_code ?? "", country: a!.country },
+          shipping_address: { fullName: a.full_name, phone: a.phone, addressLine: a.address_line, city: a.city, state: a.state ?? "", zip: a.postal_code ?? "", country: a.country },
         },
       });
       if (error) throw error;

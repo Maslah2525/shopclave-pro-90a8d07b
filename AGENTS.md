@@ -14,6 +14,7 @@
 - Hosted payments opened from framed previews use a window created synchronously by the customer's click; delayed parent-frame navigation is blocked by browser sandboxing.
 - Product purchase controls share one guarded cart/Buy Now handler across desktop and mobile; this keeps variant and stock enforcement identical at every viewport.
 - Product-page delivery choices are stored only as per-seller checkout preferences; server-issued shipping quotes remain authoritative for price and availability.
+- Product and checkout arrival displays share the quote-based delivery-window helper; quote days already include handling, missing ETAs stay unavailable, and destination fields isolate the product quote cache to avoid stale address estimates.
 - Temporary marketplace social-proof fallbacks and rating breakdowns are deterministic presentation-only values that yield to real customer activity and never write fabricated history. The reviews panel shows only the review count and star distribution — no sample or customer review cards.
 - Product colour thumbnails and galleries resolve images across every variant sharing that colour, including legacy variant image fields, while purchase selection remains explicit.
 - New customer-facing raster uploads are normalized through the shared WebP optimizer; evidence documents and existing uploads remain byte-preserved.
