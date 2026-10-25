@@ -1,5 +1,10 @@
 # Seller onboarding roadmap
 
+## Homepage category browsing
+- [ ] List all main categories below the hero and link each image to its category.
+- [ ] Open category-specific New Arrivals with newest real items first, including nested subcategories.
+- [ ] Test category resolution and verify homepage clicks against the preview.
+
 ## Delivery fee presentation
 - [x] Use each selected address-based quote's own arrival estimate without generic shipping fallbacks; hide logistics names on product and checkout fee displays.
 - [x] Run 23 focused tests and verify the public product display with no runtime errors; preview build OK, no order placed.
