@@ -274,6 +274,7 @@ const CheckoutPage = () => {
         body: {
           province: address.state,
           country: address.country,
+          shipping_address: { addressLine: address.addressLine, city: address.city, state: address.state, zip: address.zip, country: address.country },
           items: items.map((it) => ({
             product_id: it.productId,
             quantity: it.quantity,
@@ -293,7 +294,7 @@ const CheckoutPage = () => {
       .finally(() => { if (!cancelled) setTaxLoading(false); });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeStep, deliveryConfirmed, address.state, address.country, quoteIdSignature, items.length]);
+  }, [activeStep, deliveryConfirmed, address.addressLine, address.city, address.state, address.zip, address.country, quoteIdSignature, items.length]);
 
   // Fetch live shipping rates when entering delivery step
   useEffect(() => {

@@ -5,6 +5,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { z } from "https://esm.sh/zod@3.25.76";
 import { calculateTax, type TaxCategory } from "../_shared/tax.ts";
 import { loadTaxConfig, taxErrorMessage } from "../_shared/taxConfig.ts";
+import { addressFingerprint, itemsFingerprint, validateQuotes } from "../_shared/shipping.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,6 +15,10 @@ const corsHeaders = {
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: corsHeaders });
 
 const Body = z.object({
+  shipping_address: z.object({
+    addressLine: z.string().min(1), city: z.string().min(1), state: z.string().min(2),
+    zip: z.string(), country: z.string().min(2),
+  }),
   province: z.string().min(2).max(100),
   country: z.string().min(2).max(100),
   items: z.array(z.object({
@@ -38,12 +43,17 @@ Deno.serve(async (req) => {
 
     const parsed = Body.safeParse(await req.json().catch(() => ({})));
     if (!parsed.success) return json({ error: "Invalid request" }, 400);
-    const { province, country, items, shipping_quote_ids } = parsed.data;
+    const { province, country, items, shipping_quote_ids, shipping_address } = parsed.data;
+    if (province.trim().toLowerCase() !== shipping_address.state.trim().toLowerCase() ||
+        country.trim().toLowerCase() !== shipping_address.country.trim().toLowerCase())
+      return json({ ok: false, error: "Delivery address does not match tax destination" }, 422);
+    if (new Set(shipping_quote_ids).size !== shipping_quote_ids.length)
+      return json({ ok: false, error: "Duplicate shipping selection" }, 422);
 
     const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
     const { data: products } = await admin.from("products")
-      .select("id, price, tax_category").in("id", items.map((i) => i.product_id));
+      .select("id, price, tax_category, vendor_id, is_physical").in("id", items.map((i) => i.product_id));
     const productMap = new Map((products || []).map((p) => [p.id, p]));
 
     const variantIds = items.filter((i) => i.variant_id).map((i) => i.variant_id!);
@@ -53,6 +63,7 @@ Deno.serve(async (req) => {
       for (const v of variants || []) variantMap.set(v.id, v);
     }
 
+    const requiredVendorIds = [...new Set(items.filter(i => productMap.get(i.product_id)?.is_physical !== false).map(i => productMap.get(i.product_id)?.vendor_id).filter(Boolean))] as string[];
     const lines = items.map((i) => {
       const p = productMap.get(i.product_id);
       if (!p) return null;
@@ -67,13 +78,23 @@ Deno.serve(async (req) => {
     if (lines.some((l) => l === null)) return json({ ok: false, error: "Product not found" }, 400);
 
     let shippingCents = 0;
-    if (shipping_quote_ids.length) {
-      const { data: quotes } = await admin.from("shipping_quotes")
-        .select("id, user_id, amount_cad").in("id", shipping_quote_ids);
-      for (const q of quotes || []) {
-        if (q.user_id !== user.id) return json({ ok: false, error: "Invalid shipping selection" }, 400);
-        shippingCents += Math.round(Number(q.amount_cad) * 100);
-      }
+    if (requiredVendorIds.length > 0 && shipping_quote_ids.length === 0)
+      return json({ ok: false, error: "Select shipping for every seller" }, 422);
+    if (shipping_quote_ids.length > 0) {
+      const { data: quotes, error: quoteError } = await admin.from("shipping_quotes")
+        .select("*").in("id", shipping_quote_ids);
+      if (quoteError || !quotes || quotes.length !== shipping_quote_ids.length)
+        return json({ ok: false, error: "Shipping quote missing or unavailable" }, 422);
+      const checked = validateQuotes(quotes, {
+        userId: user.id, requiredVendorIds,
+        addressFingerprint: addressFingerprint(shipping_address),
+        itemsFingerprint: itemsFingerprint(items),
+      });
+      if (!checked.ok || quotes.length !== requiredVendorIds.length)
+        return json({ ok: false, error: "Shipping selection is invalid or expired. Please reselect delivery." }, 422);
+      if (!Number.isFinite(checked.totalCad) || checked.totalCad < 0)
+        return json({ ok: false, error: "Invalid shipping amount" }, 422);
+      shippingCents = Math.round(checked.totalCad * 100);
     }
 
     const cfg = await loadTaxConfig(admin);

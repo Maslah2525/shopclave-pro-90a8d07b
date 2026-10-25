@@ -1,0 +1,26 @@
+name: Tax quote security
+on:
+  pull_request:
+    paths:
+      - 'supabase/functions/tax-quote/**'
+      - 'src/pages/CheckoutPage.tsx'
+      - 'src/test/taxQuoteSecurity.test.ts'
+      - '.github/workflows/tax-quote-security.yml'
+  workflow_dispatch:
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      # Keep this isolated security PR independent of the existing stale lockfile.
+      - run: npm install --no-package-lock --no-audit --no-fund
+      - run: npx vitest run src/test/taxQuoteSecurity.test.ts src/test/tax.test.ts src/test/checkoutReview.test.ts
+      - run: npx tsc --noEmit -p tsconfig.app.json
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - run: deno check supabase/functions/tax-quote/index.ts
