@@ -1,4 +1,5 @@
 # Architecture decisions
+- Homepage category and New Arrivals links share category routes; browsing resolves the route slug and paginates descendants at every depth so nested products are not silently excluded.
 - Dynamic banners extend the existing marketing tables additively with database validation and verified vendor foreign keys; existing RLS, permission functions, storage policies and legacy image fields remain authoritative so frontend rollout can happen separately.
 - Migration behavior tests run against disposable local PostgreSQL using vitest.database.config.ts, separate from browser-oriented tests, to verify RLS and constraints without production test records or account impersonation.
 - Customer account and checkout save contact details and the default address through one owner-scoped transactional RPC; postal codes persist and incomplete legacy addresses never skip validation.

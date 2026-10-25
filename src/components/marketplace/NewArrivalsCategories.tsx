@@ -10,6 +10,7 @@ import sportsImg from "@/assets/categories/sports.webp";
 import phonesTabletsImg from "@/assets/categories/phones-tablets.webp";
 import automotiveImg from "@/assets/categories/automotive.webp";
 import booksImg from "@/assets/categories/books.webp";
+import { categoryBrowsePath } from "@/lib/categoryBrowsing";
 
 const FALLBACK_IMAGES: Record<string, string> = {
   electronics: electronicsImg,
@@ -41,15 +42,17 @@ const FALLBACK_IMAGES: Record<string, string> = {
   "fabric-and-tailoring": fashionImg,
 };
 
-const NewArrivalsCategories = () => {
+const NewArrivalsCategories = ({ newArrivals = true }: { newArrivals?: boolean }) => {
   const { data: categories } = useQuery({
     queryKey: ["new-arrivals-categories"],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("categories")
         .select("id, name, slug, image_url")
         .is("parent_id", null)
-        .order("name");
+        .order("name")
+        .limit(2000);
+      if (error) throw error;
       return data || [];
     },
   });
@@ -57,15 +60,15 @@ const NewArrivalsCategories = () => {
   if (!categories?.length) return null;
 
   return (
-    <section className="container py-6">
+    <section className="container py-6" aria-label={newArrivals ? "New Arrivals" : "Shop by Category"}>
       <h2 className="font-display text-lg md:text-xl font-bold text-foreground mb-4">
-        New Arrivals
+        {newArrivals ? "New Arrivals" : "Shop by Category"}
       </h2>
       <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3">
         {categories.map((c: any) => (
           <Link
             key={c.id}
-            to={`/search?category=${c.slug}`}
+            to={categoryBrowsePath(c.slug, newArrivals)}
             className="group flex flex-col items-center gap-2 p-2 rounded-lg hover:bg-marketplace-orange-light transition-colors"
           >
             <div className="w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden bg-secondary border-2 border-border group-hover:border-primary transition-colors">

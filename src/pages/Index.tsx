@@ -7,7 +7,6 @@ import PromoStrip from "@/components/marketplace/PromoStrip";
 import NewArrivalsCategories from "@/components/marketplace/NewArrivalsCategories";
 import FlashSaleSection from "@/components/marketplace/FlashSaleSection";
 import BestDealsSection from "@/components/marketplace/BestDealsSection";
-import CategoryCard from "@/components/marketplace/CategoryCard";
 import ProductCard from "@/components/marketplace/ProductCard";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,15 +18,6 @@ import { useTranslation } from "@/contexts/TranslationContext";
 import barakazIcon from "@/assets/barakaz-icon.webp";
 import { useProductRatings } from "@/hooks/useProductRatings";
 import { readBarakaz } from "@/lib/barakazBridge";
-
-const DEFAULT_CATEGORIES = [
-  { name: "Electronics", slug: "electronics", image: "https://images.unsplash.com/photo-1498049794561-7780e7231661?w=200&q=80" },
-  { name: "Fashion", slug: "fashion", image: "https://images.unsplash.com/photo-1445205170230-053b83016050?w=200&q=80" },
-  { name: "Home & Garden", slug: "home-garden", image: "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=200&q=80" },
-  { name: "Health & Beauty", slug: "health-beauty", image: "https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=200&q=80" },
-  { name: "Sports", slug: "sports", image: "https://images.unsplash.com/photo-1461896836934-ber39834eb0b?w=200&q=80" },
-  { name: "Phones", slug: "phones-tablets", image: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=200&q=80" },
-];
 
 const DEMO_PRODUCTS = Array.from({ length: 8 }).map((_, i) => ({
   id: `demo-${i}`,
@@ -91,25 +81,6 @@ const Index = () => {
   const products = featuredData?.featured || [];
   const isFirstRunDemo = (featuredData?.anyActiveCount || 0) === 0;
 
-  const { data: categories } = useQuery({
-    queryKey: ["categories"],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("categories")
-        .select("*")
-        .is("parent_id", null)
-        .order("name");
-      if (data?.length) return data;
-      try { return await readBarakaz<any>("categories"); } catch { return data; }
-    },
-  });
-
-  const displayCategories = categories?.length ? categories.map((c: any) => ({
-    name: c.name,
-    slug: c.slug,
-    image: c.image_url || barakazIcon,
-  })) : DEFAULT_CATEGORIES;
-
   const { data: ratingsMap = {} } = useProductRatings(products.map((p: any) => p.id));
 
   const displayProducts = products.length
@@ -144,6 +115,7 @@ const Index = () => {
         canonicalPath="/"
       />
       <HeroBanner />
+      <NewArrivalsCategories newArrivals={false} />
       <DynamicBannerPlacement placement="homepage_full_width" />
       <NewArrivalsCategories />
       <DynamicBannerPlacement placement="category_promotion" />

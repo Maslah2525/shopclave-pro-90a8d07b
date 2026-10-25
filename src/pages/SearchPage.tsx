@@ -1,4 +1,4 @@
-import { useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import MarketplaceLayout from "@/components/layout/MarketplaceLayout";
 import SEO from "@/components/seo/SEO";
 import ProductCard from "@/components/marketplace/ProductCard";
@@ -10,13 +10,14 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Search, SlidersHorizontal, X } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslation } from "@/contexts/TranslationContext";
 import barakazIcon from "@/assets/barakaz-icon.webp";
 import { useProductRatings } from "@/hooks/useProductRatings";
 import { useLocale } from "@/hooks/useLocale";
+import { collectCategoryIds } from "@/lib/categoryBrowsing";
 
 type SortKey = "discount_desc" | "price_asc" | "price_desc" | "newest";
 
@@ -130,8 +131,10 @@ const FiltersPanel = ({
 
 const SearchPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { slug: routeCategorySlug } = useParams<{ slug: string }>();
   const initialQuery = searchParams.get("q") || "";
-  const categorySlug = searchParams.get("category") || "";
+  const categorySlug = searchParams.get("category") ?? routeCategorySlug ?? "";
+  const arrivalsMode = searchParams.get("arrivals") === "1";
   const dealsMode = searchParams.get("deals") === "1";
   const [query, setQuery] = useState(initialQuery);
   const { t } = useTranslation();
@@ -141,6 +144,13 @@ const SearchPage = () => {
   const [minDiscount, setMinDiscount] = useState(0);
   const [sort, setSort] = useState<SortKey>(dealsMode ? "discount_desc" : "newest");
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+
+  useEffect(() => {
+    setQuery(initialQuery);
+    setPriceRange(null);
+    setMinDiscount(0);
+    setSort(dealsMode && !arrivalsMode ? "discount_desc" : "newest");
+  }, [categorySlug, initialQuery, arrivalsMode, dealsMode]);
 
   // Top-level categories list for the filter panel
   const { data: topCategories = [] } = useQuery({
@@ -160,29 +170,26 @@ const SearchPage = () => {
     queryKey: ["category-resolve", categorySlug],
     enabled: !!categorySlug,
     queryFn: async () => {
-      const { data: cat } = await supabase
+      const { data: cat, error } = await supabase
         .from("categories")
         .select("id, name")
         .eq("slug", categorySlug)
         .maybeSingle();
+      if (error) throw error;
       if (!cat) return { ids: [] as string[], name: "" };
 
-      const { data: children } = await supabase
-        .from("categories")
-        .select("id")
-        .eq("parent_id", cat.id);
-      const childIds = (children || []).map((c: any) => c.id);
-
-      let grandIds: string[] = [];
-      if (childIds.length) {
-        const { data: grand } = await supabase
+      const ids = await collectCategoryIds(cat.id, async (parents, offset, limit) => {
+        const { data, error: childrenError } = await supabase
           .from("categories")
           .select("id")
-          .in("parent_id", childIds);
-        grandIds = (grand || []).map((g: any) => g.id);
-      }
+          .in("parent_id", parents)
+          .order("id")
+          .range(offset, offset + limit - 1);
+        if (childrenError) throw childrenError;
+        return data ?? [];
+      });
 
-      return { ids: [cat.id, ...childIds, ...grandIds], name: cat.name };
+      return { ids, name: cat.name };
     },
   });
 
@@ -289,13 +296,13 @@ const SearchPage = () => {
     : dealsMode
       ? "Today's Deals"
       : categoryInfo?.name
-        ? categoryInfo.name
+        ? `${categoryInfo.name}${arrivalsMode ? " — New Arrivals" : ""}`
         : t("search.allProducts");
 
   const handleCategoryChange = (slug: string) => {
     const next = new URLSearchParams(searchParams);
     if (slug) next.set("category", slug);
-    else next.delete("category");
+    else next.set("category", "");
     setSearchParams(next, { replace: true });
     setMobileFiltersOpen(false);
   };
@@ -395,7 +402,7 @@ const SearchPage = () => {
           </aside>
 
           <div>
-            {isLoading ? (
+            {isLoading || categoryLoading ? (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {Array.from({ length: 8 }).map((_, i) => (
                   <Skeleton key={i} className="aspect-[3/4] rounded-lg" />
