@@ -336,6 +336,19 @@ const VendorSettings = () => {
         return false;
       }
     }
+    const contactPhone = form.phone.trim();
+    if (!contactPhone || !/^\+[1-9]\d{6,14}$/.test(contactPhone.replace(/[\s().-]/g, ""))) {
+      toast.error("Enter a valid contact phone number with international country code (for example, +14165550123).");
+      setSection("profile");
+      return;
+    }
+    for (const [label, number] of [["Secondary phone", form.phone2], ["WhatsApp", form.whatsapp]] as const) {
+      if (number.trim() && !/^\+[1-9]\d{6,14}$/.test(number.replace(/[\s().-]/g, ""))) {
+        toast.error(`${label} must include a valid international country code.`);
+        setSection("profile");
+        return;
+      }
+    }
     setSaving(true);
     try {
       if (!user?.id) throw new Error("Your session has expired. Please sign in again.");
