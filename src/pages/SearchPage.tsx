@@ -202,6 +202,7 @@ const SearchPage = () => {
     queryFn: async () => {
       if (categorySlug && categoryIds.length === 0) return [];
 
+      const fetchProducts = async (ids?: string[]) => {
       let q = supabase
         .from("products")
         .select("*, vendors(store_name, status), product_images(url, position)")
@@ -213,16 +214,32 @@ const SearchPage = () => {
         q = q.ilike("name", `%${query.trim()}%`);
       }
 
-      if (categorySlug && categoryIds.length > 0) {
-        q = q.in("category_id", categoryIds);
-      }
+      if (ids) q = q.in("category_id", ids);
 
       if (dealsMode) {
         q = q.not("compare_at_price", "is", null);
       }
 
-      const { data } = await q;
-      let list = data || [];
+      const { data, error } = await q;
+      if (error) throw error;
+      return data ?? [];
+      };
+
+      // Keep URLs small even when a main category contains thousands of descendants.
+      let list: Awaited<ReturnType<typeof fetchProducts>> = [];
+      if (categorySlug) {
+        for (let start = 0; start < categoryIds.length; start += 500) {
+          const batches = [];
+          for (let offset = start; offset < Math.min(start + 500, categoryIds.length); offset += 100) {
+            batches.push(fetchProducts(categoryIds.slice(offset, offset + 100)));
+          }
+          list.push(...(await Promise.all(batches)).flat());
+        }
+        list.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        list = list.slice(0, dealsMode ? 96 : 48);
+      } else {
+        list = await fetchProducts();
+      }
 
       if (dealsMode) {
         list = list.filter(
