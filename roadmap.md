@@ -1,9 +1,9 @@
 # Seller onboarding roadmap
 
 ## Homepage category browsing
-- [ ] List all main categories below the hero and link each image to its category.
-- [ ] Open category-specific New Arrivals with newest real items first, including nested subcategories.
-- [ ] Test category resolution and verify homepage clicks against the preview.
+- [x] List all 15 main categories below the hero and link each image to its category.
+- [x] Open category-specific New Arrivals with newest real items first, including nested subcategories; batch filters to avoid oversized requests.
+- [x] Three focused tests passed; homepage clicks opened Fashion Clothing and its New Arrivals with 11 real products, newest selected and no runtime errors; preview build OK, nothing published.
 
 ## Delivery fee presentation
 - [x] Use each selected address-based quote's own arrival estimate without generic shipping fallbacks; hide logistics names on product and checkout fee displays.
