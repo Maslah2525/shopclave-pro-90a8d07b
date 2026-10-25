@@ -8,10 +8,10 @@ import appBadges from "@/assets/app-store-badges.webp";
 import { paymentMethods } from "@/lib/paymentMethods";
 
 const assuranceItems = [
-  { icon: LockKeyhole, title: "Secure checkout", detail: "Encrypted payment processing" },
-  { icon: RotateCcw, title: "7-day returns", detail: "On eligible purchases" },
-  { icon: Truck, title: "Tracked delivery", detail: "Updates on supported shipments" },
-  { icon: Headphones, title: "Customer support", detail: "Help when you need it" },
+  { icon: LockKeyhole, title: "Secure checkout", detail: "Encrypted payment processing", href: "/help" },
+  { icon: RotateCcw, title: "7-day returns", detail: "On eligible purchases", href: "/return-policy" },
+  { icon: Truck, title: "Tracked delivery", detail: "Updates on supported shipments", href: "/delivery" },
+  { icon: Headphones, title: "Customer support", detail: "Help when you need it", href: "/contact" },
 ];
 
 const Footer = () => {
@@ -48,14 +48,14 @@ const Footer = () => {
       {/* Marketplace assurance */}
       <div className="border-b border-primary-foreground/10 bg-[hsl(var(--nav-dark))] text-primary-foreground">
         <div className="container grid grid-cols-2 gap-px bg-primary-foreground/10 lg:grid-cols-4">
-          {assuranceItems.map(({ icon: Icon, title, detail }) => (
-            <div key={title} className="flex items-center gap-3 bg-[hsl(var(--nav-dark))] px-5 py-5">
+          {assuranceItems.map(({ icon: Icon, title, detail, href }) => (
+            <Link key={title} to={href} className="flex items-center gap-3 bg-[hsl(var(--nav-dark))] px-5 py-5 transition-colors hover:bg-primary-foreground/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary-foreground">
               <Icon className="h-6 w-6 shrink-0 text-[hsl(var(--marketplace-orange))]" aria-hidden="true" />
               <div>
                 <p className="text-sm font-semibold">{title}</p>
                 <p className="mt-0.5 text-xs text-primary-foreground/60">{detail}</p>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       </div>
