@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { categoryBrowsePath } from "@/lib/categoryBrowsing";
 import { supabase } from "@/integrations/supabase/client";
 import heroBanner1 from "@/assets/hero-banner-1.webp";
 import heroBanner2 from "@/assets/hero-banner-2.webp";
@@ -130,6 +131,42 @@ const CATEGORY_CARDS = [
   },
 ];
 
+// Resolve homepage tiles against real catalogue categories instead of assuming
+// every editorial tile label is also a valid category slug.
+const normalized = (value: string) => value.toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]/g, "");
+const categoryAliases: Record<string, string[]> = {
+  men: ["mens-fashion", "men-fashion", "mens-clothing", "men-clothing", "men"],
+  women: ["womens-fashion", "women-fashion", "womens-clothing", "women-clothing", "women"],
+  kids: ["kids-fashion", "kids-clothing", "children-clothing", "children-fashion", "kids"],
+  sneakers: ["shoes", "footwear", "sneakers"],
+  "smartphones-pt": ["smartphones", "mobile-phones", "phones"],
+  "tablets-pt": ["tablets", "tablet-computers"],
+  "home-decor": ["home-decor", "decor", "home-decoration"],
+  "kitchen-dining": ["kitchen-dining", "kitchen", "kitchen-and-dining"],
+  haircare: ["hair-care", "haircare"],
+  "fitness-equipment": ["fitness-equipment", "fitness-gear", "gym-equipment"],
+  "phone-accessories": ["phone-accessories", "mobile-accessories", "accessories"],
+  "smart-tvs": ["smart-tvs", "televisions", "tvs"],
+  "health-beauty": ["health-beauty", "health-and-beauty"],
+  "home-garden": ["home-garden", "home-and-garden"],
+  sports: ["sports", "sports-fitness", "sports-and-fitness"],
+  "phones-tablets": ["phones-tablets", "phones-and-tablets"],
+};
+const categoryDestination = (slug: string, name: string, categories: { slug: string; name: string }[]) => {
+  const aliases = categoryAliases[slug] || [slug];
+  const category = aliases.map(alias => categories.find(c => normalized(c.slug) === normalized(alias)))
+    .find(Boolean) || categories.find(c => normalized(c.name) === normalized(name));
+  // An editorial tile without a matching category should still lead to relevant
+  // search results, rather than a category route guaranteed to return zero items.
+  return category ? categoryBrowsePath(category.slug) : `/search?q=${encodeURIComponent(name)}`;
+};
+const tileDestination = (slug: string, name: string, categories: { slug: string; name: string }[]) => {
+  if (slug.startsWith("_vendor")) return "/vendor/register";
+  if (slug === "flash-sales" || slug === "clearance" || slug === "bundles") return "/search?deals=1";
+  if (slug === "new-arrivals") return "/search?arrivals=1";
+  return categoryDestination(slug, name, categories);
+};
+
 // Per-text colour: the banner's own colour key, falling back to the legacy shared text colour.
 const bannerText = (config: any, key: string): string | undefined => {
   const c = config?.[key] ?? config?.text_color;
@@ -138,6 +175,14 @@ const bannerText = (config: any, key: string): string | undefined => {
 
 const HeroBanner = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
+  const { data: catalogueCategories = [] } = useQuery({
+    queryKey: ["homepage-card-category-destinations"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("categories").select("slug,name").limit(2000);
+      if (error) throw error;
+      return data || [];
+    },
+  });
   const [paused, setPaused] = useState(false);
   const touchX = useRef<number | null>(null);
 
@@ -261,7 +306,7 @@ const HeroBanner = () => {
               <h3 className="font-display font-bold text-lg text-foreground mb-4">{card.title}</h3>
               <div className="grid grid-cols-2 gap-3 mb-4">
                 {card.items.map((item) => {
-                  const to = item.slug.startsWith("_vendor") ? "/vendor/register" : `/search?category=${item.slug}`;
+                  const to = tileDestination(item.slug, item.name, catalogueCategories);
                   return (
                     <Link key={item.slug + item.name} to={to} className="group">
                       <div className="aspect-square rounded-md overflow-hidden bg-secondary mb-1.5">
@@ -277,7 +322,7 @@ const HeroBanner = () => {
                   );
                 })}
               </div>
-              <Link to={card.seeAllLink} className="text-sm text-primary hover:underline font-medium">
+              <Link to={card.title === "Start Selling" ? "/vendor/register" : card.title === "Deals of the Day" ? "/search?deals=1" : categoryDestination(new URLSearchParams(card.seeAllLink.split("?")[1]).get("category") || "", card.title.replace(/^Top in /, ""), catalogueCategories)} className="text-sm text-primary hover:underline font-medium">
                 See all deals
               </Link>
             </div>
