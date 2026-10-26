@@ -156,9 +156,12 @@ const categoryDestination = (slug: string, name: string, categories: { slug: str
   const aliases = categoryAliases[slug] || [slug];
   const category = aliases.map(alias => categories.find(c => normalized(c.slug) === normalized(alias)))
     .find(Boolean) || categories.find(c => normalized(c.name) === normalized(name));
-  // An editorial tile without a matching category should still lead to relevant
-  // search results, rather than a category route guaranteed to return zero items.
-  return category ? categoryBrowsePath(category.slug) : `/search?q=${encodeURIComponent(name)}`;
+  // The category page handles real categories; missing editorial categories
+  // should use a broader keyword that actually appears in product titles.
+  const fallbackKeywords: Record<string, string> = {
+    men: "men", women: "women", kids: "kids", sneakers: "shoes",
+  };
+  return category ? categoryBrowsePath(category.slug) : `/search?q=${encodeURIComponent(fallbackKeywords[slug] || name)}`;
 };
 const tileDestination = (slug: string, name: string, categories: { slug: string; name: string }[]) => {
   if (slug.startsWith("_vendor")) return "/vendor/register";
