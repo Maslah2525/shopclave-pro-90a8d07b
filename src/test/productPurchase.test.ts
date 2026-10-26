@@ -98,7 +98,7 @@ describe("product page wiring", () => {
   it("offers both dated delivery choices and carries the preference to checkout", () => {
     const checkout = readFileSync("src/pages/CheckoutPage.tsx", "utf8");
     expect(src).toContain('normalizeShippingOptions');
-    expect(src).toContain("Delivery to your address");
+    expect(src).toContain("Delivery to {shipQuote.address?.city");
     expect(src).not.toContain("Delivery in Canada");
     expect(src).toContain("Estimated delivery {option.arrival}");
     expect(src).toContain("saveDeliveryPreference(product.vendor_id, selectedDelivery)");
