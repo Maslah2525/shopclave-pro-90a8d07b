@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Facebook, Headphones, Instagram, LockKeyhole, RotateCcw, ShieldCheck, Truck } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,20 @@ const assuranceItems = [
 
 const Footer = () => {
   const { t } = useTranslation();
+  const [newsletterEmail, setNewsletterEmail] = useState("");
+  const [newsletterError, setNewsletterError] = useState("");
+  const requestNewsletter = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const email = newsletterEmail.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setNewsletterError("Enter a valid email address.");
+      return;
+    }
+    setNewsletterError("");
+    const subject = encodeURIComponent("Barakaz newsletter subscription request");
+    const body = encodeURIComponent(`Please add ${email} to the Barakaz marketing newsletter. I consent to receiving promotional emails and understand I can unsubscribe at any time.`);
+    window.location.href = `mailto:support@barakaz.com?subject=${subject}&body=${body}`;
+  };
 
   return (
     <footer>
@@ -32,15 +47,14 @@ const Footer = () => {
           <p className="text-primary-foreground font-semibold text-sm md:text-base">
             {t("footer.newsletter")}
           </p>
-          <div className="flex gap-2 w-full max-w-md">
-            <Input
-              placeholder={t("footer.enterEmail")}
-              className="bg-white text-foreground border-none h-10"
-            />
-            <Button className="bg-[hsl(var(--nav-dark))] text-primary-foreground hover:bg-[hsl(var(--nav-dark))]/90 shrink-0 font-semibold">
-              {t("footer.subscribe")}
-            </Button>
-          </div>
+          <form onSubmit={requestNewsletter} className="w-full max-w-md" aria-label="Request newsletter subscription">
+            <div className="flex gap-2">
+              <Input type="email" required value={newsletterEmail} onChange={(event) => setNewsletterEmail(event.target.value)} placeholder={t("footer.enterEmail")} className="bg-white text-foreground border-none h-10" aria-label="Email address" />
+              <Button type="submit" className="bg-[hsl(var(--nav-dark))] text-primary-foreground hover:bg-[hsl(var(--nav-dark))]/90 shrink-0 font-semibold">Request subscription</Button>
+            </div>
+            <p className="mt-1 text-xs text-primary-foreground/90">Opens your email app to send a subscription request. You are not subscribed until confirmed.</p>
+            {newsletterError && <p role="alert" className="mt-1 text-xs text-primary-foreground">{newsletterError}</p>}
+          </form>
         </div>
       </div>
 
