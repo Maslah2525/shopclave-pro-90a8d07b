@@ -78,8 +78,8 @@ const Footer = () => {
               <h4 className="font-bold text-sm mb-4">Shop</h4>
               <ul className="space-y-2.5 text-sm text-primary-foreground/70">
                 <li><Link to="/search" className="hover:text-primary-foreground transition-colors">Browse all products</Link></li>
-                <li><Link to="/search?sort=newest" className="hover:text-primary-foreground transition-colors">New arrivals</Link></li>
-                <li><Link to="/search?deals=true" className="hover:text-primary-foreground transition-colors">Deals</Link></li>
+                <li><Link to="/search?arrivals=1" className="hover:text-primary-foreground transition-colors">New arrivals</Link></li>
+                <li><Link to="/search?deals=1" className="hover:text-primary-foreground transition-colors">Deals</Link></li>
                 <li><Link to="/wishlist" className="hover:text-primary-foreground transition-colors">Wishlist</Link></li>
                 <li><Link to="/cart" className="hover:text-primary-foreground transition-colors">Shopping cart</Link></li>
               </ul>

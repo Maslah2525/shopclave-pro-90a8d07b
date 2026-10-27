@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import StaticPage from "./StaticPage";
 import SEO from "@/components/seo/SEO";
 
@@ -42,7 +43,7 @@ const ContactPage = () => (
 
     <h2 className="text-lg font-semibold text-foreground mt-6">Get in Touch</h2>
     <ul className="list-none space-y-2">
-      <li><strong>Email:</strong> support@barakaz.com</li>
+      <li><strong>Email:</strong> <a href="mailto:support@barakaz.com" className="text-primary hover:underline">support@barakaz.com</a></li>
       <li><strong>Business Hours:</strong> Monday – Friday, 9:00 AM – 6:00 PM</li>
     </ul>
 
@@ -50,10 +51,10 @@ const ContactPage = () => (
     <p>Barakaz Marketplace<br />Canada</p>
 
     <h2 className="text-lg font-semibold text-foreground mt-6">For Vendors</h2>
-    <p>If you are a vendor and need assistance with your account, please contact us at <strong>vendors@barakaz.com</strong> or visit the Vendor Hub.</p>
+    <p>If you are a vendor and need assistance with your account, please contact us at <a href="mailto:vendors@barakaz.com" className="font-semibold text-primary hover:underline">vendors@barakaz.com</a> or visit the <Link to="/vendor/dashboard" className="text-primary hover:underline">Vendor Hub</Link>.</p>
 
     <h2 className="text-lg font-semibold text-foreground mt-6">Report an Issue</h2>
-    <p>To report a product listing, suspicious activity, or technical issue, please email <strong>report@barakaz.com</strong> with details of the issue.</p>
+    <p>To report a product listing, suspicious activity, or technical issue, please email <a href="mailto:report@barakaz.com" className="font-semibold text-primary hover:underline">report@barakaz.com</a> with details of the issue.</p>
   </StaticPage>
 );
 
