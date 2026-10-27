@@ -66,7 +66,7 @@ const CheckoutPage = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("card");
-  const [cardProvider, setCardProvider] = useState<"paystack" | "stripe">("stripe");
+  const cardProvider = "stripe" as const;
   const [activeStep, setActiveStep] = useState<Step>("address");
   const [addressConfirmed, setAddressConfirmed] = useState(false);
   const [deliveryConfirmed, setDeliveryConfirmed] = useState(false);
@@ -194,24 +194,6 @@ const CheckoutPage = () => {
     },
     enabled: vendorIds.length > 0,
   });
-
-  // Paystack payout readiness per vendor in the cart. Vendors without a connected
-  // subaccount are still sellable — their share is held by Barakaz and released
-  // through the normal withdrawal flow.
-  const { data: vendorPaystackStatuses } = useQuery({
-    queryKey: ["vendor-paystack-statuses", vendorIds],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("vendor_paystack_accounts")
-        .select("vendor_id, active")
-        .in("vendor_id", vendorIds);
-      return data || [];
-    },
-    enabled: vendorIds.length > 0,
-  });
-
-  // Seller payout readiness is internal; warnings belong in vendor/admin views only.
-  void vendorPaystackStatuses;
 
   // Seller handling days (max per vendor) for delivery-date estimates.
   const productIds = [...new Set(items.map((i) => i.productId))];
@@ -503,11 +485,11 @@ const CheckoutPage = () => {
         }
       }
 
-      // Card payments can use Paystack or Stripe. Both are server-authoritative hosted checkouts.
+      // Card payments use Stripe-hosted checkout.
       if (paymentMethod === "card") {
         setCheckoutStage("payment");
-        const isStripe = cardProvider === "stripe";
-        const functionName = isStripe ? "stripe-initialize" : "paystack-initialize";
+        const isStripe = true;
+        const functionName = "stripe-initialize";
         const { data: paymentData, error: paymentErr } = await supabase.functions.invoke(
           functionName,
           { body: { order_id: orderId } }
@@ -515,19 +497,10 @@ const CheckoutPage = () => {
         if (paymentErr) throw paymentErr;
         if (paymentData?.error) throw new Error(paymentData.error);
         const rawUrl: string | undefined = paymentData?.url;
-        const paystackUrl = (() => {
-          if (!rawUrl) return null;
-          try {
-            const parsed = new URL(rawUrl);
-            return parsed.protocol === "https:" && /(^|\.)paystack\.(com|co)$/.test(parsed.hostname) ? rawUrl : null;
-          } catch {
-            return null;
-          }
-        })();
-        const payUrl = isStripe ? validateStripeCheckoutUrl(rawUrl) : paystackUrl;
+        const payUrl = validateStripeCheckoutUrl(rawUrl);
         if (!payUrl) {
           if (isStripe) logHandoff("invalid_checkout_url", { framed: isFramed, orderRef: orderId });
-          throw new Error(`We couldn't open the secure ${isStripe ? "Stripe" : "Paystack"} payment page.`);
+          throw new Error("We couldn't open the secure Stripe payment page.");
         }
         if (isStripe && typeof paymentData.amount === "number" && Math.abs(paymentData.amount - grandTotal) > 0.01) {
           throw new Error(
