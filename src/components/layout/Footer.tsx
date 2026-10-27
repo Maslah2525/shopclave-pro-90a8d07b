@@ -4,7 +4,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/contexts/TranslationContext";
 import barakazLogo from "@/assets/barakaz-logo.webp";
-import appBadges from "@/assets/app-store-badges.webp";
 import { paymentMethods } from "@/lib/paymentMethods";
 
 const assuranceItems = [
@@ -145,16 +144,6 @@ const Footer = () => {
       {/* App badges + bottom bar */}
       <div className="bg-[hsl(var(--nav-dark))] border-t border-primary-foreground/10">
         <div className="container py-6 flex flex-col items-center gap-4">
-          <p className="text-sm text-primary-foreground/70 font-medium">{t("footer.getApp")}</p>
-          <div className="flex items-center gap-3">
-            <a
-              href="/downloads/barakaz.apk"
-              download="Barakaz.apk"
-              aria-label="Download Barakaz Android app (APK)"
-            >
-              <img src={appBadges} alt="Download Barakaz on App Store & Google Play" className="h-10 w-auto" />
-            </a>
-          </div>
           <div className="flex items-center gap-4 mt-2" aria-label="Barakaz social media">
             <a href="https://www.facebook.com/share/1E58qDYbDL/?mibextid=wwXIfr" target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="text-primary-foreground/60 hover:text-primary-foreground transition-colors"><Facebook className="h-5 w-5" /></a>
             <a href="https://www.tiktok.com/@barakazofficial" target="_blank" rel="noopener noreferrer" aria-label="TikTok" className="text-primary-foreground/60 hover:text-primary-foreground transition-colors">
